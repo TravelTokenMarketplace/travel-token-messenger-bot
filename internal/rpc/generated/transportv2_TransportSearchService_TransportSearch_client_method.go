@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	transportv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v2"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
+	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,5 +22,14 @@ func (s TransportSearchServiceV2Client) Call(ctx context.Context, requestIntf pr
 		return nil, TransportSearchServiceV2Response, fmt.Errorf("invalid request type")
 	}
 	response, err := s.client.TransportSearch(ctx, request, opts...)
+	if response == nil {
+		response = &transportv2.TransportSearchResponse{}
+	}
+	if response.Header == nil {
+		response.Header = &typesv1.ResponseHeader{}
+		if err == nil {
+			err = rpc.ErrNilResponseHeader
+		}
+	}
 	return response, TransportSearchServiceV2Response, err
 }

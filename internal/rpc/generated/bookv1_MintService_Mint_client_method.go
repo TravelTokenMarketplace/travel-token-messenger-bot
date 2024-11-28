@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	bookv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v1"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
+	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,5 +22,14 @@ func (s MintServiceV1Client) Call(ctx context.Context, requestIntf protoreflect.
 		return nil, MintServiceV1Response, fmt.Errorf("invalid request type")
 	}
 	response, err := s.client.Mint(ctx, request, opts...)
+	if response == nil {
+		response = &bookv1.MintResponse{}
+	}
+	if response.Header == nil {
+		response.Header = &typesv1.ResponseHeader{}
+		if err == nil {
+			err = rpc.ErrNilResponseHeader
+		}
+	}
 	return response, MintServiceV1Response, err
 }

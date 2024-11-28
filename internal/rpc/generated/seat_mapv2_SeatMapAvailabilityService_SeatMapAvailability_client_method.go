@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	seat_mapv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v2"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
+	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,5 +22,14 @@ func (s SeatMapAvailabilityServiceV2Client) Call(ctx context.Context, requestInt
 		return nil, SeatMapAvailabilityServiceV2Response, fmt.Errorf("invalid request type")
 	}
 	response, err := s.client.SeatMapAvailability(ctx, request, opts...)
+	if response == nil {
+		response = &seat_mapv2.SeatMapAvailabilityResponse{}
+	}
+	if response.Header == nil {
+		response.Header = &typesv1.ResponseHeader{}
+		if err == nil {
+			err = rpc.ErrNilResponseHeader
+		}
+	}
 	return response, SeatMapAvailabilityServiceV2Response, err
 }

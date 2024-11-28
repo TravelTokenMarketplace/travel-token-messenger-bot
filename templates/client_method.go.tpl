@@ -8,7 +8,9 @@ import (
 	"fmt"
 
 	{{TYPE_PACKAGE}} "{{PROTO_INC}}"
+	typesv{{COMMON_TYPES_VERSION}} "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v{{COMMON_TYPES_VERSION}}"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
+	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,5 +22,14 @@ func (s {{SERVICE}}V{{VERSION}}Client) Call(ctx context.Context, requestIntf pro
 		return nil, {{SERVICE}}V{{VERSION}}Response, fmt.Errorf("invalid request type")
 	}
 	response, err := s.client.{{METHOD}}(ctx, request, opts...)
+	if response == nil {
+		response = &{{TYPE_PACKAGE}}.{{RESPONSE}}{}
+	}
+	if response.Header == nil {
+		response.Header = &typesv{{COMMON_TYPES_VERSION}}.ResponseHeader{}
+		if err == nil {
+			err = rpc.ErrNilResponseHeader
+		}
+	}
 	return response, {{SERVICE}}V{{VERSION}}Response, err
 }
