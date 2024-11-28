@@ -15,9 +15,9 @@ var ErrUnknownMessageType = errors.New("unknown message type")
 type MessageCategory byte
 
 const (
-	Request MessageCategory = iota
+	Unknown MessageCategory = iota
+	Request
 	Response
-	Unknown
 )
 
 // Always has to be in the format <ServiceName>.<Request/Response>
@@ -46,11 +46,13 @@ func ServiceNameToRequestMessageType(serviceName string) MessageType {
 }
 
 // Message is the message format used for communication between the messenger and the service
+// TODO @evlekht why json tags? where is this shown? Its not passed into matrix message
 type Message struct {
-	Type     MessageType               `json:"msgtype"`
-	Content  protoreflect.ProtoMessage `json:"content"`
-	Metadata metadata.Metadata         `json:"metadata"`
-	Sender   id.UserID
+	Type              MessageType               `json:"msgtype"` // TODO @evlekht it might be possible to get rid of this field
+	Content           protoreflect.ProtoMessage `json:"content"`
+	Metadata          metadata.Metadata         `json:"metadata"`
+	Sender            id.UserID
+	CompressedContent [][]byte
 }
 
 func (m *Message) MarshalContent() ([]byte, error) {

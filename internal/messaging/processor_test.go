@@ -53,7 +53,7 @@ var (
 	}
 )
 
-func TestProcessInbound(t *testing.T) {
+func TestProcessIncomingMessage(t *testing.T) {
 	responseMessage := types.Message{
 		Type: generated.PingServiceV1Response,
 		Metadata: metadata.Metadata{
@@ -84,9 +84,9 @@ func TestProcessInbound(t *testing.T) {
 	tests := map[string]struct {
 		fields  fields
 		args    args
-		prepare func(*processor)
+		prepare func(*messageProcessor)
 		err     error
-		assert  func(*testing.T, *processor)
+		assert  func(*testing.T, *messageProcessor)
 	}{
 		"err: invalid message type": {
 			fields: fields{},
@@ -99,7 +99,7 @@ func TestProcessInbound(t *testing.T) {
 			fields: fields{
 				serviceRegistry: mockServiceRegistry,
 			},
-			prepare: func(*processor) {
+			prepare: func(*messageProcessor) {
 				mockServiceRegistry.EXPECT().GetService(gomock.Any()).Return(nil, false)
 			},
 			args: args{
@@ -113,13 +113,6 @@ func TestProcessInbound(t *testing.T) {
 			},
 			err: ErrUnsupportedService,
 		},
-		"ignore own outbound messages": {
-			fields: fields{},
-			args: args{
-				msg: &types.Message{Metadata: metadata.Metadata{}, Sender: userID},
-			},
-			err: nil, // no error, msg will be just ignored
-		},
 		"err: process request message failed": {
 			fields: fields{
 				serviceRegistry: mockServiceRegistry,
@@ -129,11 +122,11 @@ func TestProcessInbound(t *testing.T) {
 				compressor:      &noopCompressor{},
 				cmAccounts:      mockCMAccounts,
 			},
-			prepare: func(*processor) {
+			prepare: func(*messageProcessor) {
 				mockService.EXPECT().Name().Return("dummy")
 				mockService.EXPECT().Call(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, generated.PingServiceV1Response, nil)
 				mockServiceRegistry.EXPECT().GetService(gomock.Any()).Return(mockService, true)
-				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errSomeError)
+				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).Return(errSomeError)
 				mockChequeHandler.EXPECT().VerifyCheque(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockCMAccounts.EXPECT().GetServiceFee(gomock.Any(), gomock.Any(), gomock.Any()).Return(big.NewInt(1), nil)
 			},
@@ -157,11 +150,11 @@ func TestProcessInbound(t *testing.T) {
 				compressor:      &noopCompressor{},
 				cmAccounts:      mockCMAccounts,
 			},
-			prepare: func(*processor) {
+			prepare: func(*messageProcessor) {
 				mockService.EXPECT().Name().Return("dummy")
 				mockService.EXPECT().Call(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, generated.PingServiceV1Response, nil)
 				mockServiceRegistry.EXPECT().GetService(gomock.Any()).Return(mockService, true)
-				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockChequeHandler.EXPECT().VerifyCheque(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockCMAccounts.EXPECT().GetServiceFee(gomock.Any(), gomock.Any(), gomock.Any()).Return(big.NewInt(1), nil)
 			},
@@ -184,21 +177,23 @@ func TestProcessInbound(t *testing.T) {
 				compressor:      &noopCompressor{},
 				cmAccounts:      mockCMAccounts,
 			},
-			prepare: func(p *processor) {
+			prepare: func(p *messageProcessor) {
 				p.responseChannels[requestID] = make(chan *types.Message, 1)
 			},
 			args: args{
 				msg: &responseMessage,
 			},
-			assert: func(t *testing.T, p *processor) {
-				msgReceived := <-p.responseChannels[requestID]
+			assert: func(t *testing.T, p *messageProcessor) {
+				responseChan, ok := p.getResponseChannel(requestID)
+				require.True(t, ok)
+				msgReceived := <-responseChan
 				require.Equal(t, responseMessage, *msgReceived)
 			},
 		},
 	}
 	for tc, tt := range tests {
 		t.Run(tc, func(t *testing.T) {
-			p := NewProcessor(
+			p := NewMessageProcessor(
 				tt.fields.messenger,
 				zap.NewNop().Sugar(),
 				time.Duration(0),
@@ -213,19 +208,19 @@ func TestProcessInbound(t *testing.T) {
 				tt.fields.cmAccounts,
 			)
 			if tt.prepare != nil {
-				tt.prepare(p.(*processor))
+				tt.prepare(p.(*messageProcessor))
 			}
-			err := p.ProcessInbound(tt.args.msg)
+			err := p.ProcessIncomingMessage(tt.args.msg)
 			require.ErrorIs(t, err, tt.err)
 
 			if tt.assert != nil {
-				tt.assert(t, p.(*processor))
+				tt.assert(t, p.(*messageProcessor))
 			}
 		})
 	}
 }
 
-func TestProcessOutbound(t *testing.T) {
+func TestSendRequestMessage(t *testing.T) {
 	productListResponse := &types.Message{
 		Type:     generated.PingServiceV1Response,
 		Metadata: metadata.Metadata{RequestID: requestID},
@@ -255,7 +250,7 @@ func TestProcessOutbound(t *testing.T) {
 		want                   *types.Message
 		err                    error
 		prepare                func()
-		writeResponseToChannel func(*processor)
+		writeResponseToChannel func(*messageProcessor)
 	}{
 		"err: non-request outbound message": {
 			fields: fields{
@@ -302,11 +297,11 @@ func TestProcessOutbound(t *testing.T) {
 				},
 			},
 			prepare: func() {
-				mockCMAccounts.EXPECT().GetChequeOperators(gomock.Any(), gomock.Any()).Return([]common.Address{{}}, nil)
+				mockCMAccounts.EXPECT().GetFirstChequeOperator(gomock.Any(), gomock.Any()).Return(common.Address{}, nil)
 				mockCMAccounts.EXPECT().GetServiceFee(gomock.Any(), gomock.Any(), gomock.Any()).Return(big.NewInt(1), nil)
 				mockCMAccounts.EXPECT().IsBotAllowed(gomock.Any(), gomock.Any(), gomock.Any()).Return(true, nil)
 				mockChequeHandler.EXPECT().IssueCheque(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2).Return(&cheques.SignedCheque{}, nil)
-				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			},
 			err: ErrExceededResponseTimeout,
 		},
@@ -327,13 +322,12 @@ func TestProcessOutbound(t *testing.T) {
 				},
 			},
 			prepare: func() {
-				mockCMAccounts.EXPECT().GetChequeOperators(gomock.Any(), gomock.Any()).
-					Return([]common.Address{{}}, nil)
+				mockCMAccounts.EXPECT().GetFirstChequeOperator(gomock.Any(), gomock.Any()).Return(common.Address{}, nil)
 				mockCMAccounts.EXPECT().GetServiceFee(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(big.NewInt(1), nil)
 				mockCMAccounts.EXPECT().IsBotAllowed(gomock.Any(), gomock.Any(), gomock.Any()).Return(true, nil)
 				mockChequeHandler.EXPECT().IssueCheque(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2).Return(&cheques.SignedCheque{}, nil)
-				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(errSomeError)
 			},
 			err: errSomeError,
@@ -355,18 +349,17 @@ func TestProcessOutbound(t *testing.T) {
 				},
 			},
 			prepare: func() {
-				mockCMAccounts.EXPECT().GetChequeOperators(gomock.Any(), gomock.Any()).Return([]common.Address{{}}, nil)
+				mockCMAccounts.EXPECT().GetFirstChequeOperator(gomock.Any(), gomock.Any()).Return(common.Address{}, nil)
 				mockCMAccounts.EXPECT().GetServiceFee(gomock.Any(), gomock.Any(), gomock.Any()).Return(big.NewInt(1), nil)
 				mockCMAccounts.EXPECT().IsBotAllowed(gomock.Any(), gomock.Any(), gomock.Any()).Return(true, nil)
-				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockChequeHandler.EXPECT().IssueCheque(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2).Return(&cheques.SignedCheque{}, nil)
 			},
-			writeResponseToChannel: func(p *processor) {
+			writeResponseToChannel: func(p *messageProcessor) {
 				done := func() bool {
-					p.mu.Lock()
-					defer p.mu.Unlock()
-					if _, ok := p.responseChannels[requestID]; ok {
-						p.responseChannels[requestID] <- productListResponse
+					responseChan, ok := p.getResponseChannel(requestID)
+					if ok {
+						responseChan <- productListResponse
 						return true
 					}
 					return false
@@ -384,7 +377,7 @@ func TestProcessOutbound(t *testing.T) {
 
 	for tc, tt := range tests {
 		t.Run(tc, func(t *testing.T) {
-			p := NewProcessor(
+			p := NewMessageProcessor(
 				tt.fields.messenger,
 				zap.NewNop().Sugar(),
 				tt.fields.responseTimeout,
@@ -402,9 +395,9 @@ func TestProcessOutbound(t *testing.T) {
 				tt.prepare()
 			}
 			if tt.writeResponseToChannel != nil {
-				go tt.writeResponseToChannel(p.(*processor))
+				go tt.writeResponseToChannel(p.(*messageProcessor))
 			}
-			got, err := p.ProcessOutbound(context.Background(), tt.args.msg)
+			got, err := p.SendRequestMessage(context.Background(), tt.args.msg)
 
 			require.ErrorIs(t, err, tt.err)
 			require.Equal(t, tt.want, got)
@@ -428,7 +421,7 @@ func TestStart(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 
 	mockMessenger := NewMockMessenger(mockCtrl)
-	mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2).Return(nil)
+	mockMessenger.EXPECT().SendAsync(gomock.Any(), gomock.Any(), gomock.Any()).Times(2).Return(nil)
 
 	mockServiceRegistry := NewMockServiceRegistry(mockCtrl)
 	mockServiceRegistry.EXPECT().GetService(gomock.Any()).AnyTimes().Return(dummyService{}, true)
@@ -464,7 +457,7 @@ func TestStart(t *testing.T) {
 		mockMessenger.EXPECT().Inbound().AnyTimes().Return(ch)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		p := NewProcessor(
+		p := NewMessageProcessor(
 			mockMessenger,
 			zap.NewNop().Sugar(),
 			time.Duration(0),

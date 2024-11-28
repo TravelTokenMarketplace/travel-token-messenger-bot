@@ -55,9 +55,9 @@ func (m *MockService) BuyBookingToken(arg0 context.Context, arg1 *bind.TransactO
 }
 
 // BuyBookingToken indicates an expected call of BuyBookingToken.
-func (mr *MockServiceMockRecorder) BuyBookingToken(arg0, arg1, arg2, args3 any) *gomock.Call {
+func (mr *MockServiceMockRecorder) BuyBookingToken(arg0, arg1, arg2, arg3 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuyBookingToken", reflect.TypeOf((*MockService)(nil).BuyBookingToken), arg0, arg1, arg2, args3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuyBookingToken", reflect.TypeOf((*MockService)(nil).BuyBookingToken), arg0, arg1, arg2, arg3)
 }
 
 // CashInCheque mocks base method.
@@ -75,19 +75,19 @@ func (mr *MockServiceMockRecorder) CashInCheque(arg0, arg1, arg2 any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CashInCheque", reflect.TypeOf((*MockService)(nil).CashInCheque), arg0, arg1, arg2)
 }
 
-// GetChequeOperators mocks base method.
-func (m *MockService) GetChequeOperators(arg0 context.Context, arg1 common.Address) ([]common.Address, error) {
+// GetFirstChequeOperator mocks base method.
+func (m *MockService) GetFirstChequeOperator(arg0 context.Context, arg1 common.Address) (common.Address, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetChequeOperators", arg0, arg1)
-	ret0, _ := ret[0].([]common.Address)
+	ret := m.ctrl.Call(m, "GetFirstChequeOperator", arg0, arg1)
+	ret0, _ := ret[0].(common.Address)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetChequeOperators indicates an expected call of GetChequeOperators.
-func (mr *MockServiceMockRecorder) GetChequeOperators(arg0, arg1 any) *gomock.Call {
+// GetFirstChequeOperator indicates an expected call of GetFirstChequeOperator.
+func (mr *MockServiceMockRecorder) GetFirstChequeOperator(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChequeOperators", reflect.TypeOf((*MockService)(nil).GetChequeOperators), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFirstChequeOperator", reflect.TypeOf((*MockService)(nil).GetFirstChequeOperator), arg0, arg1)
 }
 
 // GetLastCashIn mocks base method.

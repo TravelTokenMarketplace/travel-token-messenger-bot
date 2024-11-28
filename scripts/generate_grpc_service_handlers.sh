@@ -13,7 +13,7 @@ UNMARSHALLING_FILE="${GEN_OUTPATH}/unmarshal.go"
 
 DEFAULT_BLACKLIST="notification" # we don't want to generate handlers for notifications - if we ever need more filters here the impl. need to change!
 
-SCRIPT=$0
+SCRIPT=$(realpath --relative-to="${PWD}" "$0")
 FILTER=$1 #optional filter for files -- used for testing
 
 function generate_with_templates() {
@@ -106,9 +106,9 @@ function generate_register_services_server() {
 	echo "    \"google.golang.org/grpc\"" >> $OUTFILE
 	echo ")" >> $OUTFILE
 	echo >> $OUTFILE
-	echo "func RegisterServerServices(grpcServer *grpc.Server, reqProcessor rpc.ExternalRequestProcessor) {" >> $OUTFILE
+	echo "func RegisterServerServices(grpcServer *grpc.Server, reqHandler rpc.RequestHandler) {" >> $OUTFILE
 	for service in "${_SERVICES[@]}" ; do
-		echo "    register${service}Server(grpcServer, reqProcessor)" >> $OUTFILE
+		echo "    register${service}Server(grpcServer, reqHandler)" >> $OUTFILE
 	done
 	echo "}" >> $OUTFILE
 }
@@ -293,8 +293,7 @@ while read file ; do
 	# "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v2"
 	# "buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v2/activityv2grpc"
 	# We already have the base URL in BUF_SDK_URL_GO - now we only need the suffixes for the protocolbuffers and grpc
-	# And store them into the INCLUDES array
-	declare -a INCLUDES=()
+	# And store them into the PROTO_INCLUDES_FOR_UNMARSHALLING array
 	# First the protocolbuffers
 	SUFFIX=$(echo ${FQPN%.*} | tr "." "/")
 	PROTO_INCLUDE="${BUF_SDK_BASE}/protocolbuffers/go/${SUFFIX}"

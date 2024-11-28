@@ -16,7 +16,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
-	"github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/pkg/booking"
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/pkg/cm_accounts"
 	"github.com/chain4travel/camino-messenger-bot/pkg/erc20"
@@ -41,8 +40,17 @@ var (
 )
 
 type ResponseHandler interface {
-	HandleResponse(ctx context.Context, msgType types.MessageType, request protoreflect.ProtoMessage, response protoreflect.ProtoMessage)
-	HandleRequest(ctx context.Context, msgType types.MessageType, request protoreflect.ProtoMessage) error
+	// Processes incoming response
+	ProcessResponseMessage(ctx context.Context, responseMsg *types.Message)
+
+	// Prepares response by performing any necessary modifications to it
+	// It expects the request and response to be of the same service.
+	PrepareResponseMessage(ctx context.Context, requestMsg *types.Message, responseMsg *types.Message)
+
+	// Prepares request by performing any necessary modifications to it
+	PrepareRequest(request protoreflect.ProtoMessage) error
+
+	// Adds an error message to the response header
 	AddErrorToResponseHeader(response protoreflect.ProtoMessage, errMessage string)
 }
 
@@ -98,41 +106,41 @@ type evmResponseHandler struct {
 	erc20               erc20.Service
 }
 
-func (h *evmResponseHandler) HandleResponse(ctx context.Context, msgType types.MessageType, request protoreflect.ProtoMessage, response protoreflect.ProtoMessage) {
-	switch msgType {
-	case generated.MintServiceV1Request: // distributor will post-process a mint request to buy the returned NFT
-		if h.handleMintRequestV1(ctx, response) {
-			return // TODO @evlekht we don't need this if true/false then do nothing
-		}
-	case generated.MintServiceV1Response: // supplier will act upon receiving a mint response by minting an NFT
-		if h.handleMintResponseV1(ctx, response, request) {
-			return // TODO @evlekht we don't need this if true/false then do nothing
-		}
-	case generated.MintServiceV2Request: // distributor will post-process a mint request to buy the returned NFT
-		if h.handleMintRequestV2(ctx, response) {
-			return // TODO @evlekht we don't need this if true/false then do nothing
-		}
-	case generated.MintServiceV2Response: // supplier will act upon receiving a mint response by minting an NFT
-		if h.handleMintResponseV2(ctx, response, request) {
-			return // TODO @evlekht we don't need this if true/false then do nothing
-		}
+// Processes incoming response
+func (h *evmResponseHandler) ProcessResponseMessage(
+	ctx context.Context,
+	responseMsg *types.Message,
+) {
+	switch response := responseMsg.Content.(type) {
+	case *bookv1.MintResponse: // distributor will post-process a mint request to buy the returned NFT
+		h.processMintResponseV1(ctx, response)
+	case *bookv2.MintResponse: // distributor will post-process a mint request to buy the returned NFT
+		h.processMintResponseV2(ctx, response)
 	}
 }
 
-func (h *evmResponseHandler) HandleRequest(_ context.Context, msgType types.MessageType, request protoreflect.ProtoMessage) error {
-	switch msgType {
-	case generated.MintServiceV2Request:
-		mintReq, ok := request.(*bookv2.MintRequest)
-		if !ok {
-			return nil
-		}
-		mintReq.BuyerAddress = h.cmAccountAddress.Hex()
-	case generated.MintServiceV1Request:
-		mintReq, ok := request.(*bookv1.MintRequest)
-		if !ok {
-			return nil
-		}
-		mintReq.BuyerAddress = h.cmAccountAddress.Hex()
+// Prepares response by performing any necessary modifications to it.
+// It expects the request and response to be of the same service.
+func (h *evmResponseHandler) PrepareResponseMessage(
+	ctx context.Context,
+	requestMsg *types.Message,
+	responseMsg *types.Message,
+) {
+	switch response := responseMsg.Content.(type) {
+	case *bookv1.MintResponse: // supplier will act upon receiving a mint response by minting an NFT
+		h.prepareMintResponseV1(ctx, response, requestMsg.Content.(*bookv1.MintRequest))
+	case *bookv2.MintResponse: // supplier will act upon receiving a mint response by minting an NFT
+		h.prepareMintResponseV2(ctx, response, requestMsg.Content.(*bookv2.MintRequest))
+	}
+}
+
+// Prepares request by performing any necessary modifications to it
+func (h *evmResponseHandler) PrepareRequest(request protoreflect.ProtoMessage) error {
+	switch request := request.(type) {
+	case *bookv1.MintRequest:
+		request.BuyerAddress = h.cmAccountAddress.Hex()
+	case *bookv2.MintRequest:
+		request.BuyerAddress = h.cmAccountAddress.Hex()
 	}
 	return nil
 }
