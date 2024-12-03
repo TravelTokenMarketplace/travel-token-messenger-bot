@@ -8,21 +8,15 @@ import (
 
 	"github.com/chain4travel/camino-messenger-bot/config"
 	"github.com/chain4travel/camino-messenger-bot/internal/app"
+	"github.com/chain4travel/camino-messenger-bot/internal/version"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-)
-
-var (
-	// these variables are set by go build -ldflags
-	// TODO: @VjeraTurk make this work when multiple bots are ran with launch.json
-	Version   string
-	GitCommit string
 )
 
 var rootCmd = &cobra.Command{
 	Use:        "camino-messenger-bot",
 	Short:      "starts camino messenger bot",
-	Version:    Version,
+	Version:    version.AppVersion,
 	SuggestFor: []string{"camino-messenger", "camino-messenger-bot", "camino-bot", "cmb"},
 	RunE:       rootFunc,
 }
@@ -64,7 +58,11 @@ func rootFunc(cmd *cobra.Command, _ []string) error {
 	logger := zapLogger.Sugar()
 	defer func() { _ = logger.Sync() }()
 
-	logger.Infof("App version: %s (git: %s)", Version, GitCommit)
+	logger.Infof("App version: %s (git: %s)", version.AppVersion, version.AppGitCommit)
+	logger.Infof("Protocol version: %s", version.ProtocolVersion)
+	logger.Infof("buf.build protocolbuffers version: %s", version.BufBuildPBCommit)
+	logger.Infof("buf.build grpc version: %s", version.BufBuildGRPCCommit)
+	logger.Infof("camino-messenger-contracts version: %s", version.ContractsGitCommit)
 
 	app, err := app.NewApp(ctx, cfg, logger)
 	if err != nil {
