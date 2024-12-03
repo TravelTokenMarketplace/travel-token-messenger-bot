@@ -16,9 +16,9 @@ const jobsTableName = "jobs"
 var _ scheduler.Storage = (*storage)(nil)
 
 type job struct {
-	Name      string `db:"name"`
-	ExecuteAt int64  `db:"execute_at"`
-	Period    int64  `db:"period"`
+	Name           string `db:"name"`
+	LastExecutedAt int64  `db:"last_executed_at"`
+	Period         int64  `db:"period"`
 }
 
 func (s *storage) GetJobByName(ctx context.Context, session scheduler.Session, jobName string) (*scheduler.Job, error) {
@@ -103,15 +103,17 @@ func (s *storage) prepareJobsStmts(ctx context.Context) error {
 	upsertJob, err := s.base.DB.PrepareNamedContext(ctx, fmt.Sprintf(`
 		INSERT INTO %s (
 			name,
-			execute_at,
+			last_executed_at,
 			period
 		) VALUES (
 			:name,
-			:execute_at,
+			:last_executed_at,
 			:period
 		)
 		ON CONFLICT(name)
-		DO UPDATE SET period = excluded.period
+		DO UPDATE SET
+			period = excluded.period,
+			last_executed_at = excluded.last_executed_at
 	`, jobsTableName))
 	if err != nil {
 		s.base.Logger.Error(err)
@@ -133,16 +135,16 @@ func (s *storage) prepareJobsStmts(ctx context.Context) error {
 
 func modelFromJob(job *job) *scheduler.Job {
 	return &scheduler.Job{
-		Name:      job.Name,
-		ExecuteAt: time.Unix(job.ExecuteAt, 0),
-		Period:    time.Duration(job.Period) * time.Second,
+		Name:           job.Name,
+		LastExecutedAt: time.Unix(job.LastExecutedAt, 0),
+		Period:         time.Duration(job.Period) * time.Second,
 	}
 }
 
 func jobFromModel(model *scheduler.Job) *job {
 	return &job{
-		Name:      model.Name,
-		ExecuteAt: model.ExecuteAt.Unix(),
-		Period:    int64(model.Period / time.Second),
+		Name:           model.Name,
+		LastExecutedAt: model.LastExecutedAt.Unix(),
+		Period:         int64(model.Period / time.Second),
 	}
 }
