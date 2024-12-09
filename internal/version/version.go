@@ -1,8 +1,9 @@
 package version
 
-import "runtime/debug"
-
-const ProtocolVersion = "v10.0.0"
+import (
+	"fmt"
+	"runtime/debug"
+)
 
 var (
 	// AppVersion is set by go build -ldflags
@@ -11,9 +12,23 @@ var (
 	// AppGitCommit is set by go build -ldflags
 	AppGitCommit = "Unspecified"
 
-	BufBuildPBCommit   = "Unspecified"
+	// BufBuildPBCMPRelease is set by go build -ldflags
+	BufBuildPBCMPRelease = "Unspecified"
+
+	// BufBuildGRPCCMPRelease is set by go build -ldflags
+	BufBuildGRPCCMPRelease = "Unspecified"
+
+	// BufBuildPBCommit set during init from pkg dependency version
+	BufBuildPBCommit = "Unspecified"
+
+	// BufBuildGRPCCommit set during init from pkg dependency version
 	BufBuildGRPCCommit = "Unspecified"
+
+	// ContractsGitCommit set during init from pkg dependency version
 	ContractsGitCommit = "Unspecified"
+
+	// FullVersion is set during init by combining all version info
+	FullVersion = "Unspecified"
 )
 
 func init() {
@@ -28,4 +43,17 @@ func init() {
 			ContractsGitCommit = dependency.Version
 		}
 	}
+
+	FullVersion = fmt.Sprintf("%s (git: %s)\n\nlibs:\n  %s: %s (%s)\n  %s: %s (%s)\n  %s: %s",
+		AppVersion,
+		AppGitCommit,
+		"buf.build protocolbuffers ",
+		BufBuildPBCommit,
+		BufBuildPBCMPRelease,
+		"buf.build grpc            ",
+		BufBuildGRPCCommit,
+		BufBuildGRPCCMPRelease,
+		"camino-messenger-contracts",
+		ContractsGitCommit,
+	)
 }
