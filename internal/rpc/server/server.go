@@ -12,6 +12,7 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/internal/tracing"
+	"github.com/chain4travel/camino-messenger-bot/proto/pb/readiness"
 
 	"github.com/chain4travel/camino-messenger-bot/config"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging"
@@ -21,11 +22,13 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
-	_ Server             = (*server)(nil)
-	_ rpc.RequestHandler = (*server)(nil)
+	_ Server                           = (*server)(nil)
+	_ rpc.RequestHandler               = (*server)(nil)
+	_ readiness.ReadinessServiceServer = (*server)(nil)
 )
 
 type Server interface {
@@ -64,6 +67,7 @@ func NewServer(
 		grpcServer:      grpc.NewServer(opts...),
 	}
 	generated.RegisterServerServices(server.grpcServer, server)
+	readiness.RegisterReadinessServiceServer(server.grpcServer, server)
 	return server, nil
 }
 
@@ -74,6 +78,8 @@ type server struct {
 	tracer          tracing.Tracer
 	processor       messaging.MessageProcessor
 	serviceRegistry messaging.ServiceRegistry
+
+	readiness.UnimplementedReadinessServiceServer
 }
 
 func (*server) Checkpoint() string {
@@ -121,4 +127,8 @@ func (s *server) processMetadata(ctx context.Context, id trace.TraceID) (metadat
 	md.Stamp(fmt.Sprintf("%s-%s", s.Checkpoint(), "received"))
 	err := md.ExtractMetadata(ctx)
 	return md, err
+}
+
+func (s *server) Readiness(context.Context, *emptypb.Empty) (*readiness.ReadinessResponse, error) {
+	return &readiness.ReadinessResponse{Status: "ready"}, nil
 }
