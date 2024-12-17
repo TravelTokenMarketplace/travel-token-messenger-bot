@@ -12,6 +12,7 @@ import (
 	bookv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v1"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 
+	"github.com/chain4travel/camino-messenger-bot/pkg/booking"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -51,7 +52,7 @@ func (h *evmResponseHandler) prepareMintResponseV1(
 	}
 	response.BuyableUntil = buyableUntil
 
-	price, paymentToken, err := h.getPriceAndTokenV1(ctx, response.Price)
+	price, paymentToken, isoCurrency, err := h.getPriceAndTokenV1(ctx, response.Price)
 	if err != nil {
 		errMessage := fmt.Sprintf("error getting price and payment token: %v", err)
 		h.logger.Errorf(errMessage)
@@ -67,6 +68,7 @@ func (h *evmResponseHandler) prepareMintResponseV1(
 		big.NewInt(response.BuyableUntil.Seconds),
 		price,
 		paymentToken,
+		isoCurrency,
 	)
 	if err != nil {
 		errMessage := fmt.Sprintf("error minting NFT: %v", err)
@@ -106,32 +108,40 @@ func (h *evmResponseHandler) processMintResponseV1(ctx context.Context, response
 	response.BuyTransactionId = receipt.TxHash.Hex()
 }
 
-func (h *evmResponseHandler) getPriceAndTokenV1(ctx context.Context, price *typesv1.Price) (*big.Int, common.Address, error) {
-	priceBigInt := big.NewInt(0)
-	paymentToken := zeroAddress
+func (h *evmResponseHandler) getPriceAndTokenV1(ctx context.Context, price *typesv1.Price) (*big.Int, common.Address, *big.Int, error) {
+	if price == nil {
+		return nil, common.Address{}, nil, errMissingPrice
+	}
+
+	var priceBigInt *big.Int
+	isoCurrency := big.NewInt(0)
+	paymentToken := booking.NativePaymentToken
 	var err error
-	switch currency := price.Currency.Currency.(type) {
+
+	switch currency := price.Currency.GetCurrency().(type) {
 	case *typesv1.Currency_NativeToken:
-		priceBigInt, err = h.bookingService.ConvertPriceToBigInt(price.Value, price.Decimals, int32(18)) // CAM uses 18 decimals
-		if err != nil {
-			return nil, zeroAddress, fmt.Errorf("error minting NFT: %w", err)
-		}
+		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, booking.NativeTokenDecimals)
 	case *typesv1.Currency_TokenCurrency:
-		if !common.IsHexAddress(currency.TokenCurrency.ContractAddress) {
-			return nil, zeroAddress, fmt.Errorf("invalid contract address: %s", currency.TokenCurrency.ContractAddress)
-		}
 		contractAddress := common.HexToAddress(currency.TokenCurrency.ContractAddress)
-		tokenDecimals, err := h.erc20.Decimals(ctx, contractAddress)
-		if err != nil {
-			return nil, zeroAddress, fmt.Errorf("failed to fetch token decimals: %w", err)
+		// if contract address is invalid in any way, Decimals() will return an error
+		tokenDecimals, decErr := h.erc20.Decimals(ctx, contractAddress)
+		if decErr != nil {
+			return nil, common.Address{}, nil, fmt.Errorf("failed to fetch token decimals: %w", decErr)
 		}
-		priceBigInt, err = h.bookingService.ConvertPriceToBigInt(price.Value, price.Decimals, tokenDecimals)
-		if err != nil {
-			return nil, zeroAddress, err
-		}
+
+		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, tokenDecimals)
 		paymentToken = contractAddress
 	case *typesv1.Currency_IsoCurrency:
-		// For IsoCurrency, keep price as 0 and paymentToken as zeroAddress
+		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, booking.ISODecimals)
+		paymentToken = booking.ISOPaymentToken
+		isoCurrency = big.NewInt(int64(currency.IsoCurrency))
+	default:
+		return nil, common.Address{}, nil, fmt.Errorf("%w (%T)", errUnknownCurrency, currency)
 	}
-	return priceBigInt, paymentToken, nil
+
+	if err != nil {
+		return nil, common.Address{}, nil, fmt.Errorf("failed to convert price to big.Int: %w", err)
+	}
+
+	return priceBigInt, paymentToken, isoCurrency, nil
 }

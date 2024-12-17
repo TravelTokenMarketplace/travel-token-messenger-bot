@@ -21,7 +21,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var errMissingMintTxID = errors.New("missing mint transaction id")
+var (
+	errMissingPrice    = errors.New("missing price")
+	errUnknownCurrency = errors.New("unknown currency type")
+	errMissingMintTxID = errors.New("missing mint transaction id")
+)
 
 // Mints a BookingToken with the supplier private key and reserves it for the buyer address
 // For testing you can use this uri: "data:application/json;base64,eyJuYW1lIjoiQ2FtaW5vIE1lc3NlbmdlciBCb29raW5nVG9rZW4gVGVzdCJ9Cg=="
@@ -32,6 +36,7 @@ func (h *evmResponseHandler) mint(
 	expiration *big.Int,
 	price *big.Int,
 	paymentToken common.Address,
+	offchainPaymentCurrency *big.Int,
 ) (string, *big.Int, error) {
 	receipt, err := h.bookingService.MintBookingToken(
 		ctx,
@@ -40,6 +45,7 @@ func (h *evmResponseHandler) mint(
 		expiration,
 		price,
 		paymentToken,
+		offchainPaymentCurrency,
 	)
 	if err != nil {
 		return "", nil, err

@@ -20,6 +20,17 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	// Special address that indicates BookinToken payment will be in native coin of
+	// the network (CAM).
+	NativePaymentToken  = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	NativeTokenDecimals = int32(18)
+
+	// Special address that indicates BookinToken payment will occur off-chain.
+	ISOPaymentToken = common.HexToAddress("0x0000000000000000000000000000000000000001")
+	ISODecimals     = int32(6)
+)
+
 // Service provides minting and buying methods to interact with the CM Account contract.
 type Service struct {
 	client           *ethclient.Client
@@ -84,6 +95,7 @@ func (bs *Service) MintBookingToken(
 	expirationTimestamp *big.Int,
 	price *big.Int,
 	paymentToken common.Address,
+	offchainPaymentCurrency *big.Int,
 ) (*types.Receipt, error) {
 	bs.logger.Infof("📅 Minting BookingToken for %s with price %s and expiration %s", reservedFor.Hex(), price, expirationTimestamp)
 
@@ -103,6 +115,7 @@ func (bs *Service) MintBookingToken(
 		expirationTimestamp,
 		price,
 		paymentToken,
+		offchainPaymentCurrency,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint booking token: %w", err)
@@ -137,7 +150,7 @@ func (bs *Service) BuyBookingToken(
 }
 
 // convertPriceToBigInt converts the price to its integer representation
-func (bs *Service) ConvertPriceToBigInt(value string, decimals int32, totalDecimals int32) (*big.Int, error) {
+func ConvertPriceToBigInt(value string, decimals int32, totalDecimals int32) (*big.Int, error) {
 	// Convert the value string to a big.Int
 	valueBigInt := new(big.Int)
 	_, ok := valueBigInt.SetString(value, 10)
