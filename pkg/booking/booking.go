@@ -20,15 +20,26 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	BookingStatusUnspecified uint8 = iota
+	BookingStatusReserved
+	BookingStatusReservationExpired
+	BookingStatusBought
+	BookingStatusCancelled
+)
+
+const (
+	NativeTokenDecimals = int32(18)
+	ISODecimals         = int32(6)
+)
+
 var (
 	// Special address that indicates BookinToken payment will be in native coin of
 	// the network (CAM).
-	NativePaymentToken  = common.HexToAddress("0x0000000000000000000000000000000000000000")
-	NativeTokenDecimals = int32(18)
+	NativePaymentToken = common.HexToAddress("0x0000000000000000000000000000000000000000")
 
 	// Special address that indicates BookinToken payment will occur off-chain.
 	ISOPaymentToken = common.HexToAddress("0x0000000000000000000000000000000000000001")
-	ISODecimals     = int32(6)
 )
 
 // Service provides minting and buying methods to interact with the CM Account contract.
@@ -137,8 +148,8 @@ func (bs *Service) BuyBookingToken(
 	bs.logger.Infof("🛒 Buying BookingToken with TokenID %s", tokenID.String())
 
 	// Validate tokenId
-	if tokenID.Sign() <= 0 {
-		return nil, fmt.Errorf("tokenId must be a positive integer")
+	if tokenID.Sign() < 0 {
+		return nil, fmt.Errorf("tokenId must be a positive integer (>= 0)")
 	}
 
 	// Call the BuyBookingToken function from the contract

@@ -13,16 +13,14 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/tests/e2e/bot"
+	partnerplugin "github.com/chain4travel/camino-messenger-bot/tests/e2e/partner_plugin"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestPingV1(t *testing.T, tt *Test) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
-	defer cancel()
-
-	require.NoError(t, tt.caminoNetwork.Client.RegisterCMService(ctx, botGenerated.PingServiceV1))
-
+func testPingV1Setup(ctx context.Context, t *testing.T, tt *Test) (*partnerplugin.PartnerPlugin, *bot.Bot, *bot.Bot) {
+	// Register all the services needed for the tests
+	require.NoError(t, tt.caminoNetwork.Client.RegisterCMServices(ctx, botGenerated.PingServiceV1))
 	supplierPartnerPlugin := tt.CreatePartnerPlugin(ctx, t)
 
 	// bot with partnerPlugin and without rpc server (supplier)
@@ -32,6 +30,14 @@ func TestPingV1(t *testing.T, tt *Test) {
 
 	// bot without partnerPlugin and with rpc server (distributor)
 	distributorBot := tt.CreateBot(ctx, t, true, nil, nil)
+
+	return supplierPartnerPlugin, supplierBot, distributorBot
+}
+
+func TestPingV1(t *testing.T, tt *Test) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+	_, supplierBot, distributorBot := testPingV1Setup(ctx, t, tt)
 
 	pingMessage := "ping"
 	expectedResponceMessageSubString := fmt.Sprintf("Ping response to [%s] with request ID:", pingMessage)
