@@ -60,8 +60,8 @@ func StartNewNetwork(
 	logger.Debugf("Starting blockchain network (%d validators)...", validatorsCount)
 
 	var err error
-	httpPorts := make([]int, validatorsCount)
-	stakingPorts := make([]int, validatorsCount)
+	httpPorts := make([]int32, validatorsCount)
+	stakingPorts := make([]int32, validatorsCount)
 	for i := 0; i < validatorsCount; i++ {
 		httpPorts[i], err = resourceManagerSession.GetNetworkPort()
 		if err != nil {
@@ -252,8 +252,8 @@ func (n *Network) startNewNode(
 	nodeDir string,
 	stakerKeyPath string,
 	stakerCertPath string,
-	httpPort int,
-	stakingPort int,
+	httpPort int32,
+	stakingPort int32,
 	bootstrapIDsArg string,
 	bootstrapIPsArg string,
 	nodeIndex int,
@@ -264,7 +264,7 @@ func (n *Network) startNewNode(
 		return nil, nil, fmt.Errorf("failed to remove blockchain node tmp dir: %w", err)
 	}
 
-	cmd := exec.Command(n.nodeBinPath,
+	cmd := exec.Command(n.nodeBinPath, //nolint:gosec // this is a caminogo node binary, not some injection.
 		fmt.Sprintf("--%s=%d", config.HTTPPortKey, httpPort),
 		fmt.Sprintf("--%s=%d", config.StakingPortKey, stakingPort),
 		fmt.Sprintf("--%s=%s", config.StakingTLSKeyPathKey, stakerKeyPath),
@@ -280,7 +280,7 @@ func (n *Network) startNewNode(
 	if err := os.MkdirAll(nodeDir, 0o755); err != nil {
 		return nil, nil, fmt.Errorf("failed to create node directory: %w", err)
 	}
-	logfile, err := os.OpenFile(path.Join(nodeDir, fmt.Sprintf("node-%d.log", nodeIndex)), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	logfile, err := os.OpenFile(path.Join(nodeDir, fmt.Sprintf("node-%d.log", nodeIndex)), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create node log file: %w", err)
 	}

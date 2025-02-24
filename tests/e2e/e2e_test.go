@@ -21,8 +21,6 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/tests/e2e/tests"
 )
 
-// TODO@ add ci
-
 const (
 	flagKeyNodeBinPath          = "node"
 	flagKeyMatrixBinPath        = "matrix"
@@ -85,7 +83,7 @@ func TestE2E(t *testing.T) {
 	flagTestsDataDir = path.Join(flagTestsDataDir, time.Now().Format("2006-01-02_15-04-05"))
 
 	os.RemoveAll(flagTestsDataDir)
-	os.MkdirAll(flagTestsDataDir, 0o755)
+	require.NoError(t, os.MkdirAll(flagTestsDataDir, 0o755))
 
 	var existingNetworkAdminKey *secp256k1.PrivateKey
 	if len(flagExistingNetworkAdminKey) > 0 {

@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 	sugar := logger.Sugar()
 
 	sugar.Info("Starting Mint & Buy Example...")
@@ -174,7 +174,7 @@ func main() {
 			return
 		}
 
-		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, int32(tokenDecimals))
+		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, tokenDecimals)
 		paymentToken = contractAddress
 	case *typesv2.Currency_IsoCurrency:
 		priceBigInt, err = booking.ConvertPriceToBigInt(price.Value, price.Decimals, booking.ISODecimals)

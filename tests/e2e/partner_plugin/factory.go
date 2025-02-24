@@ -66,14 +66,14 @@ func (f *Factory) CreatePartnerPlugin(ctx context.Context) (*PartnerPlugin, chan
 		return nil, nil, fmt.Errorf("failed to parse host url: %w", err)
 	}
 
-	cmd := exec.Command(f.binPath)
+	cmd := exec.Command(f.binPath) //nolint:gosec // this is a partner plugin mock binary, not some injection.
 	cmd.Env = append(cmd.Env, fmt.Sprintf("CMB_PARTNER_PLUGIN_MOCK_PORT=%d", port))
 
 	if err := os.MkdirAll(f.dir, 0o755); err != nil {
 		return nil, nil, fmt.Errorf("failed to create pp-mock directory: %w", err)
 	}
-	logfile_name := path.Join(f.dir, fmt.Sprintf("partner-plugin-%d.log", port))
-	logfile, err := os.OpenFile(logfile_name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	logfileName := path.Join(f.dir, fmt.Sprintf("partner-plugin-%d.log", port))
+	logfile, err := os.OpenFile(logfileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open pp-mock log file: %w", err)
 	}
