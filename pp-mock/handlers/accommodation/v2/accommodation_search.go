@@ -50,6 +50,19 @@ func (*AccommodationSearchV2Server) AccommodationSearch(ctx context.Context, req
 		}, nil
 	}
 
+	// check if SearchParametersGeneric is nil or if Currency is nil
+	if req.SearchParametersGeneric == nil || req.SearchParametersGeneric.Currency == nil {
+		return &accommodationv2.AccommodationSearchResponse{
+			Header: &typesv1.ResponseHeader{
+				Status: typesv1.StatusType_STATUS_TYPE_FAILURE,
+				Alerts: []*typesv1.Alert{{
+					Message: "Mandatory field SearchParametersGeneric.Currency is missing",
+					Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
+				}},
+			},
+		}, nil
+	}
+
 	// loop queries and check if there is travel period
 	for _, query := range req.Queries {
 		if query.TravelPeriod == nil {
