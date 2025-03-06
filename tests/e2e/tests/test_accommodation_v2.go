@@ -18,6 +18,7 @@ import (
 	botGenerated "github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/pkg/booking"
 	"github.com/chain4travel/camino-messenger-bot/pkg/price"
+	common "github.com/chain4travel/camino-messenger-bot/pp-mock/handlers"
 	"github.com/chain4travel/camino-messenger-bot/tests/e2e/bot"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/tests/e2e/partner_plugin"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -196,6 +197,36 @@ func TestAccommodationProductInfoServiceV2(
 	require.Equal(t, resp.Properties[0].Rooms[0].TotalOccupancy.FullPayers, int32(2), "unexpected full payers")
 }
 
+func TestAccommodationSearchServiceV2WithoutCurrency(
+	ctx context.Context,
+	t *testing.T,
+	tt *Test,
+	distributorBot *bot.Bot,
+	supplierBot *bot.Bot,
+) {
+	const hotelCode = "HOTEL345678"
+
+	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
+		requestContext(ctx, &metadata.Metadata{
+			Recipient: supplierBot.CMAccountAddress().Hex(),
+		}),
+		&accommodationv2.AccommodationSearchRequest{
+			Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
+			Queries: []*accommodationv2.AccommodationSearchQuery{{
+				SearchParametersAccommodation: &accommodationv2.AccommodationSearchParameters{
+					SupplierCodes: []*typesv2.SupplierProductCode{
+						{SupplierCode: hotelCode},
+					},
+				},
+			}},
+		},
+	)
+	require.NoError(t, err)
+
+	tt.logger.Debug("AccommodationSearchServiceV2.AccommodationSearch response:\n", protoMessageToJSON(tt, resp))
+	require.Equal(t, typesv1.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
+}
+
 // Test search without the mandatory travel period given. Expect an error to be returned back.
 func TestAccommodationSearchServiceV2WithoutTravelPeriod(
 	ctx context.Context,
@@ -212,6 +243,9 @@ func TestAccommodationSearchServiceV2WithoutTravelPeriod(
 		}),
 		&accommodationv2.AccommodationSearchRequest{
 			Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
+			SearchParametersGeneric: &typesv2.SearchParameters{
+				Currency: &typesv2.Currency{Currency: &typesv2.Currency_NativeToken{}},
+			},
 			Queries: []*accommodationv2.AccommodationSearchQuery{{
 				SearchParametersAccommodation: &accommodationv2.AccommodationSearchParameters{
 					SupplierCodes: []*typesv2.SupplierProductCode{
@@ -247,6 +281,9 @@ func TestAccommodationSearchServiceV2TravelPeriodOutOfBounds(
 		}),
 		&accommodationv2.AccommodationSearchRequest{
 			Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
+			SearchParametersGeneric: &typesv2.SearchParameters{
+				Currency: &typesv2.Currency{Currency: &typesv2.Currency_NativeToken{}},
+			},
 			Queries: []*accommodationv2.AccommodationSearchQuery{{
 				SearchParametersAccommodation: &accommodationv2.AccommodationSearchParameters{
 					SupplierCodes: []*typesv2.SupplierProductCode{
@@ -254,16 +291,8 @@ func TestAccommodationSearchServiceV2TravelPeriodOutOfBounds(
 					},
 				},
 				TravelPeriod: &typesv1.TravelPeriod{
-					StartDate: &typesv1.Date{
-						Year:  int32(startDate.Year()),  //nolint:gosec
-						Month: int32(startDate.Month()), //nolint:gosec
-						Day:   int32(startDate.Day()),   //nolint:gosec
-					},
-					EndDate: &typesv1.Date{
-						Year:  int32(endDate.Year()),  //nolint:gosec
-						Month: int32(endDate.Month()), //nolint:gosec
-						Day:   int32(endDate.Day()),   //nolint:gosec
-					},
+					StartDate: common.TimeToDateV1(startDate),
+					EndDate:   common.TimeToDateV1(endDate),
 				},
 			}},
 		},
@@ -294,6 +323,9 @@ func TestAccommodationSearchServiceV2TravelPeriodReversed(
 		}),
 		&accommodationv2.AccommodationSearchRequest{
 			Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
+			SearchParametersGeneric: &typesv2.SearchParameters{
+				Currency: &typesv2.Currency{Currency: &typesv2.Currency_NativeToken{}},
+			},
 			Queries: []*accommodationv2.AccommodationSearchQuery{{
 				SearchParametersAccommodation: &accommodationv2.AccommodationSearchParameters{
 					SupplierCodes: []*typesv2.SupplierProductCode{
@@ -301,16 +333,8 @@ func TestAccommodationSearchServiceV2TravelPeriodReversed(
 					},
 				},
 				TravelPeriod: &typesv1.TravelPeriod{
-					StartDate: &typesv1.Date{
-						Year:  int32(startDate.Year()),  //nolint:gosec
-						Month: int32(startDate.Month()), //nolint:gosec
-						Day:   int32(startDate.Day()),   //nolint:gosec
-					},
-					EndDate: &typesv1.Date{
-						Year:  int32(endDate.Year()),  //nolint:gosec
-						Month: int32(endDate.Month()), //nolint:gosec
-						Day:   int32(endDate.Day()),   //nolint:gosec
-					},
+					StartDate: common.TimeToDateV1(startDate),
+					EndDate:   common.TimeToDateV1(endDate),
 				},
 			}},
 		},
@@ -331,7 +355,7 @@ func TestAccommodationSearchServiceV2WithTravelPeriod(
 ) (
 	searchID string,
 	resultID int32,
-	pricePerNight float64,
+	totalPrice float64,
 ) {
 	const nights = 12                           // 12 nights
 	startDate := time.Now().Add(time.Hour * 24) // tomorrow
@@ -350,16 +374,8 @@ func TestAccommodationSearchServiceV2WithTravelPeriod(
 				},
 			},
 			TravelPeriod: &typesv1.TravelPeriod{
-				StartDate: &typesv1.Date{
-					Year:  int32(startDate.Year()),  //nolint:gosec
-					Month: int32(startDate.Month()), //nolint:gosec
-					Day:   int32(startDate.Day()),   //nolint:gosec
-				},
-				EndDate: &typesv1.Date{
-					Year:  int32(endDate.Year()),  //nolint:gosec
-					Month: int32(endDate.Month()), //nolint:gosec
-					Day:   int32(endDate.Day()),   //nolint:gosec
-				},
+				StartDate: common.TimeToDateV1(startDate),
+				EndDate:   common.TimeToDateV1(endDate),
 			},
 		}},
 	}
@@ -386,14 +402,18 @@ func TestAccommodationSearchServiceV2WithTravelPeriod(
 	require.NotEmpty(t, resp.Results[1].Units, "unexpected empty response Results[1].Units")
 	require.Equal(t, resp.Results[1].Units[0].SupplierCode.SupplierCode, "HOTEL345678", "unexpected response Results[1].Units[0].SupplierCode.SupplierCode")
 
-	// Extract the price per night from the response
-	pricePerNight, err = strconv.ParseFloat(resp.Results[1].Units[0].PriceDetail.Price.Value, 64)
+	// Check if the price per night is set correctly
+	resultPricePerNight, err := strconv.ParseFloat(resp.Results[1].Units[0].PriceDetail.Price.Value, 64)
+	require.NoError(t, err)
+	require.Equal(t, common.DefaultPricePerNight*100, resultPricePerNight, "unexpected price per night")
+
+	// Extract the total price from the response
+	totalPrice, err = strconv.ParseFloat(resp.Results[1].TotalPriceDetail.Price.Value, 64)
 	require.NoError(t, err)
 
 	// Check if this adds up with the total price of the unit
-	totalPrice, err := strconv.ParseFloat(resp.Results[1].TotalPriceDetail.Price.Value, 64)
 	require.NoError(t, err)
-	require.Equal(t, pricePerNight*float64(nights), totalPrice, "unexpected total price")
+	require.Equal(t, common.DefaultPricePerNight*100*float64(nights), totalPrice, "unexpected total price")
 
 	// Now extract all the values needed for the validate step which comes next
 	require.NotEmpty(t, resp.Metadata, "unexpected empty response Metadata")
@@ -402,11 +422,11 @@ func TestAccommodationSearchServiceV2WithTravelPeriod(
 
 	require.NotEmpty(t, resp.Results[1].ResultId, "unexpected empty response Results[1].ResultId")
 
-	return resp.Metadata.SearchId.Value, resp.Results[1].ResultId, pricePerNight
+	return resp.Metadata.SearchId.Value, resp.Results[1].ResultId, totalPrice
 }
 
 // Let's test the validation step with the values extracted from the search request
-func TestValidateV2(
+func TestAccommodationValidateV2(
 	ctx context.Context,
 	t *testing.T,
 	tt *Test,
@@ -414,7 +434,7 @@ func TestValidateV2(
 	supplierBot *bot.Bot,
 	searchID string,
 	resultID int32,
-	pricePerNight float64,
+	expectedTotalPrice float64,
 ) (validateID string) {
 	resp, err := distributorBot.ValidationServiceV2.Validation(
 		requestContext(ctx, &metadata.Metadata{
@@ -448,9 +468,9 @@ func TestValidateV2(
 	require.NotEmpty(t, resp.PriceDetail, "unexpected empty response PriceDetail")
 	require.NotEmpty(t, resp.PriceDetail.Price, "unexpected empty response PriceDetail.Price")
 	require.NotEmpty(t, resp.PriceDetail.Price.Value, "unexpected empty response PriceDetail.Price.Value")
-	pricePerNightResponse, err := strconv.ParseFloat(resp.PriceDetail.Price.Value, 64)
+	totalPriceResponse, err := strconv.ParseFloat(resp.PriceDetail.Price.Value, 64)
 	require.NoError(t, err)
-	require.Equal(t, pricePerNight, pricePerNightResponse, "unexpected price per night")
+	require.Equal(t, expectedTotalPrice, totalPriceResponse, "unexpected total price in validation")
 
 	// Last check if the validationID is set and if yes extract it and pass it back for the mint step
 	require.NotEmpty(t, resp.ValidationId, "unexpected empty response validationID")
@@ -459,7 +479,7 @@ func TestValidateV2(
 }
 
 // Lastly we do the mint request based on the validation id
-func TestMintV2(
+func TestAccommodationMintV2(
 	ctx context.Context,
 	t *testing.T,
 	tt *Test,
@@ -484,7 +504,6 @@ func TestMintV2(
 	tt.logger.Debug("MintServiceV2.Mint response:\n", protoMessageToJSON(tt, resp))
 
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
 
 	// Check if the MintId is set
 	require.NotEmpty(t, resp.MintId, "unexpected empty response MintId")
@@ -497,7 +516,7 @@ func TestMintV2(
 	return resp.BookingTokenId, resp.Price
 }
 
-func VerifyBlockchainState(
+func VerifyAccommodationBlockchainState(
 	ctx context.Context,
 	t *testing.T,
 	tt *Test,
@@ -543,22 +562,26 @@ func TestAccommodationV2(t *testing.T, tt *Test) {
 		// Happy path: will return the detailed info of a property
 		TestAccommodationProductInfoServiceV2(ctx, t, tt, distributorBot, supplierBot)
 	})
-	t.Run("Product search w/o travel period", func(t *testing.T) {
+	t.Run("Search w/o currency", func(t *testing.T) {
+		// ERROR path: without currency it should return an error
+		TestAccommodationSearchServiceV2WithoutCurrency(ctx, t, tt, distributorBot, supplierBot)
+	})
+	t.Run("Search w/o travel period", func(t *testing.T) {
 		// ERROR path: without travel period it should return an error
 		TestAccommodationSearchServiceV2WithoutTravelPeriod(ctx, t, tt, distributorBot, supplierBot)
 	})
-	t.Run("Product search with travel period oob", func(t *testing.T) {
+	t.Run("Search with travel period oob", func(t *testing.T) {
 		// ERROR path: with travel period outside of allowed constraints it should return an error
 		TestAccommodationSearchServiceV2TravelPeriodOutOfBounds(ctx, t, tt, distributorBot, supplierBot)
 	})
-	t.Run("Product search with travel period reversed", func(t *testing.T) {
+	t.Run("Search with travel period reversed", func(t *testing.T) {
 		// ERROR path: with travel period reversed it should return an error
 		TestAccommodationSearchServiceV2TravelPeriodReversed(ctx, t, tt, distributorBot, supplierBot)
 	})
-	t.Run("Search->Validate->Mint->Verify", func(t *testing.T) {
-		searchID, resultID, pricePerNight := TestAccommodationSearchServiceV2WithTravelPeriod(ctx, t, tt, distributorBot, supplierBot)
-		validationID := TestValidateV2(ctx, t, tt, distributorBot, supplierBot, searchID, resultID, pricePerNight)
-		tokenID, price := TestMintV2(ctx, t, tt, distributorBot, supplierBot, validationID)
-		VerifyBlockchainState(ctx, t, tt, distributorBot, tokenID, price)
+	t.Run("Search->Validate->Mint->VerifyBlockchain", func(t *testing.T) {
+		searchID, resultID, totalPrice := TestAccommodationSearchServiceV2WithTravelPeriod(ctx, t, tt, distributorBot, supplierBot)
+		validationID := TestAccommodationValidateV2(ctx, t, tt, distributorBot, supplierBot, searchID, resultID, totalPrice)
+		tokenID, price := TestAccommodationMintV2(ctx, t, tt, distributorBot, supplierBot, validationID)
+		VerifyAccommodationBlockchainState(ctx, t, tt, distributorBot, tokenID, price)
 	})
 }

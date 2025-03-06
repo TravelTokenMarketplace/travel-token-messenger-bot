@@ -55,3 +55,62 @@ func filterPropertiesByLastModified(
 	}
 	return filtered
 }
+
+// Filter the trips by dates -- note that it checks the first segment's departure date and the last segment's arrival date.
+func filterTripsByDates(
+	trips []*transportv3.TripExtended,
+	query *transportv3.QueryTrip,
+) []*transportv3.TripExtended {
+	filtered := []*transportv3.TripExtended{}
+	queryDepartureDate := common.DateV1ToTime(query.Departure.Date)
+	queryArrivalDate := common.DateV1ToTime(query.Arrival.Date)
+
+	// TODO @Noctunus - All assumptions that the fields are present.
+	// This needs to be validated. Ideally with protovalidate on the unmashalled mockdata.
+	for _, trip := range trips {
+		if len(trip.Segments) == 0 {
+			continue
+		}
+
+		// We need the first segment to compare the departure date
+		firstSegment := trip.Segments[0]
+		firstSegmentDepartureDateTime := time.Unix(firstSegment.Info.Departure.DateTime.Seconds, 0)
+		firstSegmentDepartureDate := firstSegmentDepartureDateTime.Truncate(24 * time.Hour)
+
+		// We need the last segment to compare the arrival date
+		lastSegment := trip.Segments[len(trip.Segments)-1]
+		lastSegmentArrivalDateTime := time.Unix(lastSegment.Info.Arrival.DateTime.Seconds, 0)
+		lastSegmentArrivalDate := lastSegmentArrivalDateTime.Truncate(24 * time.Hour)
+
+		// Now we can compare if the trip dates are exactly what the query is looking for
+		if firstSegmentDepartureDate.Equal(queryDepartureDate) && lastSegmentArrivalDate.Equal(queryArrivalDate) {
+			filtered = append(filtered, common.CloneProto(trip))
+		}
+	}
+	return filtered
+}
+
+// Filter the trips by locations -- note that it checks the first segment's departure location and the last segment's arrival location.
+func filterTripsByLocations(
+	trips []*transportv3.TripExtended,
+	query *transportv3.QueryTrip,
+) []*transportv3.TripExtended {
+	filtered := []*transportv3.TripExtended{}
+	// TODO @Noctunus - All assumptions that the fields are present.
+	// This needs to be validated. Ideally with protovalidate on the unmashalled mockdata.
+	for _, trip := range trips {
+		if len(trip.Segments) == 0 {
+			continue
+		}
+		// We need the first segment to compare the departure location
+		firstSegment := trip.Segments[0]
+		// We need the last segment to compare the arrival location
+		lastSegment := trip.Segments[len(trip.Segments)-1]
+
+		// Now we can compare if the trip locations are exactly what the query is looking for
+		if proto.Equal(firstSegment.Info.Departure.LocationCode, query.Departure.LocationCode) && proto.Equal(lastSegment.Info.Arrival.LocationCode, query.Arrival.LocationCode) {
+			filtered = append(filtered, common.CloneProto(trip))
+		}
+	}
+	return filtered
+}

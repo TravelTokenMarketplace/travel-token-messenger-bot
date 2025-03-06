@@ -17,9 +17,11 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pkg/price"
 	common "github.com/chain4travel/camino-messenger-bot/pp-mock/handlers"
+	"github.com/chain4travel/camino-messenger-bot/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/pp-mock/services/data"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 var _ transportv3grpc.TransportSearchServiceServer = (*TransportSearchV3Server)(nil)
@@ -62,6 +64,37 @@ func (*TransportSearchV3Server) TransportSearch(ctx context.Context, req *transp
 		}, nil
 	}
 
+	// edge-case prevention: check if the traveller definition is identical
+	// in all queries. If not return an "unsupported" error.
+	unsupportedResp := &transportv3.TransportSearchResponse{
+		Header: &typesv1.ResponseHeader{
+			Status: typesv1.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv1.Alert{{
+				Message: "Unsupported: Traveller definitions must be identical in all queries",
+				Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
+	for queryIndex, query := range req.Queries {
+		for queryIndex2, query2 := range req.Queries {
+			if queryIndex != queryIndex2 {
+				travellersA := query.GetTravellers()
+				travellersB := query2.GetTravellers()
+
+				if len(travellersA) != len(travellersB) {
+					return unsupportedResp, nil
+				}
+
+				for i, travellerA := range travellersA {
+					travellerB := travellersB[i]
+					if !proto.Equal(travellerA, travellerB) {
+						return unsupportedResp, nil
+					}
+				}
+			}
+		}
+	}
+
 	for queryIndex, query := range req.Queries {
 		for queryTripIndex, queryTrip := range query.GetTrips() {
 			if queryTrip == nil {
@@ -95,7 +128,7 @@ func (*TransportSearchV3Server) TransportSearch(ctx context.Context, req *transp
 					Header: &typesv1.ResponseHeader{
 						Status: typesv1.StatusType_STATUS_TYPE_FAILURE,
 						Alerts: []*typesv1.Alert{{
-							Message: "Invalid travel dates: departure date must be in the future and departure must be before arrival",
+							Message: "Invalid travel dates: departure must be before arrival",
 							Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
 						}},
 					},
@@ -126,19 +159,27 @@ func (*TransportSearchV3Server) TransportSearch(ctx context.Context, req *transp
 
 	resultIDnum := int32(1)
 	searchResults := []*transportv3.TransportSearchResult{}
+	validationPrices := []*state.UnifiedPrice{}
 
 	for _, query := range req.Queries {
 		filteredTrips := mockdata.TripsExtendedV3
 		for _, queryTrip := range query.GetTrips() {
+			filteredTrips = filterTripsByDates(filteredTrips, queryTrip)
+			filteredTrips = filterTripsByLocations(filteredTrips, queryTrip)
+
 			if queryTrip.SearchParametersTransport == nil { // its optional
 				continue
 			}
 
-			// This is just an example, not real business logic:
 			filteredTrips = filterTripsByProductCodes(filteredTrips, queryTrip.SearchParametersTransport.ProductCodes)
 			if queryTrip.SearchParametersTransport.MaxSegments != 0 {
 				filteredTrips = filterTripsByMaxSegments(filteredTrips, queryTrip.SearchParametersTransport.MaxSegments)
 			}
+		}
+
+		if len(filteredTrips) == 0 {
+			// Nothing left after filtering - just skip ahead to the next query
+			continue
 		}
 
 		totalPrice := big.NewInt(0)
@@ -163,20 +204,24 @@ func (*TransportSearchV3Server) TransportSearch(ctx context.Context, req *transp
 			totalPrice = new(big.Int).Add(totalPrice, price)
 		}
 
+		searchPrice := &typesv3.Price{
+			Value:    totalPrice.String(),
+			Decimals: price.NativeTokenDecimals,
+			Currency: req.SearchParameters.Currency,
+		}
 		searchResults = append(searchResults, &transportv3.TransportSearchResult{
 			ResultId:        resultIDnum,
 			QueryId:         query.QueryId,
 			TravellerIds:    common.GetTravellerIDsV3(query.Travellers),
 			TravellingTrips: filteredTrips,
 			TotalPrice: &typesv3.PriceDetail{
-				Price: &typesv3.Price{
-					Value:    totalPrice.String(),
-					Decimals: price.NativeTokenDecimals,
-					Currency: req.SearchParameters.Currency,
-				},
+				Price: searchPrice,
 			},
 		})
 		resultIDnum++
+
+		validationPrice := state.PriceV3ToUnifiedPrice(searchPrice)
+		validationPrices = append(validationPrices, validationPrice)
 	}
 
 	response := &transportv3.TransportSearchResponse{
@@ -201,6 +246,16 @@ func (*TransportSearchV3Server) TransportSearch(ctx context.Context, req *transp
 
 	if err := grpc.SetHeader(ctx, md.ToGrpcMD()); err != nil {
 		log.Printf("Failed to set header: %v", err)
+	}
+
+	if len(searchResults) > 0 {
+		state.GetStore().AddSearchResult(response.Metadata.SearchId.Value, state.SearchData{
+			NumResults:   len(searchResults),
+			NumTravelers: len(req.Queries[0].Travellers),
+			Prices:       validationPrices,
+			JSONRequest:  req.String(),
+			JSONResponse: response.String(),
+		})
 	}
 
 	return response, nil

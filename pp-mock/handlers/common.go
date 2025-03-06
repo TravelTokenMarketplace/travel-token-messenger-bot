@@ -18,6 +18,14 @@ func DateV1ToTime(date *typesv1.Date) time.Time {
 	return time.Date(int(date.GetYear()), time.Month(date.GetMonth()), int(date.GetDay()), 0, 0, 0, 0, time.UTC)
 }
 
+func TimeToDateV1(time time.Time) *typesv1.Date {
+	return &typesv1.Date{
+		Year:  int32(time.Year()),  //nolint:gosec
+		Month: int32(time.Month()), //nolint:gosec
+		Day:   int32(time.Day()),   //nolint:gosec
+	}
+}
+
 // only period between now + 60 days is allowed for bookings
 func IsTravelPeriodAllowed(travelPeriod *typesv1.TravelPeriod) bool {
 	startDate := time.Now()
@@ -27,13 +35,7 @@ func IsTravelPeriodAllowed(travelPeriod *typesv1.TravelPeriod) bool {
 }
 
 func AreTravelDatesValid(departureDate, arrivalDate *typesv1.Date) bool {
-	// Convert to time.Time or perform checks directly based on your logic
 	if departureDate == nil || arrivalDate == nil {
-		return false
-	}
-
-	// Fail if departure is in the past
-	if time.Now().After(DateV1ToTime(departureDate)) {
 		return false
 	}
 
