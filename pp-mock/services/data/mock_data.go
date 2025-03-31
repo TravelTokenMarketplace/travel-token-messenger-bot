@@ -120,6 +120,41 @@ func init() {
 		},
 	}
 
+	// TripBasicV3[2,0]
+	TripsBasicV3[2].Segments[0].Departure.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "LAN",
+				Type: 4,
+			},
+		},
+	}
+	TripsBasicV3[2].Segments[0].Arrival.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "HAM",
+				Type: 4,
+			},
+		},
+	}
+	// TripBasicV3[2,1]
+	TripsBasicV3[2].Segments[1].Departure.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "HAM",
+				Type: 4,
+			},
+		},
+	}
+	TripsBasicV3[2].Segments[1].Arrival.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "BER",
+				Type: 4,
+			},
+		},
+	}
+
 	// TripsExtendedV3[0]
 	TripsExtendedV3[0].Price.Currency = &typesv3.Currency{
 		Currency: &typesv3.Currency_IsoCurrency{
@@ -188,5 +223,40 @@ func init() {
 		},
 	}
 
+	// TripsExtendedV3[2,0]
+	TripsExtendedV3[2].Segments[0].Info.Departure.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "LAN",
+				Type: 4,
+			},
+		},
+	}
+	TripsExtendedV3[2].Segments[0].Info.Arrival.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "HAM",
+				Type: 4,
+			},
+		},
+	}
+
+	// TripsExtendedV3[2,1]
+	TripsExtendedV3[2].Segments[1].Info.Departure.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "HAM",
+				Type: 4,
+			},
+		},
+	}
+	TripsExtendedV3[2].Segments[1].Info.Arrival.Location = &transportv3.TransitEventLocation{
+		Location: &transportv3.TransitEventLocation_LocationCode{
+			LocationCode: &typesv2.LocationCode{
+				Code: "BER",
+				Type: 4,
+			},
+		},
+	}
 	// TODO @evlekht do all data checks like make sure that properties has prop.Property.ContactInfo.Address[0] != nil
 }
