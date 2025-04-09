@@ -17,9 +17,11 @@ import (
 	"maunium.net/go/mautrix/id"
 
 	"github.com/chain4travel/camino-messenger-bot/internal/compression"
+	eventlistener "github.com/chain4travel/camino-messenger-bot/internal/event_listener"
 	"github.com/chain4travel/camino-messenger-bot/internal/local"
 	"github.com/chain4travel/camino-messenger-bot/internal/matrix"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging"
+	"github.com/chain4travel/camino-messenger-bot/internal/partnerplugin"
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc/client"
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc/server"
 	"github.com/chain4travel/camino-messenger-bot/internal/tracing"
@@ -89,7 +91,27 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		return nil, err
 	}
 
+	// partner plugin to handle partner-plugin related logic and communication
+	var partnerPlugin partnerplugin.PartnerPlugin
+	if cfg.PartnerPlugin.Enabled {
+		partnerPlugin = partnerplugin.New(
+			logger,
+			tracer,
+			rpcClient,
+			cfg.ResponseTimeout,
+		)
+	}
+
+	// event listener with additional logic for subscribing and reacting on blockchain events
+	eventListener := eventlistener.New(
+		logger,
+		evmClient,
+		cfg.BookingTokenAddress,
+		partnerPlugin,
+	)
+
 	// messaging components
+
 	cmAccounts, err := cmaccounts.NewService(
 		logger,
 		cmAccountsCacheSize,
@@ -122,6 +144,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		serviceRegistry,
 		cmAccounts,
 		erc20CacheSize,
+		eventListener,
 	)
 	if err != nil {
 		logger.Errorf("Failed to create response handler: %v", err)
@@ -187,6 +210,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.NetworkFeeRecipientCMAccountAddress,
 		serviceRegistry,
 		responseHandler,
+		partnerPlugin,
 		chequeHandler,
 		messaging.NewCompressor(compression.MaxChunkSize),
 		cmAccounts,
@@ -227,6 +251,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		logger:           logger,
 		scheduler:        scheduler,
 		chequeHandler:    chequeHandler,
+		eventListener:    eventListener,
 		rpcClient:        rpcClient,
 		rpcServer:        rpcServer,
 		messageProcessor: messageProcessor,
@@ -242,6 +267,7 @@ type App struct {
 	tracer           tracing.Tracer
 	scheduler        scheduler.Scheduler
 	chequeHandler    chequehandler.ChequeHandler
+	eventListener    eventlistener.EventListener
 	rpcClient        *client.RPCClient
 	rpcServer        server.Server
 	messageProcessor messaging.MessageProcessor
@@ -364,6 +390,13 @@ func (a *App) Run(ctx context.Context) error {
 		<-gCtx.Done()
 		a.logger.Info("Stopping scheduler...")
 		return a.scheduler.Stop()
+	})
+
+	g.Go(func() error {
+		<-gCtx.Done()
+		a.logger.Info("Stopping event listener...")
+		a.eventListener.Stop()
+		return nil
 	})
 
 	// wait

@@ -12,12 +12,7 @@ import (
 	"math/big"
 	"time"
 
-	notificationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v1"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
 	"github.com/ethereum/go-ethereum/common"
-	"google.golang.org/grpc"
-	grpc_metadata "google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -64,53 +59,12 @@ func (h *evmResponseHandler) mint(
 	return receipt.TxHash.Hex(), tokenID, nil
 }
 
-func (h *evmResponseHandler) onBookingTokenMint(tokenID *big.Int, mintID *typesv1.UUID, buyableUntil time.Time) {
-	notificationClient := h.serviceRegistry.NotificationClient()
-	expirationTimer := &time.Timer{}
-
-	unsubscribeTokenBought, err := h.evmEventListener.RegisterTokenBoughtHandler(
-		h.bookingTokenAddress,
-		[]*big.Int{tokenID},
-		nil,
-		func(e any) {
-			expirationTimer.Stop()
-			h.logger.Infof("Token bought event received for token %s", tokenID.String())
-			event := e.(*bookingtoken.BookingtokenTokenBought)
-
-			if _, err := notificationClient.TokenBoughtNotification(
-				context.Background(),
-				&notificationv1.TokenBought{
-					TokenId: tokenID.Uint64(),
-					TxId:    event.Raw.TxHash.Hex(),
-					MintId:  mintID,
-				},
-				grpc.Header(&grpc_metadata.MD{}),
-			); err != nil {
-				h.logger.Errorf("error calling partner plugin TokenBoughtNotification service: %v", err)
-			}
-		},
-	)
-	if err != nil {
-		h.logger.Errorf("failed to register handler: %v", err)
-		// TODO @evlekht send some notification to partner plugin
-		return
+func (h *evmResponseHandler) subscribeForTokenBoughtEvent(tokenID *big.Int, mintID string, buyableUntil *timestamppb.Timestamp) {
+	tokenBoughtTimeout := time.Unix(buyableUntil.Seconds, 0)
+	if err := h.eventListener.SubscribeForTokenBoughtEvent(tokenID, mintID, tokenBoughtTimeout); err != nil {
+		h.logger.Errorf("error subscribing for token bought event (tokenID: %d, mintID: %s, timeout: %d): %v",
+			tokenID.Int64(), mintID, tokenBoughtTimeout, err)
 	}
-
-	expirationTimer = time.AfterFunc(time.Until(buyableUntil), func() {
-		unsubscribeTokenBought()
-		h.logger.Infof("Token %s expired", tokenID.String())
-
-		if _, err := notificationClient.TokenExpiredNotification(
-			context.Background(),
-			&notificationv1.TokenExpired{
-				TokenId: tokenID.Uint64(),
-				MintId:  mintID,
-			},
-			grpc.Header(&grpc_metadata.MD{}),
-		); err != nil {
-			h.logger.Errorf("error calling partner plugin TokenExpiredNotification service: %v", err)
-		}
-	})
 }
 
 // TODO @evlekht check if those structs are needed as exported here, otherwise make them private or move to another pkg
