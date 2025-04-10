@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chain4travel/camino-messenger-bot/internal/event_listener/subscriber"
 	"github.com/chain4travel/camino-messenger-bot/internal/partnerplugin"
-	"github.com/chain4travel/camino-messenger-bot/pkg/events"
+	cmaccounts "github.com/chain4travel/camino-messenger-bot/pkg/cm_accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
@@ -30,7 +31,7 @@ type EventListener interface {
 type eventListener struct {
 	bookingTokenAddress common.Address
 	logger              *zap.SugaredLogger
-	eventListener       *events.EventListener
+	subscriber          subscriber.Subscriber
 	partnerPlugin       partnerplugin.PartnerPlugin
 
 	unsubscribers      []unsubscriber
@@ -46,14 +47,21 @@ func New(
 	logger *zap.SugaredLogger,
 	ethClient *ethclient.Client,
 	bookingTokenAddress common.Address,
+	cmAccounts cmaccounts.Service,
 	partnerPlugin partnerplugin.PartnerPlugin,
-) EventListener {
+) (EventListener, error) {
+	subscriber, err := subscriber.New(ethClient, logger, bookingTokenAddress, cmAccounts)
+	if err != nil {
+		logger.Errorf("failed to create subscriber: %v", err)
+		return nil, err
+	}
+
 	return &eventListener{
 		bookingTokenAddress: bookingTokenAddress,
 		logger:              logger,
-		eventListener:       events.NewEventListener(ethClient, logger),
+		subscriber:          subscriber,
 		partnerPlugin:       partnerPlugin,
-	}
+	}, nil
 }
 
 func (el *eventListener) Stop() {
