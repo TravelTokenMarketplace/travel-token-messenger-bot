@@ -132,6 +132,10 @@ func (cr *reader) parseConfig(cfg *UnparsedConfig) (*Config, error) {
 				DBPath:         cfg.DB.DBPath + "/cheque_handler",
 				MigrationsPath: cfg.DB.MigrationsPath + "/cheque_handler",
 			},
+			EventListener: UnparsedSQLiteDBConfig{
+				DBPath:         cfg.DB.DBPath + "/event_listener",
+				MigrationsPath: cfg.DB.MigrationsPath + "/event_listener",
+			},
 		},
 		RPCServer:     cfg.RPCServer,
 		Tracing:       cfg.Tracing,
@@ -141,6 +145,7 @@ func (cr *reader) parseConfig(cfg *UnparsedConfig) (*Config, error) {
 			Store: cfg.DB.DBPath + "/matrix",
 		},
 		DeveloperMode:                       cfg.DeveloperMode,
+		E2ETestMode:                         cfg.E2ETestMode,
 		BotKey:                              botKey,
 		CMAccountAddress:                    common.HexToAddress(cfg.CMAccountAddress),
 		ChainRPCURL:                         cfg.ChainRPCURL,
@@ -151,5 +156,6 @@ func (cr *reader) parseConfig(cfg *UnparsedConfig) (*Config, error) {
 		MinChequeDurationUntilExpiration:    big.NewInt(0).SetUint64(cfg.MinChequeDurationUntilExpiration),
 		CashInPeriod:                        time.Duration(cfg.CashInPeriod) * time.Second,
 		ResponseTimeout:                     time.Duration(cfg.ResponseTimeout) * time.Millisecond,
+		RecordExpiration:                    cfg.RecordExpiration,
 	}, nil
 }

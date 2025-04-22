@@ -52,7 +52,7 @@ func (h *evmResponseHandler) prepareMintResponseV2(
 	}
 	h.logger.Debugf("Token URI: %s\n", response.BookingTokenUri)
 
-	buyableUntil, err := verifyAndFixBuyableUntil(response.BuyableUntil, time.Now())
+	buyableUntil, err := h.verifyAndFixBuyableUntil(response.BuyableUntil, time.Now())
 	if err != nil {
 		h.logger.Error(err)
 		h.AddErrorToResponseHeader(response, err.Error())
@@ -87,7 +87,7 @@ func (h *evmResponseHandler) prepareMintResponseV2(
 
 	h.logger.Infof("NFT minted with txID: %s\n", txID)
 
-	h.subscribeForTokenBoughtEvent(tokenID, response.MintId.Value, buyableUntil)
+	h.subscribeForTokenBoughtEvent(ctx, tokenID, response.MintId.Value, buyableUntil)
 
 	// TODO @evlekht pp will not know if we failed to mint or setup notification
 

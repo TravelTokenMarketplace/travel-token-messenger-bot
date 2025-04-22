@@ -19,6 +19,7 @@ import (
 
 type Config struct {
 	DeveloperMode bool
+	E2ETestMode   bool
 
 	BotKey           *ecdsa.PrivateKey
 	CMAccountAddress common.Address
@@ -35,6 +36,8 @@ type Config struct {
 
 	ResponseTimeout time.Duration
 
+	RecordExpiration bool
+
 	RPCServer     RPCServerConfig
 	PartnerPlugin PartnerPluginConfig
 	Tracing       TracingConfig
@@ -46,6 +49,7 @@ type SQLiteDBConfig struct {
 	Common        UnparsedSQLiteDBConfig
 	Scheduler     UnparsedSQLiteDBConfig
 	ChequeHandler UnparsedSQLiteDBConfig
+	EventListener UnparsedSQLiteDBConfig
 }
 
 // ******* Common *******
@@ -86,6 +90,7 @@ type RPCServerConfig struct {
 
 type UnparsedConfig struct {
 	DeveloperMode bool `mapstructure:"developer_mode"`
+	E2ETestMode   bool `mapstructure:"e2e_test_mode"`
 
 	BotKey           string `mapstructure:"bot_key"`
 	CMAccountAddress string `mapstructure:"cm_account_address"`
@@ -101,6 +106,8 @@ type UnparsedConfig struct {
 	CashInPeriod                     int64  `mapstructure:"cash_in_period"`                       // seconds
 
 	ResponseTimeout int64 `mapstructure:"response_timeout"` // milliseconds
+
+	RecordExpiration bool `mapstructure:"record_expiration"`
 
 	PartnerPlugin PartnerPluginConfig `mapstructure:"partner_plugin"`
 	Tracing       TracingConfig       `mapstructure:"tracing"`
@@ -129,6 +136,7 @@ func (cfg *Config) unparse() *UnparsedConfig {
 			Host: cfg.Matrix.Host,
 		},
 		DeveloperMode:                       cfg.DeveloperMode,
+		E2ETestMode:                         cfg.E2ETestMode,
 		BotKey:                              hex.EncodeToString(crypto.FromECDSA(cfg.BotKey)),
 		CMAccountAddress:                    cfg.CMAccountAddress.Hex(),
 		ChainRPCURL:                         cfg.ChainRPCURL,
@@ -139,5 +147,6 @@ func (cfg *Config) unparse() *UnparsedConfig {
 		MinChequeDurationUntilExpiration:    cfg.MinChequeDurationUntilExpiration.Uint64(),
 		CashInPeriod:                        int64(cfg.CashInPeriod / time.Second),
 		ResponseTimeout:                     int64(cfg.ResponseTimeout / time.Millisecond),
+		RecordExpiration:                    cfg.RecordExpiration,
 	}
 }

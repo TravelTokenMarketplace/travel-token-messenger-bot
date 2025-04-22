@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	e2ecommon "github.com/chain4travel/camino-messenger-bot/tests/e2e/common"
 	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
 	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtokenoperator"
 	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
@@ -40,7 +41,7 @@ func newClient(
 	prefundedKeys []*ecdsa.PrivateKey,
 	adminKey *ecdsa.PrivateKey,
 ) (*Client, error) {
-	chainRPCURL := nodeURI + "/ext/bc/C/rpc"
+	chainRPCURL := "ws://" + nodeURI + "/ext/bc/C/ws"
 	ethClient, err := ethclient.Dial(chainRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the Ethereum client: %w", err)
@@ -505,6 +506,25 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to issue bookingToken.ReinitializeV2 tx: %w", err)
 	}
 
+	minExpirationTimestampDiffRole, err := c.BookingToken.MINEXPIRATIONADMINROLE(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		return fmt.Errorf("failed to get role: %w", err)
+	}
+
+	grantRoleTx, err = c.BookingToken.GrantRole(transactor, minExpirationTimestampDiffRole, adminAddress)
+	if err != nil {
+		return fmt.Errorf("failed to issue BookingToken.GrantRole tx: %w", err)
+	}
+
+	if _, err := c.waitTxSucceed(ctx, grantRoleTx); err != nil {
+		return fmt.Errorf("failed to wait for cmAccountManager.GrantRole tx to succeed: %w", err)
+	}
+
+	updateExpirationTx, err := c.BookingToken.SetMinExpirationTimestampDiff(transactor, big.NewInt(e2ecommon.MinBuyableUntilInContract))
+	if err != nil {
+		return fmt.Errorf("failed to issue bookingToken.SetMinExpirationTimestampDiff tx: %w", err)
+	}
+
 	if _, err := c.waitTxSucceed(ctx, setBookingTokenAddressTx); err != nil {
 		return fmt.Errorf("failed to wait for cmAccountManager.SetBookingTokenAddress tx to succeed: %w", err)
 	}
@@ -513,6 +533,9 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	}
 	if _, err := c.waitTxSucceed(ctx, reinitializeV2Tx); err != nil {
 		return fmt.Errorf("failed to wait for bookingToken.ReinitializeV2 tx to succeed: %w", err)
+	}
+	if _, err := c.waitTxSucceed(ctx, updateExpirationTx); err != nil {
+		return fmt.Errorf("failed to wait for bookingToken.SetMinExpirationTimestampDiff tx to succeed: %w", err)
 	}
 
 	c.bookingTokenContractAddress = bookingTokenProxyAddress

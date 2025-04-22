@@ -8,6 +8,7 @@ db:
     migrations_path: file://./migrations
     path: supplier-bot-db
 developer_mode: true
+e2e_test_mode: false
 matrix:
     host: messenger.chain4travel.com
 min_cheque_duration_until_expiration: 15552000
@@ -18,6 +19,7 @@ partner_plugin:
     enabled: true
     host: localhost:50051
     unencrypted: true
+record_expiration: true
 response_timeout: 10000
 rpc_server:
     cert_file: server-cert.pem

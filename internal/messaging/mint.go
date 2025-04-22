@@ -4,6 +4,7 @@
 package messaging
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -20,9 +21,9 @@ var (
 	errMissingMintTxID = errors.New("missing mint transaction id")
 )
 
-func (h *evmResponseHandler) subscribeForTokenBoughtEvent(tokenID *big.Int, mintID string, buyableUntil *timestamppb.Timestamp) {
+func (h *evmResponseHandler) subscribeForTokenBoughtEvent(ctx context.Context, tokenID *big.Int, mintID string, buyableUntil *timestamppb.Timestamp) {
 	tokenBoughtTimeout := time.Unix(buyableUntil.Seconds, 0)
-	if err := h.eventListener.SubscribeForTokenBoughtEvent(tokenID, mintID, tokenBoughtTimeout); err != nil {
+	if err := h.eventListener.SubscribeTokenBoughtEvent(ctx, tokenID, mintID, tokenBoughtTimeout); err != nil {
 		h.logger.Errorf("error subscribing for token bought event (tokenID: %d, mintID: %s, timeout: %d): %v",
 			tokenID.Int64(), mintID, tokenBoughtTimeout, err)
 	}
@@ -111,23 +112,23 @@ func generateAndEncodeJSON(name, description, date, externalURL, image string, a
 	return string(jsonData), encoded, nil
 }
 
-func verifyAndFixBuyableUntil(buyableUntil *timestamppb.Timestamp, currentTime time.Time) (*timestamppb.Timestamp, error) {
+func (h *evmResponseHandler) verifyAndFixBuyableUntil(buyableUntil *timestamppb.Timestamp, currentTime time.Time) (*timestamppb.Timestamp, error) {
 	switch {
 	case buyableUntil == nil || buyableUntil.Seconds == 0:
 		// BuyableUntil not set
-		return timestamppb.New(currentTime.Add(buyableUntilDurationDefault)), nil
+		return timestamppb.New(currentTime.Add(h.tokenBuyableUntil.Default)), nil
 
 	case buyableUntil.Seconds < timestamppb.New(currentTime).Seconds:
 		// BuyableUntil in the past
 		return nil, fmt.Errorf("refused to mint token - BuyableUntil in the past:  %v", buyableUntil)
 
-	case buyableUntil.Seconds < timestamppb.New(currentTime.Add(buyableUntilDurationMinimal)).Seconds:
+	case buyableUntil.Seconds < timestamppb.New(currentTime.Add(h.tokenBuyableUntil.Minimal)).Seconds:
 		// BuyableUntil too early
-		return timestamppb.New(currentTime.Add(buyableUntilDurationMinimal)), nil
+		return timestamppb.New(currentTime.Add(h.tokenBuyableUntil.Minimal)), nil
 
-	case buyableUntil.Seconds > timestamppb.New(currentTime.Add(buyableUntilDurationMaximal)).Seconds:
+	case buyableUntil.Seconds > timestamppb.New(currentTime.Add(h.tokenBuyableUntil.Maximal)).Seconds:
 		// BuyableUntil too late
-		return timestamppb.New(currentTime.Add(buyableUntilDurationMaximal)), nil
+		return timestamppb.New(currentTime.Add(h.tokenBuyableUntil.Maximal)), nil
 	}
 
 	return buyableUntil, nil
