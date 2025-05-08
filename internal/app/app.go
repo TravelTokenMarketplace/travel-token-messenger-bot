@@ -35,6 +35,7 @@ import (
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/pkg/cm_accounts"
 	"github.com/chain4travel/camino-messenger-bot/pkg/database/sqlite"
 	"github.com/chain4travel/camino-messenger-bot/pkg/erc20"
+	matrixPkg "github.com/chain4travel/camino-messenger-bot/pkg/matrix"
 	"github.com/chain4travel/camino-messenger-bot/pkg/scheduler"
 	scheduler_storage "github.com/chain4travel/camino-messenger-bot/pkg/scheduler/storage/sqlite"
 )
@@ -236,7 +237,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 	matrixHostname = u.Hostname()
 
 	botAddress := crypto.PubkeyToAddress(cfg.BotKey.PublicKey)
-	botUserID := messaging.UserIDFromAddress(botAddress, matrixHostname)
+	botUserID := matrixPkg.UserIDFromAddress(botAddress, matrixHostname)
 
 	messageProcessor := messaging.NewMessageProcessor(
 		matrixMessenger,
@@ -351,7 +352,12 @@ func (a *App) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error {
+		if !awaitChan(gCtx, cashInStatusCheckDone) {
+			return nil
+		}
+
 		a.logger.Info("Starting scheduler...")
+
 		if err := a.scheduler.Schedule(gCtx, a.cfg.CashInPeriod, cashInJobName); err != nil {
 			return fmt.Errorf("failed to schedule cash in job: %w", err)
 		}
@@ -393,7 +399,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	if a.rpcServer != nil { // rpcServer will be nil, if its disabled in config
 		g.Go(func() error {
-			if !awaitChans(gCtx, messengerReceiverStarted) {
+			if !awaitChan(gCtx, messengerReceiverStarted) {
 				return nil
 			}
 

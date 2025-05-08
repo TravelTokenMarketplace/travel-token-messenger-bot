@@ -12,7 +12,7 @@ import (
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v1/bookv1grpc"
 	bookv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v1"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pp-mock/config"
 	"github.com/chain4travel/camino-messenger-bot/pp-mock/events"
 	"github.com/google/uuid"
@@ -60,7 +60,7 @@ func (s *mintServiceV1Server) Mint(ctx context.Context, req *bookv1.MintRequest)
 		},
 	}
 
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	if err := grpc.SetHeader(ctx, md.ToGrpcMD()); err != nil {
 		log.Printf("Failed to set header: %v", err)

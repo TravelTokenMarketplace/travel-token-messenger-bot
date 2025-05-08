@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -40,10 +40,10 @@ func (s *service) HandleLocalRequest(
 	metadata *metadata.Metadata,
 	_ protoreflect.ProtoMessage,
 ) (protoreflect.ProtoMessage, error) {
-	metadata.Stamp(fmt.Sprintf("%s-%s", s.Checkpoint(), "request"))
+	metadata.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "request"))
 	return nil, errors.New("not implemented")
 }
 
-func (*service) Checkpoint() string {
+func (*service) checkpoint() string {
 	return "service"
 }

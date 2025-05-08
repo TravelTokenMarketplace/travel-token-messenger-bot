@@ -14,9 +14,9 @@ import (
 	bookv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v2"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/pkg/booking"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pkg/price"
 	common "github.com/chain4travel/camino-messenger-bot/pp-mock/handlers"
 	"github.com/chain4travel/camino-messenger-bot/tests/e2e/bot"
@@ -84,7 +84,7 @@ func testAccommodationV2ProductListService(
 	}
 	resp, err := distributorBot.AccommodationProductListServiceV2.AccommodationProductList(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -125,7 +125,7 @@ func testAccommodationV2ProductListServiceWithFilter(
 	}
 	resp, err := distributorBot.AccommodationProductListServiceV2.AccommodationProductList(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -161,7 +161,7 @@ func testAccommodationV2ProductInfoService(
 	}
 	resp, err := distributorBot.AccommodationProductInfoServiceV2.AccommodationProductInfo(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -218,7 +218,7 @@ func testAccommodationV2SearchServiceWithoutCurrency(
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -252,7 +252,7 @@ func testAccommodationV2SearchServiceWithoutTravelPeriod(
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -294,7 +294,7 @@ func testAccommodationV2SearchServiceTravelPeriodOutOfBounds(
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -336,7 +336,7 @@ func testAccommodationV2SearchServiceTravelPeriodReversed(
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -381,7 +381,7 @@ func testAccommodationV2SearchServiceWithTravelPeriod(
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV2.AccommodationSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -442,7 +442,7 @@ func testAccommodationV2ValidateV2(
 	}
 	resp, err := distributorBot.ValidationServiceV2.Validation(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -492,7 +492,7 @@ func testAccommodationV2MintV2(
 	}
 	resp, err := distributorBot.MintServiceV2.Mint(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)

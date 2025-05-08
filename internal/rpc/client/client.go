@@ -9,13 +9,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/chain4travel/camino-messenger-bot/config"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	"github.com/chain4travel/camino-messenger-bot/internal/utils/tls"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
-
-var _ metadata.Checkpoint = (*RPCClient)(nil)
 
 type RPCClient struct {
 	logger     *zap.SugaredLogger
@@ -47,10 +44,6 @@ func NewClient(cfg config.PartnerPluginConfig, logger *zap.SugaredLogger) (*RPCC
 		logger:     logger,
 		ClientConn: clientConnection,
 	}, nil
-}
-
-func (rc *RPCClient) Checkpoint() string {
-	return "ext-system-client"
 }
 
 func (rc *RPCClient) Shutdown() error {

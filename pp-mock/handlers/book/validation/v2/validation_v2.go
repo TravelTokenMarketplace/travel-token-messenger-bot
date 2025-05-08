@@ -14,7 +14,7 @@ import (
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	"google.golang.org/grpc"
 
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pp-mock/events"
 	"github.com/chain4travel/camino-messenger-bot/pp-mock/handlers/state"
 	"github.com/google/uuid"
@@ -103,7 +103,7 @@ func (s *validationServiceV2Server) Validation(ctx context.Context, req *bookv2.
 			Description: "Validated total price",
 		},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	if err := grpc.SetHeader(ctx, md.ToGrpcMD()); err != nil {
 		log.Printf("Failed to set header: %v", err)

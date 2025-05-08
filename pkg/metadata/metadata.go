@@ -15,13 +15,13 @@ import (
 )
 
 type Metadata struct {
-	RequestID      string                 `json:"request_id"`
-	Sender         string                 `json:"sender"`
-	Recipient      string                 `json:"recipient"`
-	Cheques        []cheques.SignedCheque `json:"cheques"`
-	Timestamps     map[string]int64       `json:"timestamps"` // map of checkpoints to timestamps in unix milliseconds
-	NumberOfChunks uint64                 `json:"number_of_chunks"`
-	ChunkIndex     uint64                 `json:"chunk_index"`
+	RequestID          string                 `json:"request_id"`
+	SenderCMAccount    string                 `json:"sender"`
+	RecipientCMAccount string                 `json:"recipient"`
+	Cheques            []cheques.SignedCheque `json:"cheques"`
+	Timestamps         map[string]int64       `json:"timestamps"` // map of checkpoints to timestamps in unix milliseconds
+	NumberOfChunks     uint64                 `json:"number_of_chunks"`
+	ChunkIndex         uint64                 `json:"chunk_index"`
 
 	// Deprecated: this metadata serves only as a temp solution and should be removed and addressed on the protocol level
 	ProviderOperator string `json:"provider_operator"`
@@ -45,11 +45,11 @@ func (m *Metadata) FromGrpcMD(mdPairs metadata.MD) error {
 	}
 
 	if sender, found := mdPairs["sender"]; found && len(sender[0]) > 0 {
-		m.Sender = sender[0]
+		m.SenderCMAccount = sender[0]
 	}
 
 	if recipient, found := mdPairs["recipient"]; found && len(recipient[0]) > 0 {
-		m.Recipient = recipient[0]
+		m.RecipientCMAccount = recipient[0]
 	}
 
 	if cheques, found := mdPairs["cheques"]; found && len(cheques[0]) > 0 {
@@ -74,8 +74,8 @@ func (m *Metadata) FromGrpcMD(mdPairs metadata.MD) error {
 func (m *Metadata) ToGrpcMD() metadata.MD {
 	md := metadata.New(map[string]string{
 		"request_id": m.RequestID,
-		"sender":     m.Sender,
-		"recipient":  m.Recipient,
+		"sender":     m.SenderCMAccount,
+		"recipient":  m.RecipientCMAccount,
 		"timestamps": func() string {
 			timestampsJSON, _ := json.Marshal(m.Timestamps)
 			return string(timestampsJSON)

@@ -12,11 +12,11 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/internal/local"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc"
 	"github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/internal/tracing"
 	"github.com/chain4travel/camino-messenger-bot/internal/utils/tls"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/proto/pb/readiness"
 
 	"go.opentelemetry.io/otel/trace"
@@ -34,7 +34,6 @@ var (
 )
 
 type Server interface {
-	metadata.Checkpoint
 	Start() error
 	Stop()
 }
@@ -93,7 +92,7 @@ type server struct {
 	readiness.UnimplementedReadinessServiceServer
 }
 
-func (*server) Checkpoint() string {
+func (*server) checkpoint() string {
 	return "request-gateway"
 }
 
@@ -125,7 +124,7 @@ func (s *server) HandleMessageRequest(ctx context.Context, requestType types.Mes
 	if err != nil {
 		return nil, fmt.Errorf("error processing outbound request: %w", err)
 	}
-	response.Metadata.Stamp(fmt.Sprintf("%s-%s", s.Checkpoint(), "processed"))
+	response.Metadata.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "processed"))
 
 	// TODO set specific errors according to https://grpc.github.io/grpc/core/md_doc_statuscodes.html ?
 	return response.Content, grpc.SendHeader(ctx, response.Metadata.ToGrpcMD())
@@ -144,7 +143,7 @@ func (s *server) HandleLocalRequest(ctx context.Context, request protoreflect.Pr
 		return nil, fmt.Errorf("error processing request: %w", err)
 	}
 
-	md.Stamp(fmt.Sprintf("%s-%s", s.Checkpoint(), "processed"))
+	md.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "processed"))
 
 	// TODO set specific errors according to https://grpc.github.io/grpc/core/md_doc_statuscodes.html ?
 	return response, grpc.SendHeader(ctx, md.ToGrpcMD())
@@ -154,7 +153,7 @@ func (s *server) processMetadata(ctx context.Context, id trace.TraceID) (metadat
 	md := metadata.Metadata{
 		RequestID: id.String(),
 	}
-	md.Stamp(fmt.Sprintf("%s-%s", s.Checkpoint(), "received"))
+	md.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "received"))
 	err := md.ExtractMetadata(ctx)
 	return md, err
 }

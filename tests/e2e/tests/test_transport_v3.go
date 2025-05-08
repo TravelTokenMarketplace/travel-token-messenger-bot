@@ -16,9 +16,9 @@ import (
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/pkg/booking"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pkg/price"
 	common "github.com/chain4travel/camino-messenger-bot/pp-mock/handlers"
 	"github.com/chain4travel/camino-messenger-bot/tests/e2e/bot"
@@ -90,7 +90,7 @@ func testTransportV3ProductListService(
 	}
 	resp, err := distributorBot.TransportProductListServiceV3.TransportProductList(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -149,7 +149,7 @@ func testTransportV3ProductListServiceWithFilter(
 	}
 	resp, err := distributorBot.TransportProductListServiceV3.TransportProductList(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -190,7 +190,7 @@ func testTransportV3SearchServiceWithoutQuery(
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -277,7 +277,7 @@ func testTransportV3SearchServiceTravelDatesReversed(
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -363,7 +363,7 @@ func testTransportV3SearchServiceTravelDatesWrong(
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -456,7 +456,7 @@ func testTransportV3SearchServiceTravelWithoutArrivalDate(
 
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -558,7 +558,7 @@ func testTransportV3SearchServiceWithoutArrivalLocation(
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -655,7 +655,7 @@ func testTransportV3SearchServiceWithFilters(
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -715,7 +715,7 @@ func testTransportV3ValidateV2(
 	}
 	resp, err := distributorBot.ValidationServiceV2.Validation(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)
@@ -766,7 +766,7 @@ func testTransportV3MintV2(
 	}
 	resp, err := distributorBot.MintServiceV2.Mint(
 		requestContext(ctx, &metadata.Metadata{
-			Recipient: supplierBot.CMAccountAddress().Hex(),
+			RecipientCMAccount: supplierBot.CMAccountAddress().Hex(),
 		}),
 		req,
 	)

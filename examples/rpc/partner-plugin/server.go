@@ -38,7 +38,7 @@ import (
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
 	"github.com/chain4travel/camino-messenger-bot/examples/rpc/partner-plugin/handlers"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -221,7 +221,7 @@ func (p *partnerPlugin) ActivityProductInfo(ctx context.Context, _ *activityv3.A
 			}},
 		}},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -257,7 +257,7 @@ func (p *partnerPlugin) ActivityProductList(ctx context.Context, _ *activityv2.A
 			},
 		}},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -277,7 +277,7 @@ func (p *partnerPlugin) ActivitySearch(ctx context.Context, _ *activityv3.Activi
 		},
 		Metadata: &typesv3.SearchResponseMetadata{SearchId: &typesv1.UUID{Value: md.RequestID}},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -297,7 +297,7 @@ func (p *partnerPlugin) GetNetworkFee(ctx context.Context, request *networkv1.Ge
 		},
 		CurrentBlockHeight: request.BlockHeight,
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -315,7 +315,7 @@ func (p *partnerPlugin) GetPartnerConfiguration(ctx context.Context, request *pa
 		PartnerConfiguration: &partnerv2.PartnerConfiguration{},
 		CurrentBlockHeight:   request.GetBlockHeight(),
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -476,7 +476,7 @@ func (p *partnerPlugin) SeatMap(ctx context.Context, _ *seat_mapv3.SeatMapReques
 			},
 		},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -512,7 +512,7 @@ func (p *partnerPlugin) SeatMapAvailability(ctx context.Context, _ *seat_mapv3.S
 		},
 	}
 
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }
@@ -604,7 +604,7 @@ func (p *partnerPlugin) CountryEntryRequirements(ctx context.Context, _ *infov2.
 			},
 		},
 	}
-	log.Printf("CMAccount %s received request from CMAccount %s", md.Recipient, md.Sender)
+	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
 
 	return &response, grpc.SendHeader(ctx, md.ToGrpcMD())
 }

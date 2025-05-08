@@ -64,7 +64,6 @@ type TxReceiptGetter interface {
 type ChequeHandler interface {
 	IssueCheque(
 		ctx context.Context,
-		fromCmAccount common.Address,
 		toCmAccount common.Address,
 		toBot common.Address,
 		amount *big.Int,
@@ -78,7 +77,7 @@ type ChequeHandler interface {
 		ctx context.Context,
 		cheque *cheques.SignedCheque,
 		sender common.Address,
-		serviceFee *big.Int,
+		expectedAmountIncrement *big.Int,
 	) error
 }
 
@@ -120,8 +119,8 @@ type evmChequeHandler struct {
 
 	chainID                          *big.Int
 	txReceiptGetter                  TxReceiptGetter
-	cmAccountAddress                 common.Address
-	botKey                           *ecdsa.PrivateKey
+	cmAccountAddress                 common.Address    // cheque issuer, cheque recipient
+	botKey                           *ecdsa.PrivateKey // cheque signer, cheque recipient
 	botAddress                       common.Address
 	signer                           cheques.Signer
 	storage                          Storage
@@ -133,7 +132,6 @@ type evmChequeHandler struct {
 
 func (ch *evmChequeHandler) IssueCheque(
 	ctx context.Context,
-	fromCMAccount common.Address,
 	toCMAccount common.Address,
 	toBot common.Address,
 	amount *big.Int,
@@ -147,7 +145,7 @@ func (ch *evmChequeHandler) IssueCheque(
 
 	now := big.NewInt(time.Now().Unix())
 	newCheque := &cheques.Cheque{
-		FromCMAccount: fromCMAccount,
+		FromCMAccount: ch.cmAccountAddress,
 		ToCMAccount:   toCMAccount,
 		ToBot:         toBot,
 		Counter:       big.NewInt(0),
@@ -218,8 +216,8 @@ func (ch *evmChequeHandler) IssueCheque(
 func (ch *evmChequeHandler) VerifyCheque(
 	ctx context.Context,
 	cheque *cheques.SignedCheque,
-	sender common.Address,
-	serviceFee *big.Int,
+	fromBot common.Address,
+	expectedAmountIncrement *big.Int,
 ) error {
 	session, err := ch.storage.NewSession(ctx)
 	if err != nil {
@@ -234,7 +232,7 @@ func (ch *evmChequeHandler) VerifyCheque(
 		return err
 	}
 
-	if sender != crypto.PubkeyToAddress(*chequeIssuerPubKey) {
+	if fromBot != crypto.PubkeyToAddress(*chequeIssuerPubKey) {
 		return fmt.Errorf("cheque issuer does not match sender")
 	}
 
@@ -261,8 +259,8 @@ func (ch *evmChequeHandler) VerifyCheque(
 	}
 
 	amountDiff := big.NewInt(0).Sub(cheque.Amount, oldAmount)
-	if amountDiff.Cmp(serviceFee) < 0 { // amountDiff < serviceFee
-		return fmt.Errorf("cheque amount must at least cover serviceFee")
+	if amountDiff.Cmp(expectedAmountIncrement) < 0 { // amountDiff < expectedAmountIncrement
+		return fmt.Errorf("cheque amount must at least cover expectedAmountIncrement")
 	}
 
 	if valid, err := ch.cmAccounts.VerifyCheque(ctx, cheque); err != nil {

@@ -16,8 +16,8 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/config"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging"
 	"github.com/chain4travel/camino-messenger-bot/internal/messaging/types"
-	"github.com/chain4travel/camino-messenger-bot/internal/metadata"
 	"github.com/chain4travel/camino-messenger-bot/pkg/matrix"
+	"github.com/chain4travel/camino-messenger-bot/pkg/metadata"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -73,7 +73,7 @@ type client struct {
 	cryptoHelper *cryptohelper.CryptoHelper
 }
 
-func (m *messenger) Checkpoint() string {
+func (m *messenger) checkpoint() string {
 	return "messenger-gateway"
 }
 
@@ -103,7 +103,7 @@ func (m *messenger) StartReceiver() (id.UserID, error) {
 			return // partial messages are not passed down to the msgChannel
 		}
 		completeMsg.Metadata.StampOn(fmt.Sprintf("matrix-sent-%s", completeMsg.MsgType), evt.Timestamp)
-		completeMsg.Metadata.StampOn(fmt.Sprintf("%s-%s-%s", m.Checkpoint(), "received", completeMsg.MsgType), t.UnixMilli())
+		completeMsg.Metadata.StampOn(fmt.Sprintf("%s-%s-%s", m.checkpoint(), "received", completeMsg.MsgType), t.UnixMilli())
 		m.msgChannel <- types.Message{
 			Metadata:        completeMsg.Metadata,
 			Content:         completeMsg.Content,
