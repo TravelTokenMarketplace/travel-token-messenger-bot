@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2025, Chain4Travel AG. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package handlers
+package v1
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
+	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/events"
-	common "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers"
 	"github.com/google/uuid"
 )
 
