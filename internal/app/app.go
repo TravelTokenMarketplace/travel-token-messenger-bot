@@ -19,6 +19,7 @@ import (
 	"maunium.net/go/mautrix/id"
 
 	"github.com/chain4travel/camino-messenger-bot/v11/config"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/cancellation"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/compression"
 	eventlistener "github.com/chain4travel/camino-messenger-bot/v11/internal/event_listener"
@@ -260,13 +261,23 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		responseHeaderHandler,
 	)
 
+	cancellationService := cancellation.NewService(
+		logger,
+		cfg.BotKey,
+		cfg.CMAccountAddress,
+		cmAccounts,
+		priceHandler,
+	)
+
 	// rpc server for incoming requests
 	rpcServer, err := server.NewServer(
 		cfg.RPCServer,
 		logger,
+		responseHeaderHandler,
 		tracer,
 		messageProcessor,
 		serviceRegistry,
+		cancellationService,
 		cfg.DeveloperMode,
 	)
 	if err != nil {

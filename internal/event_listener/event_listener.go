@@ -33,6 +33,7 @@ var (
 type Storage interface {
 	SessionHandler
 	TokenBoughtSubscriptionStorage
+	CancellationSubscriptionStorage
 }
 
 type SessionHandler interface {
@@ -50,6 +51,7 @@ type EventListener interface {
 	Start(context.Context) error
 	Stop()
 	TokenBoughtSubscriber
+	CancellationSubscriber
 }
 
 type eventListener struct {
@@ -66,6 +68,8 @@ type eventListener struct {
 	tokenBoughtTimerMutex        sync.Mutex
 	tokenBoughtTimer             *time.Timer
 	tokenBoughtTimerSubscription *TokenBoughtSubscription
+
+	unsubscribeCancellation func()
 }
 
 func New(
@@ -107,10 +111,17 @@ func (l *eventListener) Start(ctx context.Context) error {
 		l.logger.Errorf("failed to start token bought subscriptions: %v", err)
 		return err
 	}
+
+	if err := l.startCancellationSubscriptions(ctx); err != nil {
+		l.logger.Errorf("failed to start cancellation subscriptions: %v", err)
+		return err
+	}
+
 	return nil
 }
 
 func (l *eventListener) Stop() {
 	l.unsubscribeTokenBought()
 	l.stopTokenBoughtTimer()
+	l.unsubscribeCancellation()
 }
