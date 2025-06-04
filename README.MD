@@ -87,6 +87,10 @@ yarn hardhat account bot:add --bot <0xc-chain-address-of-the-bot-wallet> --cm-ac
 
 Add this **bot's wallet static private key** to your `.yml` configuration under `bot_key`.
 
+> [!CAUTION]
+> Do not set up two bot instances with the same configuration (same `bot_key`). E.g. if you have a deployed bot running on the Columbus network, don't start one locally. Doing so can cause issues with cheques that will
+> manifest as timeouts. Do not start the bot locally with the configuration intended for the mainnet (Camino).
+
 3. Granting Withdrawer role
 
 In case you want to withdraw funds from the CM Account contract, you have to grant the `WITHDRAWER_ROLE` to an address, even for the default admin (creator of the CM Account). To do this run:
@@ -101,6 +105,10 @@ yarn hardhat account role:grant --role WITHDRAWER_ROLE --cm-account <0xCMAccount
 ```
 yarn hardhat account service:add --cm-account <0xCMAccount-address> --private-key <0xstatic-private-key-of-the-cm-account-wallet>  --service-name cmp.services.ping.v1.PingService --fee 1 --network columbus
 ```
+
+> [!IMPORTANT]  
+> **After adding or removing the service(s)** it is necessary to **restart the bot**.
+
 
 To see all the services you can support, run:
 
@@ -155,9 +163,9 @@ Below are instructions for installing the `olm` library for Linux (Debian and Ub
    brew update
    ```
 
-   > [!TIP]
-   > If you don't have Homebrew installed, you can install it by following
-   > the instructions on [https://brew.sh/](https://brew.sh/).
+> [!TIP]
+> If you don't have Homebrew installed, you can install it by following
+> the instructions on [https://brew.sh/](https://brew.sh/).
 
 2. **Install libolm:**
    ```bash
