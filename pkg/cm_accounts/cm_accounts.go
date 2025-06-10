@@ -114,14 +114,15 @@ type service struct {
 }
 
 func NewService(
+	ctx context.Context,
 	logger *zap.SugaredLogger,
 	cacheSize int,
 	ethClient *ethclient.Client,
 ) (Service, error) {
-	chainID, err := ethClient.ChainID(context.Background())
+	chainID, err := ethClient.ChainID(ctx)
 	if err != nil {
 		logger.Errorf("Failed to get chain ID: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
 	cache, err := lru.New[common.Address, *cmaccount.Cmaccount](cacheSize)
