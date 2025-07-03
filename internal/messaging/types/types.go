@@ -7,8 +7,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/chain4travel/camino-messenger-bot/v11/pkg/cheques"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"maunium.net/go/mautrix/id"
 )
@@ -48,16 +48,13 @@ func ServiceNameToRequestMessageType(serviceName string) MessageType {
 	return MessageType(serviceName + ".Request")
 }
 
-// Message is the message format used for communication between the messenger and the service
-// TODO @evlekht why json tags? where is this shown? Its not passed into matrix message
 type Message struct {
-	Type              MessageType               `json:"msgtype"` // TODO @evlekht it might be possible to get rid of this field
-	Content           protoreflect.ProtoMessage `json:"content"`
-	Metadata          metadata.Metadata         `json:"metadata"`
-	SenderBotUserID   id.UserID
+	Type              MessageType
+	Content           protoreflect.ProtoMessage
 	CompressedContent [][]byte
-}
-
-func (m *Message) MarshalContent() ([]byte, error) {
-	return proto.Marshal(m.Content)
+	RequestID         string
+	Timestamps        metadata.Timestamps
+	ServiceFeeCheque  *cheques.SignedCheque
+	NetworkFeeCheque  *cheques.SignedCheque
+	SenderBotUserID   id.UserID
 }

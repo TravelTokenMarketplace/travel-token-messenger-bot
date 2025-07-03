@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/messaging/types"
+	"github.com/chain4travel/camino-messenger-bot/v11/pkg/cheques"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
 	"maunium.net/go/mautrix/event"
 )
@@ -43,20 +44,18 @@ func (e *MessageChunkEventContent) Verify() error {
 }
 
 type MessageEventContent struct {
-	MsgType  types.MessageType `json:"msgtype"`
-	Metadata metadata.Metadata `json:"metadata"`
-	Data     []byte            `json:"data"`
+	MessageChunkEventContent
+
+	MsgType          types.MessageType     `json:"msgtype"`
+	ChunksCount      uint32                `json:"chunks_count"`
+	Timestamps       metadata.Timestamps   `json:"timestamps"`
+	ServiceFeeCheque *cheques.SignedCheque `json:"service_fee_cheque,omitempty"`
+	NetworkFeeCheque cheques.SignedCheque  `json:"network_fee_cheque"`
 }
 
 func (e *MessageEventContent) Verify() error {
-	if e.Metadata.NumberOfChunks == 0 {
+	if e.ChunksCount == 0 {
 		return ErrNoChunks
 	}
-	if e.Metadata.RequestID == "" {
-		return ErrNoRequestID
-	}
-	if len(e.Data) == 0 {
-		return ErrNoData
-	}
-	return nil
+	return e.MessageChunkEventContent.Verify()
 }
