@@ -44,7 +44,6 @@ var (
 
 type MessageProcessor interface {
 	Start(ctx context.Context)
-	ProcessIncomingMessage(message *types.Message) error
 	SendRequestMessage(
 		ctx context.Context,
 		message *types.Message,
@@ -82,7 +81,7 @@ func NewMessageProcessor(
 		compressor:                          compressor,
 		cmAccounts:                          cmAccounts,
 		matrixHost:                          botUserID.Homeserver(),
-		myBotAddress:                        matrix.AddressFromUserID(botUserID),
+		botAddress:                          matrix.AddressFromUserID(botUserID),
 		botUserID:                           botUserID,
 		cmAccountAddress:                    cmAccountAddress,
 		networkFeeRecipientBotAddress:       networkFeeRecipientBotAddress,
@@ -96,7 +95,7 @@ type messageProcessor struct {
 	responseTimeout                     time.Duration // timeout after which a request is considered failed
 	matrixHost                          string
 	botUserID                           id.UserID
-	myBotAddress                        ethCommon.Address
+	botAddress                          ethCommon.Address
 	cmAccountAddress                    ethCommon.Address
 	networkFeeRecipientBotAddress       ethCommon.Address
 	networkFeeRecipientCMAccountAddress ethCommon.Address
@@ -124,7 +123,7 @@ func (p *messageProcessor) Start(ctx context.Context) {
 	go func() {
 		for {
 			select {
-			case msg := <-p.messenger.Inbound():
+			case msg := <-p.messenger.ReceivedMessageChan():
 				go func() {
 					defer func() {
 						if r := recover(); r != nil {
@@ -133,7 +132,7 @@ func (p *messageProcessor) Start(ctx context.Context) {
 					}()
 					p.logger.Debugf("Processing incoming message (%s): %s", msg.Type, msg.RequestID)
 
-					if err := p.ProcessIncomingMessage(&msg); err != nil {
+					if err := p.processIncomingMessage(&msg); err != nil {
 						p.logger.Warnf("could not process message: %v", err)
 					}
 				}()
@@ -147,7 +146,7 @@ func (p *messageProcessor) Start(ctx context.Context) {
 	}()
 }
 
-func (p *messageProcessor) ProcessIncomingMessage(msg *types.Message) error {
+func (p *messageProcessor) processIncomingMessage(msg *types.Message) error {
 	switch msg.Type.Category() {
 	case types.Request:
 		return p.respond(msg)
@@ -169,7 +168,7 @@ func (p *messageProcessor) SendRequestMessage(
 
 	requestMsg.SenderBotUserID = p.botUserID
 
-	p.logger.Debug("Sending outbound request message")
+	p.logger.Debug("Sending request message")
 	responseChan := make(chan *types.Message)
 	p.setResponseChannel(requestMsg.RequestID, responseChan)
 	defer p.deleteResponseChannel(requestMsg.RequestID)
@@ -184,7 +183,7 @@ func (p *messageProcessor) SendRequestMessage(
 		return nil, err
 	}
 
-	isBotAllowed, err := p.cmAccounts.IsBotAllowed(ctx, p.cmAccountAddress, p.myBotAddress)
+	isBotAllowed, err := p.cmAccounts.IsBotAllowed(ctx, p.cmAccountAddress, p.botAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +318,7 @@ func (p *messageProcessor) callPartnerPluginAndGetResponse(
 }
 
 func (p *messageProcessor) forwardToHandler(msg *types.Message) error {
-	p.logger.Debugf("Forwarding outbound response message: %s", msg.RequestID)
+	p.logger.Debugf("Forwarding response message to handler: %s", msg.RequestID)
 	responseChan, ok := p.getResponseChannel(msg.RequestID)
 	if ok {
 		responseChan <- msg

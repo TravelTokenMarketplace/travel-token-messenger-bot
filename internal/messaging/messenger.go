@@ -10,10 +10,6 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-type APIMessageResponse struct {
-	Message types.Message
-	Err     error
-}
 type Messenger interface {
 	// Initializes messenger and starts receiving messages.
 	Start(ctx context.Context) (chan error, error)
@@ -25,5 +21,5 @@ type Messenger interface {
 	SendMessage(ctx context.Context, m *types.Message, sendTo id.UserID) error
 
 	// Channel where incoming messages are written
-	Inbound() chan types.Message
+	ReceivedMessageChan() chan types.Message
 }
