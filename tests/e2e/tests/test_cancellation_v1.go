@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	bookv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v3"
 	cancellationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v1"
 	notificationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v2"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
@@ -21,135 +20,101 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/proto/pb/events"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/bot"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/partner_plugin"
+	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/suite"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
-// Setting up the basic applications and services used in all sub-test-cases
-func testCancellationV1Setup(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-) (
-	supplierPartnerPlugin *partnerplugin.PartnerPlugin,
-	supplierBot *bot.Bot,
-	distributorPartnerPlugin *partnerplugin.PartnerPlugin,
-	distributorBot *bot.Bot,
-) {
-	require.NoError(t, tt.caminoNetwork.Client.RegisterCMServices(ctx,
-		botGenerated.AccommodationProductListServiceV3,
+var _ suite.Test = (*TestCancellationV1)(nil)
+
+func init() {
+	Tests["CancellationV1"] = &TestCancellationV1{}
+}
+
+type TestCancellationV1 struct {
+	*suite.Environment
+
+	supplierPartnerPlugin *partnerplugin.PartnerPlugin
+	supplierPPEventStream events.EventsService_SubscribeClient
+	supplierBot           *bot.Bot
+
+	distributorPartnerPlugin *partnerplugin.PartnerPlugin
+	distributorPPEventStream events.EventsService_SubscribeClient
+	distributorBot           *bot.Bot
+}
+
+func (tt *TestCancellationV1) Setup(e *suite.Environment) {
+	tt.Environment = e
+}
+
+func (tt *TestCancellationV1) Run(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	tt.prepare(ctx, t)
+
+	t.Run("CheckCancellationV1", func(t *testing.T) {
+		tt.testCheckCancellationV1(ctx, t)
+	})
+	t.Run("Distributor initiates, basic flow", func(t *testing.T) {
+		tt.testCancellationV1DistributorInitiatesBasic(ctx, t)
+	})
+	t.Run("Distributor initiates", func(t *testing.T) {
+		tt.testCancellationV1DistributorInitiates(ctx, t)
+	})
+	t.Run("Supplier initiates", func(t *testing.T) {
+		tt.testCancellationV1SupplierInitiates(ctx, t)
+	})
+}
+
+func (tt *TestCancellationV1) prepare(ctx context.Context, t *testing.T) {
+	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
 		botGenerated.AccommodationSearchServiceV3,
 		botGenerated.ValidationServiceV2,
 		botGenerated.MintServiceV3,
 		botGenerated.CheckCancellationServiceV1,
 	))
-	supplierPartnerPlugin = tt.createPartnerPlugin(ctx, t)
+
+	tt.supplierPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
 
 	// bot with partnerPlugin and without rpc server (supplier)
-	supplierBot = tt.createBot(ctx, t, true, supplierPartnerPlugin, []bot.CMService{
-		{Name: botGenerated.AccommodationProductListServiceV3, Fee: 100},
-		{Name: botGenerated.AccommodationSearchServiceV3, Fee: 120},
-		{Name: botGenerated.ValidationServiceV2, Fee: 130},
-		{Name: botGenerated.MintServiceV3, Fee: 140},
-		{Name: botGenerated.CheckCancellationServiceV1, Fee: 150},
-	})
-
-	distributorPartnerPlugin = tt.createPartnerPlugin(ctx, t)
-	// bot with partnerPlugin and with rpc server (distributor)
-	distributorBot = tt.createBot(ctx, t, true, distributorPartnerPlugin, nil)
-
-	return supplierPartnerPlugin, supplierBot, distributorPartnerPlugin, distributorBot
-}
-
-func mintBuyTokenV3(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	supplierPPEventStream events.EventsService_SubscribeClient,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) (uint64, *typesv3.Price) {
-	searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, tt, distributorBot, supplierBot) // see test_accommodation_v3.go
-	_, err := supplierPPEventStream.Recv()                                                                                      // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
-	validationID := testAccommodationV3ValidateV2(ctx, t, tt, distributorBot, supplierBot, searchID, resultID, totalPrice) // see test_accommodation_v3.go
-	_, err = supplierPPEventStream.Recv()                                                                                  // skip ValidateRequest
-	require.NoError(t, err)
-
-	tokenID, bookingPrice, _ := testAccommodationV3MintV3(ctx, t, tt, distributorBot, supplierBot, validationID) // see test_accommodation_v3.go
-	_, err = supplierPPEventStream.Recv()                                                                        // skip MintRequest
-	require.NoError(t, err)
-
-	eventMsg, err := supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	debugPrintProtoMessage(tt, eventMsg)
-	tokenBoughtNotification := &notificationv2.TokenBought{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
-
-	return tokenID, bookingPrice
-}
-
-func testAccommodationV3MintV3(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-	validationID string,
-) (
-	tokenID uint64,
-	price *typesv3.Price,
-	mintID string,
-) {
-	req := &bookv3.MintRequest{
-		Header:       &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
-		ValidationId: &typesv1.UUID{Value: validationID},
-	}
-	resp, err := distributorBot.MintServiceV3.Mint(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
-		req,
+	tt.supplierBot = tt.CreateBot(ctx, t, true, tt.supplierPartnerPlugin,
+		bot.WithServices([]bot.CMService{
+			{Name: botGenerated.AccommodationSearchServiceV3, Fee: 120},
+			{Name: botGenerated.ValidationServiceV2, Fee: 130},
+			{Name: botGenerated.MintServiceV3, Fee: 140},
+			{Name: botGenerated.CheckCancellationServiceV1, Fee: 150},
+		}),
 	)
+
+	tt.distributorPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
+
+	// bot without partnerPlugin and with rpc server (distributor)
+	tt.distributorBot = tt.CreateBot(ctx, t, true, tt.distributorPartnerPlugin)
+
+	var err error
+	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.SubscribeForEvents(ctx)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
-
-	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-
-	// Check if the MintId is set
-	require.NotEmpty(t, resp.MintId, "unexpected empty response MintId")
-	require.NotEmpty(t, resp.MintId.Value, "unexpected empty response MintId.Value")
-
-	// check if the transaction ids are set and return them for further tests
-	require.NotEmpty(t, resp.MintTransactionId, "unexpected empty response MintTransactionId")
-	require.NotEmpty(t, resp.BuyTransactionId, "unexpected empty response BuyTransactionId")
-
-	return resp.BookingTokenId, resp.Price, resp.MintId.Value
+	tt.distributorPPEventStream, err = tt.distributorPartnerPlugin.SubscribeForEvents(ctx)
+	require.NoError(t, err)
 }
 
-func testCancellationV1DistributorInitiatesBasic(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorPPEventStream events.EventsService_SubscribeClient,
-	supplierPPEventStream events.EventsService_SubscribeClient,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestCancellationV1) testCancellationV1DistributorInitiatesBasic(ctx context.Context, t *testing.T) {
 	// reasons are selected randomly, just to be unique among requests
 
-	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt, supplierPPEventStream, distributorBot, supplierBot)
+	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
 	refundAmount := common.CloneProto(bookingPrice)
 	time.Sleep(2 * time.Second)
 
 	cancellationHelper := newCancellationV1Helper(
 		ctx,
 		t,
-		tt,
-		distributorBot,
-		supplierBot,
-		distributorPPEventStream,
-		supplierPPEventStream,
+		tt.Environment,
+		tt.distributorBot,
+		tt.supplierBot,
+		tt.distributorPPEventStream,
+		tt.supplierPPEventStream,
 		tokenID,
 	)
 
@@ -166,29 +131,21 @@ func testCancellationV1DistributorInitiatesBasic(
 	)
 }
 
-func testCancellationV1DistributorInitiates(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorPPEventStream events.EventsService_SubscribeClient,
-	supplierPPEventStream events.EventsService_SubscribeClient,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestCancellationV1) testCancellationV1DistributorInitiates(ctx context.Context, t *testing.T) {
 	// reasons are selected randomly, just to be unique among requests
 
-	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt, supplierPPEventStream, distributorBot, supplierBot)
+	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
 	refundAmount := common.CloneProto(bookingPrice)
 	time.Sleep(2 * time.Second)
 
 	cancellationHelper := newCancellationV1Helper(
 		ctx,
 		t,
-		tt,
-		distributorBot,
-		supplierBot,
-		distributorPPEventStream,
-		supplierPPEventStream,
+		tt.Environment,
+		tt.distributorBot,
+		tt.supplierBot,
+		tt.distributorPPEventStream,
+		tt.supplierPPEventStream,
 		tokenID,
 	)
 
@@ -276,30 +233,22 @@ func testCancellationV1DistributorInitiates(
 	)
 }
 
-func testCancellationV1SupplierInitiates(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorPPEventStream events.EventsService_SubscribeClient,
-	supplierPPEventStream events.EventsService_SubscribeClient,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestCancellationV1) testCancellationV1SupplierInitiates(ctx context.Context, t *testing.T) {
 	// reasons are selected randomly, just to be unique among requests
 
 	// making new booking so we can test different flow
-	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt, supplierPPEventStream, distributorBot, supplierBot)
+	tokenID, bookingPrice := mintBuyTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
 	refundAmount := common.CloneProto(bookingPrice)
 	time.Sleep(2 * time.Second)
 
 	cancellationHelper := newCancellationV1Helper(
 		ctx,
 		t,
-		tt,
-		distributorBot,
-		supplierBot,
-		distributorPPEventStream,
-		supplierPPEventStream,
+		tt.Environment,
+		tt.distributorBot,
+		tt.supplierBot,
+		tt.distributorPPEventStream,
+		tt.supplierPPEventStream,
 		tokenID,
 	)
 
@@ -336,29 +285,22 @@ func testCancellationV1SupplierInitiates(
 	)
 }
 
-func testCheckCancellationV1(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-	supplierPPEventStream events.EventsService_SubscribeClient,
-) {
+func (tt *TestCancellationV1) testCheckCancellationV1(ctx context.Context, t *testing.T) {
 	reqTime := time.Now()
 	req := &cancellationv1.CheckCancellationRequest{
 		Header:  &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 		TokenId: 1,
 		Reason:  cancellationv1.CancellationReason_CANCELLATION_REASON_AMENITY_REQUIREMENT_CHANGE,
 	}
-	resp, err := distributorBot.CheckCancellationServiceV1.CheckCancellation(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.CheckCancellationServiceV1.CheckCancellation(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	_, err = supplierPPEventStream.Recv()
+	_, err = tt.supplierPPEventStream.Recv()
 	require.NoError(t, err)
 
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
 	require.Equal(t, req.TokenId, resp.TokenId, "unexpected response TokenID")
@@ -371,34 +313,10 @@ func testCheckCancellationV1(
 	require.WithinRange(t, resp.Timestamp.AsTime(), reqTime, time.Now(), "unexpected response Timestamp, expected it to be within the request time and now")
 }
 
-func TestCancellationV1(t *testing.T, tt *Test) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
-	defer cancel()
-
-	supplierPartnerPlugin, supplierBot, distributorPartnerPlugin, distributorBot := testCancellationV1Setup(ctx, t, tt)
-	supplierPPEventStream, err := supplierPartnerPlugin.SubscribeForEvents(ctx)
-	require.NoError(t, err)
-	distributorPPEventStream, err := distributorPartnerPlugin.SubscribeForEvents(ctx)
-	require.NoError(t, err)
-
-	t.Run("CheckCancellationV1", func(t *testing.T) {
-		testCheckCancellationV1(ctx, t, tt, distributorBot, supplierBot, supplierPPEventStream)
-	})
-	t.Run("Distributor initiates, basic flow", func(t *testing.T) {
-		testCancellationV1DistributorInitiatesBasic(ctx, t, tt, distributorPPEventStream, supplierPPEventStream, distributorBot, supplierBot)
-	})
-	t.Run("Distributor initiates", func(t *testing.T) {
-		testCancellationV1DistributorInitiates(ctx, t, tt, distributorPPEventStream, supplierPPEventStream, distributorBot, supplierBot)
-	})
-	t.Run("Supplier initiates", func(t *testing.T) {
-		testCancellationV1SupplierInitiates(ctx, t, tt, distributorPPEventStream, supplierPPEventStream, distributorBot, supplierBot)
-	})
-}
-
 func newCancellationV1Helper(
 	ctx context.Context,
 	t *testing.T,
-	tt *Test,
+	e *suite.Environment,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
 	distributorPPEventStream events.EventsService_SubscribeClient,
@@ -408,7 +326,7 @@ func newCancellationV1Helper(
 	return &cancellationV1Helper{
 		ctx:                      ctx,
 		t:                        t,
-		tt:                       tt,
+		e:                        e,
 		require:                  require.New(t),
 		distributorBot:           distributorBot,
 		supplierBot:              supplierBot,
@@ -421,7 +339,7 @@ func newCancellationV1Helper(
 type cancellationV1Helper struct {
 	ctx                      context.Context
 	t                        *testing.T
-	tt                       *Test
+	e                        *suite.Environment
 	require                  *require.Assertions
 	distributorBot           *bot.Bot
 	supplierBot              *bot.Bot
@@ -600,9 +518,9 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	refundAmountBig, err := price.ToBigInt(refundAmount.Value, refundAmount.Decimals, price.NativeTokenDecimals)
 	h.require.NoError(err)
 
-	supplierBalance, err := h.tt.caminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
+	supplierBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
 	h.require.NoError(err)
-	distributorBalance, err := h.tt.caminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
+	distributorBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
 	h.require.NoError(err)
 
 	expectedSupplierBalance := big.NewInt(0).Sub(supplierBalance, refundAmountBig)
@@ -622,13 +540,21 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	h.expectCancellationFinalizedNotification(h.supplierPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 	h.expectCancellationFinalizedNotification(h.distributorPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 
-	supplierBalanceAfter, err := h.tt.caminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
+	supplierBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
 	h.require.NoError(err)
-	distributorBalanceAfter, err := h.tt.caminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
+	distributorBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
 	h.require.NoError(err)
 
-	h.require.Equal(expectedSupplierBalance.Uint64(), supplierBalanceAfter.Uint64(), "unexpected supplier balance after cancellation")
-	h.require.Equal(expectedDistributorBalance.Uint64(), distributorBalanceAfter.Uint64(), "unexpected distributor balance after cancellation")
+	h.require.Truef(
+		supplierBalanceAfter.Cmp(expectedSupplierBalance) == 0,
+		"unexpected supplier balance after cancellation: expected %s, actual %s",
+		expectedSupplierBalance.String(), supplierBalanceAfter.String(),
+	)
+	h.require.Truef(
+		distributorBalanceAfter.Cmp(expectedDistributorBalance) == 0,
+		"unexpected distributor balance after cancellation: expected %s, actual %s",
+		expectedDistributorBalance.String(), distributorBalanceAfter.String(),
+	)
 }
 
 func (h *cancellationV1Helper) expectCancellationPendingNotification(
@@ -638,7 +564,7 @@ func (h *cancellationV1Helper) expectCancellationPendingNotification(
 ) {
 	eventMsg, err := ppEventsStream.Recv()
 	h.require.NoError(err)
-	debugPrintProtoMessage(h.tt, eventMsg)
+	h.e.DebugPrintProtoMessage(eventMsg)
 	cancellationPendingNotification := &notificationv2.CancellationPending{}
 	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationPendingNotification))
 	h.require.Equal(h.tokenID, cancellationPendingNotification.TokenId)
@@ -662,7 +588,7 @@ func (h *cancellationV1Helper) expectCancellationRejectedNotification(
 ) {
 	eventMsg, err := ppEventsStream.Recv()
 	h.require.NoError(err)
-	debugPrintProtoMessage(h.tt, eventMsg)
+	h.e.DebugPrintProtoMessage(eventMsg)
 	cancellationRejectedNotification := &notificationv2.CancellationRejected{}
 	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationRejectedNotification))
 	h.require.Equal(h.tokenID, cancellationRejectedNotification.TokenId)
@@ -676,7 +602,7 @@ func (h *cancellationV1Helper) expectCancellationWithdrawnNotification(
 ) {
 	eventMsg, err := ppEventsStream.Recv()
 	h.require.NoError(err)
-	debugPrintProtoMessage(h.tt, eventMsg)
+	h.e.DebugPrintProtoMessage(eventMsg)
 	cancellationWithdrawnNotification := &notificationv2.CancellationWithdrawn{}
 	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationWithdrawnNotification))
 	h.require.Equal(h.tokenID, cancellationWithdrawnNotification.TokenId)
@@ -690,7 +616,7 @@ func (h *cancellationV1Helper) expectCancellationFinalizedNotification(
 ) {
 	eventMsg, err := ppEventsStream.Recv()
 	h.require.NoError(err)
-	debugPrintProtoMessage(h.tt, eventMsg)
+	h.e.DebugPrintProtoMessage(eventMsg)
 	cancellationFinalizedNotification := &notificationv2.CancellationFinalized{}
 	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationFinalizedNotification))
 	h.require.Equal(h.tokenID, cancellationFinalizedNotification.TokenId)

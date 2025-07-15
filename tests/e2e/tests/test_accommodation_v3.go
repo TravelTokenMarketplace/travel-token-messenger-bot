@@ -6,70 +6,112 @@ package tests
 import (
 	"context"
 	"math/big"
-	"strconv"
 	"testing"
 	"time"
 
 	accommodationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v2"
 	accommodationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v3"
-	bookv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v2"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v11/internal/rpc/generated"
-	"github.com/chain4travel/camino-messenger-bot/v11/pkg/booking"
-	"github.com/chain4travel/camino-messenger-bot/v11/pkg/price"
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/bot"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/partner_plugin"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/suite"
 	"github.com/stretchr/testify/require"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Setting up the basic applications and services used in all sub-test-cases
-func testAccommodationV3Setup(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-) (
-	supplierPartnerPlugin *partnerplugin.PartnerPlugin,
-	supplierBot *bot.Bot,
-	distributorBot *bot.Bot,
-) {
-	require.NoError(t, tt.caminoNetwork.Client.RegisterCMServices(ctx,
+var _ suite.Test = (*TestAccommodationV3)(nil)
+
+func init() {
+	Tests["AccommodationV3"] = &TestAccommodationV3{}
+}
+
+type TestAccommodationV3 struct {
+	*suite.Environment
+
+	supplierPartnerPlugin *partnerplugin.PartnerPlugin
+	supplierBot           *bot.Bot
+	distributorBot        *bot.Bot
+}
+
+func (tt *TestAccommodationV3) Setup(e *suite.Environment) {
+	tt.Environment = e
+}
+
+func (tt *TestAccommodationV3) Run(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
+	defer cancel()
+
+	tt.prepare(ctx, t)
+
+	t.Run("Product list", func(t *testing.T) {
+		// Happy path: will just return all the properties
+		tt.testAccommodationV3ProductListService(ctx, t)
+	})
+	t.Run("Product list with filter", func(t *testing.T) {
+		// Happy path: will return only one property
+		tt.testAccommodationV3ProductListServiceWithFilter(ctx, t)
+	})
+	t.Run("Product info", func(t *testing.T) {
+		// Happy path: will return the detailed info of a property
+		tt.testAccommodationV3ProductInfoService(ctx, t)
+	})
+	t.Run("Search w/o currency", func(t *testing.T) {
+		// ERROR path: without currency it should return an error
+		tt.testAccommodationV3SearchServiceWithoutCurrency(ctx, t)
+	})
+	t.Run("Search w/o travel period", func(t *testing.T) {
+		// ERROR path: without travel period it should return an error
+		tt.testAccommodationV3SearchServiceWithoutTravelPeriod(ctx, t)
+	})
+	t.Run("Search with travel period oob", func(t *testing.T) {
+		// ERROR path: with travel period outside of allowed constraints it should return an error
+		tt.testAccommodationV3SearchServiceTravelPeriodOutOfBounds(ctx, t)
+	})
+	t.Run("Search with travel period reversed", func(t *testing.T) {
+		// ERROR path: with travel period reversed it should return an error
+		tt.testAccommodationV3SearchServiceTravelPeriodReversed(ctx, t)
+	})
+	t.Run("Search->Validate->Mint->VerifyBlockchain", func(t *testing.T) {
+		searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot)
+		validationID := testValidateV2(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, searchID, resultID, totalPrice)
+		tokenID, price, _ := testMintV2(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, validationID)
+		verifyBookingTokenStateWithPriceV2(ctx, t, tt.Environment, tt.distributorBot, tokenID, price)
+	})
+}
+
+func (tt *TestAccommodationV3) prepare(ctx context.Context, t *testing.T) {
+	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
 		botGenerated.AccommodationProductListServiceV3,
 		botGenerated.AccommodationProductInfoServiceV3,
 		botGenerated.AccommodationSearchServiceV3,
 		botGenerated.ValidationServiceV2,
 		botGenerated.MintServiceV2,
 	))
-	supplierPartnerPlugin = tt.createPartnerPlugin(ctx, t)
+
+	tt.supplierPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
 
 	// bot with partnerPlugin and without rpc server (supplier)
-	supplierBot = tt.createBot(ctx, t, false, supplierPartnerPlugin, []bot.CMService{
-		{Name: botGenerated.AccommodationProductListServiceV3, Fee: 100},
-		{Name: botGenerated.AccommodationProductInfoServiceV3, Fee: 110},
-		{Name: botGenerated.AccommodationSearchServiceV3, Fee: 120},
-		{Name: botGenerated.ValidationServiceV2, Fee: 130},
-		{Name: botGenerated.MintServiceV2, Fee: 140},
-	})
+	tt.supplierBot = tt.CreateBot(ctx, t, true, tt.supplierPartnerPlugin,
+		bot.WithServices([]bot.CMService{
+			{Name: botGenerated.AccommodationProductListServiceV3, Fee: 100},
+			{Name: botGenerated.AccommodationProductInfoServiceV3, Fee: 110},
+			{Name: botGenerated.AccommodationSearchServiceV3, Fee: 120},
+			{Name: botGenerated.ValidationServiceV2, Fee: 130},
+			{Name: botGenerated.MintServiceV2, Fee: 140},
+		}),
+	)
 
 	// bot without partnerPlugin and with rpc server (distributor)
-	distributorBot = tt.createBot(ctx, t, true, nil, nil)
-
-	return supplierPartnerPlugin, supplierBot, distributorBot
+	tt.distributorBot = tt.CreateBot(ctx, t, true, nil)
 }
 
 // Simple product list request which shall return all properties. Checking if all are present
-func testAccommodationV3ProductListService(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3ProductListService(ctx context.Context, t *testing.T) {
 	hotelCodes := []string{
 		"HOTEL123456",
 		"HOTEL789012",
@@ -83,12 +125,12 @@ func testAccommodationV3ProductListService(
 	req := &accommodationv3.AccommodationProductListRequest{
 		Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 	}
-	resp, err := distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
@@ -104,13 +146,7 @@ func testAccommodationV3ProductListService(
 }
 
 // Product list request with a modification filter set. It should only return one fitting result.
-func testAccommodationV3ProductListServiceWithFilter(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3ProductListServiceWithFilter(ctx context.Context, t *testing.T) {
 	// Modification timestamp which should exactly return one result (see hotelCode).
 	// See the properties.json file in the pp-mock for more info
 	const modifiedAfterSecs int64 = 1710489050
@@ -122,12 +158,12 @@ func testAccommodationV3ProductListServiceWithFilter(
 			Seconds: modifiedAfterSecs,
 		},
 	}
-	resp, err := distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
@@ -141,13 +177,7 @@ func testAccommodationV3ProductListServiceWithFilter(
 }
 
 // Get detailed accommodation information for a specific hotel code (supplier code).
-func testAccommodationV3ProductInfoService(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3ProductInfoService(ctx context.Context, t *testing.T) {
 	const hotelCode = "HOTEL789012"
 
 	req := &accommodationv3.AccommodationProductInfoRequest{
@@ -156,12 +186,12 @@ func testAccommodationV3ProductInfoService(
 			{SupplierCode: hotelCode},
 		},
 	}
-	resp, err := distributorBot.AccommodationProductInfoServiceV3.AccommodationProductInfo(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationProductInfoServiceV3.AccommodationProductInfo(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
@@ -192,13 +222,7 @@ func testAccommodationV3ProductInfoService(
 	require.Equal(t, resp.Properties[0].Rooms[0].TotalOccupancy.FullPayers, int32(2), "unexpected full payers")
 }
 
-func testAccommodationV3SearchServiceWithoutCurrency(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3SearchServiceWithoutCurrency(ctx context.Context, t *testing.T) {
 	const hotelCode = "HOTEL345678"
 
 	req := &accommodationv3.AccommodationSearchRequest{
@@ -211,23 +235,17 @@ func testAccommodationV3SearchServiceWithoutCurrency(
 			},
 		}},
 	}
-	resp, err := distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
 }
 
 // Test search without the mandatory travel period given. Expect an error to be returned back.
-func testAccommodationV3SearchServiceWithoutTravelPeriod(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3SearchServiceWithoutTravelPeriod(ctx context.Context, t *testing.T) {
 	const hotelCode = "HOTEL345678"
 
 	req := &accommodationv3.AccommodationSearchRequest{
@@ -243,23 +261,17 @@ func testAccommodationV3SearchServiceWithoutTravelPeriod(
 			},
 		}},
 	}
-	resp, err := distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
 }
 
 // Test search with wrong travel periods given: travel period outside of allowed constraints. Expect errors to be returned.
-func testAccommodationV3SearchServiceTravelPeriodOutOfBounds(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3SearchServiceTravelPeriodOutOfBounds(ctx context.Context, t *testing.T) {
 	const hotelCode = "HOTEL345678"
 
 	const nights = 12                                 // 12 nights
@@ -283,23 +295,17 @@ func testAccommodationV3SearchServiceTravelPeriodOutOfBounds(
 			},
 		}},
 	}
-	resp, err := distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
 }
 
 // Test search with wrong travel periods given: start date after end date. Expect errors to be returned.
-func testAccommodationV3SearchServiceTravelPeriodReversed(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-) {
+func (tt *TestAccommodationV3) testAccommodationV3SearchServiceTravelPeriodReversed(ctx context.Context, t *testing.T) {
 	const hotelCode = "HOTEL345678"
 
 	const nights = 12                                                // 12 nights
@@ -323,12 +329,12 @@ func testAccommodationV3SearchServiceTravelPeriodReversed(
 			},
 		}},
 	}
-	resp, err := distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
+		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
 }
 
@@ -336,13 +342,13 @@ func testAccommodationV3SearchServiceTravelPeriodReversed(
 func testAccommodationV3SearchServiceWithTravelPeriod(
 	ctx context.Context,
 	t *testing.T,
-	tt *Test,
+	e *suite.Environment,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
 ) (
 	searchID string,
 	resultID int32,
-	totalPrice float64,
+	totalPrice *big.Int,
 ) {
 	const nights = 12                           // 12 nights
 	startDate := time.Now().Add(time.Hour * 24) // tomorrow
@@ -371,7 +377,7 @@ func testAccommodationV3SearchServiceWithTravelPeriod(
 		req,
 	)
 	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
+	e.DebugPrintRequestResponse(req, resp)
 
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
@@ -384,17 +390,15 @@ func testAccommodationV3SearchServiceWithTravelPeriod(
 	require.Equal(t, resp.Results[1].Units[0].SupplierCode.SupplierCode, "HOTEL345678", "unexpected response Results[1].Units[0].SupplierCode.SupplierCode")
 
 	// Check if the price per night is set correctly
-	resultPricePerNight, err := strconv.ParseFloat(resp.Results[1].Units[0].PriceDetail.Price.Value, 64)
-	require.NoError(t, err)
-	require.Equal(t, common.DefaultPricePerNight*100, resultPricePerNight, "unexpected price per night")
+	pricePerNight := priceBigV3(t, resp.Results[1].Units[0].PriceDetail.Price)
+	require.True(t, pricePerNight.Cmp(common.DefaultPricePerNightNativeTokenBig) == 0, "unexpected price per night: got %s, expected %s", pricePerNight.String(), common.DefaultPricePerNightNativeTokenBig.String())
 
 	// Extract the total price from the response
-	totalPrice, err = strconv.ParseFloat(resp.Results[1].TotalPriceDetail.Price.Value, 64)
-	require.NoError(t, err)
+	totalPrice = priceBigV3(t, resp.Results[1].TotalPriceDetail.Price)
 
 	// Check if this adds up with the total price of the unit
-	require.NoError(t, err)
-	require.Equal(t, common.DefaultPricePerNight*100*float64(nights), totalPrice, "unexpected total price")
+	expectedTotalPrice := big.NewInt(0).Mul(common.DefaultPricePerNightNativeTokenBig, big.NewInt(nights))
+	require.True(t, totalPrice.Cmp(expectedTotalPrice) == 0, "unexpected total price: got %s, expected %s", totalPrice.String(), expectedTotalPrice.String())
 
 	// Now extract all the values needed for the validate step which comes next
 	require.NotEmpty(t, resp.Metadata, "unexpected empty response Metadata")
@@ -404,163 +408,4 @@ func testAccommodationV3SearchServiceWithTravelPeriod(
 	require.NotEmpty(t, resp.Results[1].ResultId, "unexpected empty response Results[1].ResultId")
 
 	return resp.Metadata.SearchId.Value, resp.Results[1].ResultId, totalPrice
-}
-
-// Let's test the validation step with the values extracted from the search request
-func testAccommodationV3ValidateV2(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-	searchID string,
-	resultID int32,
-	expectedTotalPrice float64,
-) (validateID string) {
-	req := &bookv2.ValidationRequest{
-		ValidationObject: &bookv2.ValidationObject{
-			SearchIdentifier: &typesv2.SearchIdentifier{
-				SearchId: &typesv1.UUID{Value: searchID},
-				ResultId: resultID,
-			},
-		},
-	}
-	resp, err := distributorBot.ValidationServiceV2.Validation(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
-		req,
-	)
-	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
-
-	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-
-	// Check if the validationObject is correct in the response
-	require.NotEmpty(t, resp.ValidationObject, "unexpected empty response ValidationObject")
-	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier, "unexpected empty response ValidationObject.SearchIdentifier")
-	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier.SearchId, "unexpected empty response ValidationObject.SearchIdentifier.SearchId")
-	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier.SearchId.Value, "unexpected empty response ValidationObject.SearchIdentifier.SearchId.Value")
-	require.Equal(t, searchID, resp.ValidationObject.SearchIdentifier.SearchId.Value, "unexpected searchID in response")
-	require.Equal(t, resultID, resp.ValidationObject.SearchIdentifier.ResultId, "unexpected resultID in response")
-
-	// Check if the price per night is as expected
-	require.NotEmpty(t, resp.PriceDetail, "unexpected empty response PriceDetail")
-	require.NotEmpty(t, resp.PriceDetail.Price, "unexpected empty response PriceDetail.Price")
-	require.NotEmpty(t, resp.PriceDetail.Price.Value, "unexpected empty response PriceDetail.Price.Value")
-	totalPriceResponse, err := strconv.ParseFloat(resp.PriceDetail.Price.Value, 64)
-	require.NoError(t, err)
-	require.Equal(t, expectedTotalPrice, totalPriceResponse, "unexpected total price in validation")
-
-	// Last check if the validationID is set and if yes extract it and pass it back for the mint step
-	require.NotEmpty(t, resp.ValidationId, "unexpected empty response validationID")
-	require.NotEmpty(t, resp.ValidationId.Value, "unexpected empty response validationID.Value")
-	return resp.ValidationId.Value
-}
-
-// Lastly we do the mint request based on the validation id
-func testAccommodationV3MintV2(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	supplierBot *bot.Bot,
-	validationID string,
-) (
-	tokenID uint64,
-	price *typesv2.Price,
-	mintID string,
-) {
-	req := &bookv2.MintRequest{
-		Header:       &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
-		ValidationId: &typesv1.UUID{Value: validationID},
-	}
-	resp, err := distributorBot.MintServiceV2.Mint(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
-		req,
-	)
-	require.NoError(t, err)
-	debugPrintRequestResponse(tt, getCurrentFuncName(), req, resp)
-
-	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-
-	// Check if the MintId is set
-	require.NotEmpty(t, resp.MintId, "unexpected empty response MintId")
-	require.NotEmpty(t, resp.MintId.Value, "unexpected empty response MintId.Value")
-
-	// check if the transaction ids are set and return them for further tests
-	require.NotEmpty(t, resp.MintTransactionId, "unexpected empty response MintTransactionId")
-	require.NotEmpty(t, resp.BuyTransactionId, "unexpected empty response BuyTransactionId")
-
-	return resp.BookingTokenId, resp.Price, resp.MintId.Value
-}
-
-func testAccommodationV3VerifyBlockchainState(
-	ctx context.Context,
-	t *testing.T,
-	tt *Test,
-	distributorBot *bot.Bot,
-	tokenID uint64,
-	tokenPrice *typesv2.Price,
-) {
-	bigTokenID := big.NewInt(0).SetUint64(tokenID)
-	callOpts := &bind.CallOpts{Context: ctx}
-
-	require.Equal(t, booking.NativePaymentToken, getPaymentTokenFromPriceV2(t, tokenPrice))
-	expectedReservationPrice, err := price.ToBigInt(tokenPrice.Value, tokenPrice.Decimals, price.NativeTokenDecimals)
-	require.NoError(t, err)
-
-	reservationPrice, err := tt.caminoNetwork.Client.BookingToken.GetReservationPrice(callOpts, bigTokenID)
-	require.NoError(t, err)
-	require.Equal(t, booking.NativePaymentToken, reservationPrice.PaymentToken)
-	require.Equal(t, expectedReservationPrice, reservationPrice.Price)
-
-	ownerAddr, err := tt.caminoNetwork.Client.BookingToken.OwnerOf(callOpts, bigTokenID)
-	require.NoError(t, err)
-	require.Equal(t, distributorBot.CMAccountAddress(), ownerAddr)
-
-	tokenStatus, err := tt.caminoNetwork.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
-	require.NoError(t, err)
-	require.Equal(t, booking.StatusBought, booking.Status(tokenStatus))
-}
-
-func TestAccommodationV3(t *testing.T, tt *Test) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTestTimeout)
-	defer cancel()
-
-	_, supplierBot, distributorBot := testAccommodationV3Setup(ctx, t, tt)
-
-	t.Run("Product list", func(t *testing.T) {
-		// Happy path: will just return all the properties
-		testAccommodationV3ProductListService(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Product list with filter", func(t *testing.T) {
-		// Happy path: will return only one property
-		testAccommodationV3ProductListServiceWithFilter(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Product info", func(t *testing.T) {
-		// Happy path: will return the detailed info of a property
-		testAccommodationV3ProductInfoService(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Search w/o currency", func(t *testing.T) {
-		// ERROR path: without currency it should return an error
-		testAccommodationV3SearchServiceWithoutCurrency(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Search w/o travel period", func(t *testing.T) {
-		// ERROR path: without travel period it should return an error
-		testAccommodationV3SearchServiceWithoutTravelPeriod(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Search with travel period oob", func(t *testing.T) {
-		// ERROR path: with travel period outside of allowed constraints it should return an error
-		testAccommodationV3SearchServiceTravelPeriodOutOfBounds(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Search with travel period reversed", func(t *testing.T) {
-		// ERROR path: with travel period reversed it should return an error
-		testAccommodationV3SearchServiceTravelPeriodReversed(ctx, t, tt, distributorBot, supplierBot)
-	})
-	t.Run("Search->Validate->Mint->VerifyBlockchain", func(t *testing.T) {
-		searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, tt, distributorBot, supplierBot)
-		validationID := testAccommodationV3ValidateV2(ctx, t, tt, distributorBot, supplierBot, searchID, resultID, totalPrice)
-		tokenID, price, _ := testAccommodationV3MintV2(ctx, t, tt, distributorBot, supplierBot, validationID)
-		testAccommodationV3VerifyBlockchainState(ctx, t, tt, distributorBot, tokenID, price)
-	})
 }

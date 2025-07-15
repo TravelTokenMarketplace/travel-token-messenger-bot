@@ -180,8 +180,31 @@ func (s *transportSearchV3Server) TransportSearch(ctx context.Context, req *tran
 	searchResults := []*transportv3.TransportSearchResult{}
 	validationPrices := []*state.UnifiedPrice{}
 
+	decimals := price.NativeTokenDecimals
+	switch req.SearchParameters.Currency.Currency.(type) {
+	case *typesv3.Currency_NativeToken:
+	case *typesv3.Currency_IsoCurrency:
+		decimals = price.ISODecimals
+	default:
+		return nil, fmt.Errorf("unexpected currency type: %T", req.SearchParameters.Currency.Currency)
+	}
+
+	tripsFilteredByCurrency := filterTripsByCurrency(mockdata.TripsExtendedV3, req.SearchParameters.Currency)
+	if len(tripsFilteredByCurrency) == 0 {
+		return &transportv3.TransportSearchResponse{
+			Header: &typesv1.ResponseHeader{
+				Status: typesv1.StatusType_STATUS_TYPE_SUCCESS,
+				Alerts: []*typesv1.Alert{{
+					Message: fmt.Sprintf("No trips found for currency %s", req.SearchParameters.Currency.String()),
+					Type:    typesv1.AlertType_ALERT_TYPE_INFO,
+				}},
+			},
+			Results: searchResults,
+		}, nil
+	}
+
 	for _, query := range req.Queries {
-		filteredTrips := mockdata.TripsExtendedV3
+		filteredTrips := tripsFilteredByCurrency
 		for _, queryTrip := range query.GetTrips() {
 			filteredTrips = filterTripsByDates(filteredTrips, queryTrip)
 			filteredTrips = filterTripsByLocations(filteredTrips, queryTrip)
@@ -204,10 +227,10 @@ func (s *transportSearchV3Server) TransportSearch(ctx context.Context, req *tran
 		totalPrice := big.NewInt(0)
 
 		for _, trip := range filteredTrips {
-			price, err := price.ToBigInt(
+			priceBig, err := price.ToBigInt(
 				trip.Price.Value,
 				trip.Price.Decimals,
-				price.NativeTokenDecimals, // max possible decimals
+				decimals,
 			)
 			if err != nil {
 				return &transportv3.TransportSearchResponse{
@@ -220,14 +243,15 @@ func (s *transportSearchV3Server) TransportSearch(ctx context.Context, req *tran
 					},
 				}, nil
 			}
-			totalPrice = new(big.Int).Add(totalPrice, price)
+			totalPrice = new(big.Int).Add(totalPrice, priceBig)
 		}
 
 		searchPrice := &typesv3.Price{
 			Value:    totalPrice.String(),
-			Decimals: price.NativeTokenDecimals,
 			Currency: req.SearchParameters.Currency,
+			Decimals: decimals,
 		}
+
 		searchResults = append(searchResults, &transportv3.TransportSearchResult{
 			ResultId:        resultIDnum,
 			QueryId:         query.QueryId,

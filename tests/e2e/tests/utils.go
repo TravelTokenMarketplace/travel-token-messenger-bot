@@ -5,21 +5,24 @@ package tests
 
 import (
 	"context"
-	"fmt"
-	"reflect"
-	"runtime"
+	"math/big"
 	"testing"
+	"time"
 
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
+	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/booking"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
+	"github.com/chain4travel/camino-messenger-bot/v11/pkg/price"
+	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/suite"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	grpcMetadata "google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
+
+var Tests = make(map[string]suite.Test)
+
+const defaultTestTimeout = 120 * time.Second
 
 type SupplierOrDistributor uint8
 
@@ -34,59 +37,38 @@ func requestContext(ctx context.Context, recipientCMAccount common.Address) cont
 	))
 }
 
-// Gets the current function name including the whole package path
-func getCurrentFuncName() string {
-	pc, _, _, ok := runtime.Caller(1)
-	if !ok {
-		return "unknown"
+func priceBigV3(t *testing.T, protoPrice *typesv3.Price) *big.Int {
+	require.NotNil(t, protoPrice)
+	var priceBig *big.Int
+	var err error
+	switch protoPrice.Currency.Currency.(type) {
+	case *typesv3.Currency_IsoCurrency:
+		priceBig, err = price.ToBigInt(protoPrice.Value, protoPrice.Decimals, price.ISODecimals)
+	case *typesv3.Currency_NativeToken:
+		priceBig, err = price.ToBigInt(protoPrice.Value, protoPrice.Decimals, price.NativeTokenDecimals)
+	default:
+		require.FailNow(t, "unexpected currency type in price")
+		return nil
 	}
-	return runtime.FuncForPC(pc).Name()
+	require.NoError(t, err)
+	return priceBig
 }
 
-// Get printable type information including the package path
-func getTypeInfo(myvar interface{}) (res string) {
-	if myvar == nil {
-		return "nil"
+func priceBigV2(t *testing.T, protoPrice *typesv2.Price) *big.Int {
+	require.NotNil(t, protoPrice)
+	var priceBig *big.Int
+	var err error
+	switch protoPrice.Currency.Currency.(type) {
+	case *typesv2.Currency_IsoCurrency:
+		priceBig, err = price.ToBigInt(protoPrice.Value, protoPrice.Decimals, price.ISODecimals)
+	case *typesv2.Currency_NativeToken:
+		priceBig, err = price.ToBigInt(protoPrice.Value, protoPrice.Decimals, price.NativeTokenDecimals)
+	default:
+		require.FailNow(t, "unexpected currency type in price")
+		return nil
 	}
-	t := reflect.TypeOf(myvar)
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-		res += "*"
-	}
-	return fmt.Sprintf("%s%s [Package: %s]", res, t.String(), t.PkgPath())
-}
-
-// Debug print used in each test case to print the request and response as json
-func debugPrintRequestResponse(tt *Test, functionName string, request proto.Message, response proto.Message) {
-	// Skip the potentially expensive conversion to JSON if debug logging is disabled
-	if tt.logger.Level().Enabled(zapcore.DebugLevel) {
-		tt.logger.Debugf("Function: %s", functionName)
-		tt.logger.Debugf("Request (%s):\n%s", getTypeInfo(request), protoMessageToJSON(tt, request))
-		tt.logger.Debugf("Response (%s):\n%s", getTypeInfo(response), protoMessageToJSON(tt, response))
-	}
-}
-
-func debugPrintProtoMessage(tt *Test, message proto.Message) {
-	// Skip the potentially expensive conversion to JSON if debug logging is disabled
-	if tt.logger.Level().Enabled(zapcore.DebugLevel) {
-		tt.logger.Debugf("%s:\n%s", getTypeInfo(message), protoMessageToJSON(tt, message))
-	}
-}
-
-// Service function to convert the responses into pretty-printed JSON.
-// Only used for debugging and test creation.
-func protoMessageToJSON(tt *Test, message proto.Message) string {
-	// Pretty-print using protojson.MarshalOptions
-	marshaler := protojson.MarshalOptions{
-		Multiline: true,
-		Indent:    "  ",
-	}
-	jsonData, err := marshaler.Marshal(message)
-	if err != nil {
-		tt.logger.Errorf("Error marshalling: %v", err)
-		return ""
-	}
-	return string(jsonData)
+	require.NoError(t, err)
+	return priceBig
 }
 
 func getPaymentTokenFromPriceV2(t *testing.T, price *typesv2.Price) common.Address {
@@ -101,4 +83,15 @@ func getPaymentTokenFromPriceV2(t *testing.T, price *typesv2.Price) common.Addre
 	}
 	require.Fail(t, "unexpected currency type")
 	return common.Address{}
+}
+
+var (
+	c4tFeeCutNominator   = big.NewInt(10) // 10% fee cut for C4T
+	c4tFeeCutDenominator = big.NewInt(100)
+)
+
+func calculateCashIn(value *big.Int) (cashedIn *big.Int, c4tFeeCut *big.Int) { //nolint:unparam // c4tFeeCut is needed for logic clarity at least
+	c4tFeeCut = big.NewInt(0).Mul(value, c4tFeeCutNominator)
+	c4tFeeCut.Div(c4tFeeCut, c4tFeeCutDenominator)
+	return big.NewInt(0).Sub(value, c4tFeeCut), c4tFeeCut
 }

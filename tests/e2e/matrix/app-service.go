@@ -34,6 +34,16 @@ const (
 	asbPingTimeout           = 5 * time.Second
 )
 
+type options struct {
+	cashInPeriodSeconds int64
+}
+
+type ASBOption func(*options)
+
+func WithCashInPeriod(cashInPeriodSeconds int64) ASBOption {
+	return func(o *options) { o.cashInPeriodSeconds = cashInPeriodSeconds }
+}
+
 func StartNewAppService(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
@@ -42,7 +52,15 @@ func StartNewAppService(
 	asbBinPath string,
 	networkFeeKey *ecdsa.PrivateKey,
 	networkClient *blockchain.Client,
+	opts ...ASBOption,
 ) (*AppService, chan error, error) {
+	options := &options{
+		cashInPeriodSeconds: 3600, // 1h
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	logger.Debug("Starting matrix app-service...")
 
 	asbDir := path.Join(dataDir, "asb")
@@ -91,7 +109,7 @@ func StartNewAppService(
 		NetworkFeeRecipientCMAccountAddress: networkFeeCMAccountAddress.Hex(),
 		NetworkFeeRecipientBotKey:           hex.EncodeToString(crypto.FromECDSA(networkFeeKey)),
 		MinChequeDurationUntilExpiration:    3600 * 24 * 30 * 6, // 6 months
-		CashInPeriod:                        3600,
+		CashInPeriod:                        options.cashInPeriodSeconds,
 	}
 
 	configPath := path.Join(asbDir, "config.yaml")

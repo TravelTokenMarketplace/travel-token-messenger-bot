@@ -4,86 +4,81 @@
 package runner
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 type (
-	runFunc[T any]       func(*testing.T, T)
-	beforeRunFunc[T any] func(*testing.T) T
-	afterRunFunc[T any]  func(*testing.T, T)
+	Test[E any] interface {
+		Setup(E)
+		Run(*testing.T)
+	}
+	BeforeRunFunc[E any] func(*testing.T, Test[E]) E
+	AfterRunFunc[E any]  func(*testing.T, E)
 )
 
-// Creates a new runner. [T] type will be created with beforeRun func, passed to run func and then to afterRun func.
-func New[T any](
-	beforeRun beforeRunFunc[T],
-	afterRun afterRunFunc[T],
-	filter []string,
-) *Runner[T] {
-	return &Runner[T]{
-		beforeRun:  beforeRun,
-		afterRun:   afterRun,
-		funcs:      make(map[string]runFunc[T]),
-		testFilter: filter,
+// Creates a new runner. [E] type will be created with beforeRun func passed to afterRun func after run func run.
+func New[E any](
+	beforeRun BeforeRunFunc[E],
+	afterRun AfterRunFunc[E],
+) *Runner[E] {
+	return &Runner[E]{
+		beforeRun: beforeRun,
+		afterRun:  afterRun,
+		tests:     make(map[string]Test[E]),
 	}
 }
 
 // Not safe for concurrent use.
-type Runner[T any] struct {
-	beforeRun  beforeRunFunc[T]
-	afterRun   afterRunFunc[T]
-	funcs      map[string]runFunc[T]
-	testFilter []string
+type Runner[E any] struct {
+	beforeRun BeforeRunFunc[E]
+	afterRun  AfterRunFunc[E]
+	tests     map[string]Test[E]
 }
 
-func (r *Runner[T]) Register(t *testing.T, name string, f runFunc[T]) {
-	if len(r.testFilter) > 0 && !slices.Contains(r.testFilter, name) {
-		return
-	}
-
-	_, ok := r.funcs[name]
+func (r *Runner[E]) Register(t *testing.T, name string, test Test[E]) {
+	_, ok := r.tests[name]
 	require.False(t, ok)
-	r.funcs[name] = f
+	r.tests[name] = test
 }
 
-func (r *Runner[T]) Run(t *testing.T) {
-	for name, test := range r.funcs {
+func (r *Runner[E]) Run(t *testing.T) {
+	for name, test := range r.tests {
 		t.Run(name, func(t *testing.T) {
-			var tt T
+			var e E
 
 			t.Cleanup(func() {
 				if r.afterRun != nil {
-					r.afterRun(t, tt)
+					r.afterRun(t, e)
 				}
 			})
 
 			if r.beforeRun != nil {
-				tt = r.beforeRun(t)
+				e = r.beforeRun(t, test)
 			}
-			test(t, tt)
+			test.Run(t)
 		})
 	}
 }
 
-func (r *Runner[T]) RunParallel(t *testing.T) {
-	for name, test := range r.funcs {
+func (r *Runner[E]) RunParallel(t *testing.T) {
+	for name, test := range r.tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			var tt T
+			var e E
 
 			t.Cleanup(func() {
 				if r.afterRun != nil {
-					r.afterRun(t, tt)
+					r.afterRun(t, e)
 				}
 			})
 
 			if r.beforeRun != nil {
-				tt = r.beforeRun(t)
+				e = r.beforeRun(t, test)
 			}
-			test(t, tt)
+			test.Run(t)
 		})
 	}
 }
