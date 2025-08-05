@@ -15,16 +15,16 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"go.uber.org/zap"
-
 	"github.com/chain4travel/camino-messenger-bot/v11/config"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/blockchain"
 	e2eCommon "github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/matrix"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/partner_plugin"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/resources"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"go.uber.org/zap"
 )
 
 const CashInPeriodSeconds = 3600 // 1h
@@ -49,7 +49,6 @@ func NewFactory(
 	}
 }
 
-// Not safe for concurrent use.
 type Factory struct {
 	logger                 *zap.SugaredLogger
 	resourceManagerSession *resources.Session
@@ -58,6 +57,7 @@ type Factory struct {
 	networkClient          *blockchain.Client
 	matrix                 *matrix.ConduitServer
 	asb                    *matrix.AppService
+	mutex                  sync.Mutex
 	bots                   []*Bot
 }
 
@@ -110,7 +110,7 @@ func (f *Factory) CreateBot(
 	enableRPCServer bool,
 	partnerPlugin *partnerplugin.PartnerPlugin,
 	opts ...Option,
-) (*Bot, chan error, error) {
+) (*Bot, error) {
 	options := &options{
 		skips:               &Skip{},
 		cashInPeriodSeconds: CashInPeriodSeconds, // 1h
@@ -121,12 +121,12 @@ func (f *Factory) CreateBot(
 
 	cmAccountOwnerKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate key: %w", err)
+		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	botKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate key: %w", err)
+		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
 	var cmAccountAddress common.Address
@@ -135,24 +135,24 @@ func (f *Factory) CreateBot(
 		cmAccountOwnerAddress := crypto.PubkeyToAddress(cmAccountOwnerKey.PublicKey)
 		cmAccountAddress, _, err = f.networkClient.CreateCMAccount(ctx, cmAccountOwnerKey)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create CM account: %w", err)
+			return nil, fmt.Errorf("failed to create CM account: %w", err)
 		}
 
 		if !options.skips.PrefundOwner {
 			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], cmAccountOwnerAddress, e2eCommon.DefaultCMAccountOwnerFunds); err != nil {
-				return nil, nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
+				return nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
 			}
 
 			if !options.skips.BotRegistration {
 				if err := f.networkClient.AddBotToCMAccount(ctx, cmAccountAddress, cmAccountOwnerKey, botAddr); err != nil {
-					return nil, nil, fmt.Errorf("failed to add bot to CM account: %w", err)
+					return nil, fmt.Errorf("failed to add bot to CM account: %w", err)
 				}
 			}
 
 			if !options.skips.ServiceRegistration {
 				for _, service := range options.services {
 					if err := f.networkClient.AddCMService(ctx, cmAccountAddress, cmAccountOwnerKey, service.Name, service.Fee); err != nil {
-						return nil, nil, fmt.Errorf("failed to add %s service to CM account: %w", service.Name, err)
+						return nil, fmt.Errorf("failed to add %s service to CM account: %w", service.Name, err)
 					}
 				}
 			}
@@ -160,7 +160,7 @@ func (f *Factory) CreateBot(
 
 		if !options.skips.PrefundBot {
 			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], botAddr, e2eCommon.DefaultCMAccountOwnerFunds); err != nil {
-				return nil, nil, fmt.Errorf("failed to transfer funds to bot: %w", err)
+				return nil, fmt.Errorf("failed to transfer funds to bot: %w", err)
 			}
 		}
 	}
@@ -171,9 +171,12 @@ func (f *Factory) CreateBot(
 	if enableRPCServer {
 		port, err = f.resourceManagerSession.GetNetworkPort()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get free port: %w", err)
+			return nil, fmt.Errorf("failed to get free port: %w", err)
 		}
 	}
+
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 
 	botDir := path.Join(f.dir, strconv.Itoa(len(f.bots)))
 
@@ -193,7 +196,7 @@ func (f *Factory) CreateBot(
 		ResponseTimeout:                     30000,                 // 30s
 		PartnerPlugin: config.PartnerPluginConfig{
 			Enabled:     partnerPlugin != nil,
-			Host:        partnerPlugin.Host(),
+			Host:        partnerPlugin.RPCClientConnectionString(),
 			Unencrypted: true,
 		},
 		RPCServer: config.RPCServerConfig{
@@ -208,24 +211,22 @@ func (f *Factory) CreateBot(
 	}
 
 	if err := os.RemoveAll(botDir); err != nil {
-		return nil, nil, fmt.Errorf("failed to remove bot data dir: %w", err)
+		return nil, fmt.Errorf("failed to remove bot data dir: %w", err)
 	}
 
 	if err := os.MkdirAll(botDir, 0o755); err != nil {
-		return nil, nil, fmt.Errorf("failed to create bot data dir: %w", err)
+		return nil, fmt.Errorf("failed to create bot data dir: %w", err)
 	}
 
 	configPath := path.Join(botDir, "config.yaml")
 	if err := e2eCommon.WriteYAMLConfig(config, configPath); err != nil {
-		return nil, nil, fmt.Errorf("failed to write bot config file: %w", err)
+		return nil, fmt.Errorf("failed to write bot config file: %w", err)
 	}
 
 	rpcClientConnectionString := ""
 	if config.RPCServer.Enabled {
 		rpcClientConnectionString = fmt.Sprintf("localhost:%d", config.RPCServer.Port) // rpc client connection string
 	}
-
-	// Start bot
 
 	bot := newBot(
 		f.logger,
@@ -237,15 +238,13 @@ func (f *Factory) CreateBot(
 	)
 	f.bots = append(f.bots, bot)
 
-	errChan, err := bot.Start(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to start bot: %w", err)
-	}
-
-	return bot, errChan, nil
+	return bot, nil
 }
 
 func (f *Factory) StopBots(ctx context.Context) error {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
 	var errs []error
 	errsMx := sync.Mutex{}
 	wg := sync.WaitGroup{}
