@@ -15,17 +15,16 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc/generated"
-	"github.com/chain4travel/camino-messenger-bot/v11/internal/tracing"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/utils/tls"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
 	"github.com/chain4travel/camino-messenger-bot/v11/proto/pb/readiness"
+	"github.com/google/uuid"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	grpcMetadata "google.golang.org/grpc/metadata"
@@ -48,7 +47,6 @@ func NewServer(
 	cfg config.RPCServerConfig,
 	logger *zap.SugaredLogger,
 	responseHeaderHandler common.ResponseHeaderHandler,
-	tracer tracing.Tracer,
 	processor messaging.MessageProcessor,
 	serviceRegistry messaging.ServiceRegistry,
 	cancellationV1Service cancellationv1grpc.CancellationServiceServer,
@@ -73,7 +71,6 @@ func NewServer(
 		cfg:                   cfg,
 		logger:                logger,
 		responseHeaderHandler: responseHeaderHandler,
-		tracer:                tracer,
 		processor:             processor,
 		serviceRegistry:       serviceRegistry,
 	}
@@ -81,7 +78,10 @@ func NewServer(
 	opts = append(opts, grpc.ChainUnaryInterceptor(
 		s.unaryRecoverInterceptor,
 		selector.UnaryServerInterceptor( // for all cancellationv1grpc methods
-			s.errorHandlingInterceptor,
+			chainUnaryServerInterceptors(
+				s.tracingInterceptor,
+				s.errorHandlingInterceptor,
+			),
 			selector.MatchFunc(func(_ context.Context, callMeta interceptors.CallMeta) bool {
 				return cancellationv1grpc.CancellationService_ServiceDesc.ServiceName == callMeta.Service
 			}),
@@ -105,15 +105,10 @@ type server struct {
 	cfg                   config.RPCServerConfig
 	logger                *zap.SugaredLogger
 	responseHeaderHandler common.ResponseHeaderHandler
-	tracer                tracing.Tracer
 	processor             messaging.MessageProcessor
 	serviceRegistry       messaging.ServiceRegistry
 
 	readiness.UnimplementedReadinessServiceServer
-}
-
-func (*server) checkpoint() string {
-	return "request-gateway"
 }
 
 func (s *server) Start() (chan error, error) {
@@ -150,9 +145,6 @@ func (s *server) Stop() {
 }
 
 func (s *server) HandleMessageRequest(ctx context.Context, requestType types.MessageType, request protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
-	ctx, span := s.tracer.Start(ctx, "server.HandleMessageRequest", trace.WithSpanKind(trace.SpanKindServer))
-	defer span.End()
-
 	recipientCMAccountAddress, err := s.getRecipientAddress(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recipient cm account address from request context: %w", err)
@@ -161,18 +153,18 @@ func (s *server) HandleMessageRequest(ctx context.Context, requestType types.Mes
 	requestMsg := &types.Message{
 		Type:       requestType,
 		Content:    request,
-		RequestID:  s.tracer.TraceIDForSpan(span).String(),
+		RequestID:  uuid.New().String(),
 		Timestamps: metadata.Timestamps{},
 	}
 
-	requestMsg.Timestamps.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "received"))
+	requestMsg.Timestamps.Stamp(metadata.CheckpointGRPCRequestReceived)
 
 	responseMsg, err := s.processor.SendRequestMessage(ctx, requestMsg, recipientCMAccountAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request message: %w", err)
 	}
 
-	responseMsg.Timestamps.Stamp(fmt.Sprintf("%s-%s", s.checkpoint(), "processed"))
+	responseMsg.Timestamps.Stamp(metadata.CheckpointGRPCResponseSent)
 
 	timestampsStr, err := responseMsg.Timestamps.MarshalToString()
 	if err != nil {
@@ -230,4 +222,41 @@ func (s *server) unaryRecoverInterceptor(ctx context.Context, req any, info *grp
 	}()
 
 	return handler(ctx, req)
+}
+
+// Not intended to be used with p2p services, as they are managing headers themselves.
+func (s *server) tracingInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	timestamps := metadata.Timestamps{}
+	timestamps.Stamp(metadata.CheckpointGRPCRequestReceived)
+
+	defer func() {
+		timestamps.Stamp(metadata.CheckpointGRPCResponseSent)
+
+		timestampsStr, err := timestamps.MarshalToString()
+		if err != nil {
+			s.logger.Errorf("error marshalling timestamps: %v", err)
+		}
+
+		if err := grpc.SendHeader(ctx, grpcMetadata.Pairs(
+			metadata.KeyTimestamps, timestampsStr,
+		)); err != nil {
+			s.logger.Errorf("failed to send header: %v", err)
+		}
+	}()
+
+	return handler(ctx, req)
+}
+
+func chainUnaryServerInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
+	composed := interceptors[len(interceptors)-1]
+	for i := len(interceptors) - 2; i >= 0; i-- {
+		interceptor := interceptors[i]
+		next := composed
+		composed = func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+			return interceptor(ctx, req, info, func(ctx2 context.Context, innerReq any) (any, error) {
+				return next(ctx2, innerReq, info, handler)
+			})
+		}
+	}
+	return composed
 }

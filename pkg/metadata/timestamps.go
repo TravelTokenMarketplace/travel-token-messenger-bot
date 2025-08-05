@@ -9,6 +9,19 @@ import (
 	"time"
 )
 
+type Checkpoint string
+
+const (
+	CheckpointGRPCRequestReceived                  = "grpc_request_received"
+	CheckpointP2PRequestMessageSentToServer        = "p2p_request_message_sent_to_server"
+	CheckpointP2PRequestMessageReceivedFromServer  = "p2p_request_message_received_from_server"
+	CheckpointP2PRequestMessageSentToPP            = "p2p_request_message_sent_to_pp"
+	CheckpointP2PResponseMessageReceivedFromPP     = "p2p_response_message_received_from_pp"
+	CheckpointP2PResponseMessageSentToServer       = "p2p_response_message_sent_to_server"
+	CheckpointP2PResponseMessageReceivedFromServer = "p2p_response_message_received_from_server"
+	CheckpointGRPCResponseSent                     = "grpc_response_sent"
+)
+
 type Timestamps map[string]int64
 
 func TimestampsFromString(s string) (Timestamps, error) {
@@ -19,13 +32,9 @@ func TimestampsFromString(s string) (Timestamps, error) {
 	return timestamps, nil
 }
 
-func (t Timestamps) Stamp(checkpoint string) {
-	t.StampOn(checkpoint, time.Now().UnixMilli())
-}
-
-func (t Timestamps) StampOn(checkpoint string, timestamp int64) {
-	idx := len(t) // for analysis' sake, we want to know the order of the checkpoints
-	t[fmt.Sprintf("%d-%s", idx, checkpoint)] = timestamp
+func (t Timestamps) Stamp(checkpoint Checkpoint) {
+	// order-checkpoint -> timestamp milliseconds
+	t[fmt.Sprintf("%d-%s", len(t), checkpoint)] = time.Now().UnixMilli()
 }
 
 func (t Timestamps) MarshalToString() (string, error) {

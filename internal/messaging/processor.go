@@ -16,14 +16,11 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/messaging/encryption"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/partnerplugin"
-	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/chequehandler"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/cheques"
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/v11/pkg/cm_accounts"
+	"github.com/chain4travel/camino-messenger-bot/v11/pkg/metadata"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -87,7 +84,6 @@ func NewMessageProcessor(
 	return &messageProcessor{
 		messenger:                           messenger,
 		logger:                              logger,
-		tracer:                              otel.GetTracerProvider().Tracer(""),
 		responseTimeout:                     responseTimeout, // for now applies to all request types
 		responseChannels:                    make(map[string]chan *types.Message),
 		serviceRegistry:                     registry,
@@ -115,7 +111,6 @@ type messageProcessor struct {
 
 	messenger             Messenger
 	logger                *zap.SugaredLogger
-	tracer                trace.Tracer
 	responseChannelsLock  sync.RWMutex
 	responseChannels      map[string]chan *types.Message
 	serviceRegistry       ServiceRegistry
@@ -125,10 +120,6 @@ type messageProcessor struct {
 	cmAccounts            cmaccounts.Service
 	responseHeaderHandler common.ResponseHeaderHandler
 	encoderDecoder        EncoderDecoder
-}
-
-func (*messageProcessor) checkpoint() string {
-	return "processor"
 }
 
 func (p *messageProcessor) Start(ctx context.Context) {
@@ -196,8 +187,10 @@ func (p *messageProcessor) processIncomingMessage(
 
 	switch msgCategory {
 	case types.Request:
-		return p.respond(msg, serviceFeeCheque, senderBotAddress, sharedKey)
+		msg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageReceivedFromServer)
+		return p.respond(context.Background(), msg, serviceFeeCheque, senderBotAddress, sharedKey)
 	case types.Response:
+		msg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromServer)
 		return p.forwardToHandler(msg)
 	default:
 		return ErrUnknownMessageCategory
@@ -265,6 +258,8 @@ func (p *messageProcessor) SendRequestMessage(
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
 
+	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToServer)
+
 	encodedRequestMessage, err := p.encoderDecoder.EncodeMessage(ctx, requestMsg, serviceFeeCheque, recipientBotAddr, sharedKey)
 	if err != nil {
 		return nil, err
@@ -274,9 +269,6 @@ func (p *messageProcessor) SendRequestMessage(
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, span := p.tracer.Start(ctx, "processor.Request", trace.WithAttributes(attribute.String("type", string(requestMsg.Type))))
-	defer span.End()
 
 	p.logger.Infof("Distributor: Bot %s is contacting bot %s of the CMaccount %s", p.botAddress, recipientBotAddr, recipientCMAccount.Hex())
 
@@ -288,9 +280,6 @@ func (p *messageProcessor) SendRequestMessage(
 	); err != nil {
 		return nil, err
 	}
-
-	ctx, responseSpan := p.tracer.Start(ctx, "processor.AwaitResponse", trace.WithSpanKind(trace.SpanKindConsumer), trace.WithAttributes(attribute.String("type", string(requestMsg.Type))))
-	defer responseSpan.End()
 
 	select {
 	case responseMsg := <-responseChan:
@@ -308,20 +297,13 @@ func (p *messageProcessor) SendRequestMessage(
 }
 
 func (p *messageProcessor) respond(
+	ctx context.Context,
 	requestMsg *types.Message,
 	serviceFeeCheque *cheques.SignedCheque,
 	senderBotAddress ethCommon.Address,
 	sharedKey encryption.Key,
 ) error {
 	p.logger.Debugf("Responding to request message %s (id %s) from bot %s", requestMsg.Type, requestMsg.RequestID, senderBotAddress.Hex())
-	traceID, err := trace.TraceIDFromHex(requestMsg.RequestID)
-	if err != nil {
-		p.logger.Warnf("failed to parse traceID from hex [requestID:%s]: %v", requestMsg.RequestID, err)
-	}
-
-	ctx := trace.ContextWithRemoteSpanContext(context.Background(), trace.NewSpanContext(trace.SpanContextConfig{TraceID: traceID}))
-	ctx, responseSpan := p.tracer.Start(ctx, "processor-response", trace.WithAttributes(attribute.String("type", string(requestMsg.Type))))
-	defer responseSpan.End()
 
 	service, supported := p.serviceRegistry.GetService(requestMsg.Type)
 	if !supported {
@@ -339,15 +321,29 @@ func (p *messageProcessor) respond(
 
 	p.logger.Infof("CMAccount %s is calling partner-plugin of the CMAccount %s", serviceFeeCheque.FromCMAccount, serviceFeeCheque.ToCMAccount)
 
-	ctx, responseMsg := p.callPartnerPluginAndGetResponse(
+	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToPP)
+
+	responseMsg, err := p.partnerPlugin.DoServiceRequest(
 		ctx,
 		requestMsg,
 		service,
 		serviceFeeCheque.FromCMAccount,
 		serviceFeeCheque.ToCMAccount,
 	)
+	if err != nil {
+		errMessage := fmt.Sprintf("error calling partner plugin service: %v", err)
+		p.logger.Errorf(errMessage)
+		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
+	}
+
+	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromPP)
+
+	// is is expected, that PrepareResponseMessage will correctly process failure responses
+	p.responseHandler.PrepareResponseMessage(ctx, requestMsg, responseMsg)
 
 	p.logger.Infof("Supplier: Bot %s responding to BOT %s", p.botAddress, senderBotAddress)
+
+	responseMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageSentToServer)
 
 	encodedResponseMessage, err := p.encoderDecoder.EncodeMessage(ctx, responseMsg, nil, senderBotAddress, sharedKey)
 	if err != nil {
@@ -360,34 +356,6 @@ func (p *messageProcessor) respond(
 	}
 
 	return p.messenger.SendMessage(ctx, encodedResponseMessage, senderBotAddress, networkFeeCheque)
-}
-
-func (p *messageProcessor) callPartnerPluginAndGetResponse(
-	ctx context.Context,
-	requestMsg *types.Message,
-	service rpc.Client,
-	fromCMAccount ethCommon.Address,
-	toCMAccount ethCommon.Address,
-) (context.Context, *types.Message) {
-	requestMsg.Timestamps.Stamp(fmt.Sprintf("%s-%s", p.checkpoint(), "request"))
-
-	ctx, responseMsg, err := p.partnerPlugin.DoServiceRequest(
-		ctx,
-		requestMsg,
-		service,
-		fromCMAccount,
-		toCMAccount,
-	)
-	if err != nil {
-		errMessage := fmt.Sprintf("error calling partner plugin service: %v", err)
-		p.logger.Errorf(errMessage)
-		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
-		return ctx, responseMsg
-	}
-
-	p.responseHandler.PrepareResponseMessage(ctx, requestMsg, responseMsg)
-
-	return ctx, responseMsg
 }
 
 func (p *messageProcessor) forwardToHandler(msg *types.Message) error {

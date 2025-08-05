@@ -12,8 +12,7 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/conversion"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/matrix"
 	"github.com/ethereum/go-ethereum/common"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/google/uuid"
 	"maunium.net/go/mautrix/event"
 )
 
@@ -36,10 +35,7 @@ func (b byChunkIndex) Less(i, j int) bool { return b[i].index < b[j].index }
 func (b byChunkIndex) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
 func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSignedMessage, sendTo common.Address, networkFeeCheque *cheques.SignedCheque) error {
-	ctx, span := m.tracer.Start(ctx, "messenger.SendMessage", trace.WithSpanKind(trace.SpanKindProducer))
-	defer span.End()
-
-	messageID := m.tracer.TraceIDForSpan(span).String()
+	messageID := uuid.New().String()
 
 	m.logger.Debugf("Sending message (id %s) to %s", messageID, sendTo)
 
@@ -85,7 +81,7 @@ func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSigne
 	return nil
 }
 
-func (m *messenger) signedMessageEventHandler(ctx context.Context, evt *event.Event) {
+func (m *messenger) signedMessageEventHandler(_ context.Context, evt *event.Event) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.logger.Errorf("failed to process %s event, recovered from panic: %v", &matrix.EventTypeSignedMessage.Type, r)
@@ -99,15 +95,6 @@ func (m *messenger) signedMessageEventHandler(ctx context.Context, evt *event.Ev
 	}
 
 	eventContent := evt.Content.Parsed.(*matrix.SignedMessageEventContent)
-
-	traceID, err := trace.TraceIDFromHex(eventContent.MessageID)
-	if err != nil {
-		m.logger.Warnf("failed to parse traceID from hex [messageID: %s]: %v", eventContent.MessageID, err)
-	}
-	ctx = trace.ContextWithRemoteSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{TraceID: traceID}))
-
-	_, span := m.tracer.Start(ctx, "messenger.signedMessageEventHandler", trace.WithSpanKind(trace.SpanKindConsumer), trace.WithAttributes(attribute.String("type", evt.Type.Type)))
-	defer span.End()
 
 	if err := eventContent.Verify(); err != nil {
 		m.logger.Warnf("Received invalid %s event: %v", &matrix.EventTypeSignedMessage.Type, err)
@@ -124,7 +111,7 @@ func (m *messenger) signedMessageEventHandler(ctx context.Context, evt *event.Ev
 	m.msgChannel <- msg
 }
 
-func (m *messenger) messageChunkEventHandler(ctx context.Context, evt *event.Event) {
+func (m *messenger) messageChunkEventHandler(_ context.Context, evt *event.Event) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.logger.Errorf("failed to process %s event, recovered from panic: %v", &matrix.EventTypeMessageChunk.Type, r)
@@ -138,15 +125,6 @@ func (m *messenger) messageChunkEventHandler(ctx context.Context, evt *event.Eve
 	}
 
 	eventContent := evt.Content.Parsed.(*matrix.MessageChunkEventContent)
-
-	traceID, err := trace.TraceIDFromHex(eventContent.MessageID)
-	if err != nil {
-		m.logger.Warnf("failed to parse traceID from hex [messageID: %s]: %v", eventContent.MessageID, err)
-	}
-	ctx = trace.ContextWithRemoteSpanContext(ctx, trace.NewSpanContext(trace.SpanContextConfig{TraceID: traceID}))
-
-	_, span := m.tracer.Start(ctx, "messenger.messageChunkEventHandler", trace.WithSpanKind(trace.SpanKindConsumer), trace.WithAttributes(attribute.String("type", evt.Type.Type)))
-	defer span.End()
 
 	if err := eventContent.Verify(); err != nil {
 		m.logger.Warnf("Received invalid %s event: %v", &matrix.EventTypeMessageChunk.Type, err)
