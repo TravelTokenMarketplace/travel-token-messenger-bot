@@ -1,6 +1,7 @@
 package mockdata
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,9 @@ import (
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
+
+	"buf.build/go/protovalidate"
+	"google.golang.org/protobuf/proto"
 )
 
 //go:embed properties.json
@@ -380,4 +384,21 @@ func init() {
 	}
 
 	// TODO @evlekht do all data checks like make sure that properties has prop.Property.ContactInfo.Address[0] != nil
+}
+
+func unmarshalStrictAndValidate[T proto.Message](data []byte, destination *[]T, postUnmarshal func([]T)) error { //nolint:unused
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(destination); err != nil {
+		return fmt.Errorf("error unmarshaling data: %w", err)
+	}
+	if postUnmarshal != nil {
+		postUnmarshal(*destination)
+	}
+	for i, item := range *destination {
+		if err := protovalidate.Validate(item); err != nil {
+			return fmt.Errorf("error validating item %d: %w", i, err)
+		}
+	}
+	return nil
 }
