@@ -1,28 +1,25 @@
 package mockdata
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
-	accommodationv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v4"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	"github.com/sryoya/protorand"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Utility to generate random JSON data for a specific proto message type
 func TestGenerateRandomJSON(t *testing.T) {
 	t.Skip() // comment this line to run util
-	pr := protorand.New()
+	protorand := protorand.New()
 
-	protoMessageType := &accommodationv4.PropertyExtendedInfo{} // set the type of the proto message you want to generate
-	pr.MaxCollectionElements = 1                                // set the maximum number of elements in arrays
+	protoMessageType := &typesv4.SeatMapInventory{} // set the type of the proto message you want to generate
+	protorand.MaxCollectionElements = 1             // set the maximum number of elements in arrays
 
-	fakeProtoMessage, err := pr.Gen(protoMessageType)
+	fakeProtoMessage, err := protorand.Gen(protoMessageType)
 	require.NoError(t, err)
-	propertiesJSON, err := json.Marshal(fakeProtoMessage)
-	require.NoError(t, err)
-	fmt.Println(string(propertiesJSON))
+	println(protojson.Format(fakeProtoMessage))
 }
 
 // will run init() function to load mock data

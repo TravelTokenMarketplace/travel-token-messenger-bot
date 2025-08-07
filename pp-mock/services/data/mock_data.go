@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	accommodationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v1"
 	accommodationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v2"
@@ -18,8 +19,10 @@ import (
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 
 	"buf.build/go/protovalidate"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -62,6 +65,17 @@ var activityV3ExtendedJSON []byte
 //go:embed activityv3_search.json
 var activitySearchResultV3JSON []byte
 
+//go:embed seatmapv4/seatmapv4.json
+var seatMapV4JSON []byte
+
+//go:embed seatmapv4/seatmap_availability_v4.json
+var seatMapAvailabilityV4JSON []byte
+
+const (
+	SeatMapTransportIndex = 0
+	SeatMapActivityIndex  = 1
+)
+
 var (
 	PropertiesV1 []*accommodationv1.PropertyExtendedInfo // used by product list, info and search
 	PropertiesV2 []*accommodationv2.PropertyExtendedInfo // used by product list, info and search
@@ -84,9 +98,19 @@ var (
 	ActivityV3             []*activityv3.Activity             // used by product list
 	ActivityExtendedV3     []*activityv3.ActivityExtendedInfo // used by product info
 	ActivitySearchResultV3 []*activityv3.ActivitySearchResult // used by search
+
+	SeatMapV4             []*typesv4.SeatMap          // used by seatMap
+	SeatMapAvailabilityV4 []*typesv4.SeatMapInventory // used by seatMapAvailability
+
 )
 
 func init() {
+	var err error
+
+	// because protobuf location and price are one-of interface types,
+	// json unmarshaling won't work for them and will result in error
+	// so, as quick workaround, we are setting them manually
+
 	if err := json.Unmarshal(propertiesJSON, &PropertiesV1); err != nil {
 		panic(fmt.Errorf("error unmarshaling properties v1: %w", err))
 	}
@@ -135,10 +159,14 @@ func init() {
 	if err := json.Unmarshal(activitySearchResultV3JSON, &ActivitySearchResultV3); err != nil {
 		panic(fmt.Errorf("error unmarshaling activities search v3: %w", err))
 	}
-
-	// because protobuf location and price are one-of interface types,
-	// json unmarshaling won't work for them and will result in error
-	// so, as quick workaround, we are setting them manually
+	SeatMapV4, err = unmarshalStrictAndValidate[*typesv4.SeatMap](seatMapV4JSON)
+	if err != nil {
+		panic(fmt.Errorf("error unmarshaling seat map v4: %w", err))
+	}
+	SeatMapAvailabilityV4, err = unmarshalStrictAndValidate[*typesv4.SeatMapInventory](seatMapAvailabilityV4JSON)
+	if err != nil {
+		panic(fmt.Errorf("error unmarshaling seat map availability v4: %w", err))
+	}
 
 	// TripBasicV3[0,0]
 	TripsBasicV3[0].Segments[0].Departure.Location = &transportv3.TransitEventLocation{
@@ -386,19 +414,30 @@ func init() {
 	// TODO @evlekht do all data checks like make sure that properties has prop.Property.ContactInfo.Address[0] != nil
 }
 
-func unmarshalStrictAndValidate[T proto.Message](data []byte, destination *[]T, postUnmarshal func([]T)) error { //nolint:unused
+func unmarshalStrictAndValidate[T proto.Message](data []byte) ([]T, error) {
+	var raws []json.RawMessage
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(destination); err != nil {
-		return fmt.Errorf("error unmarshaling data: %w", err)
+	if err := decoder.Decode(&raws); err != nil {
+		return nil, fmt.Errorf("invalid JSON array: %w", err)
 	}
-	if postUnmarshal != nil {
-		postUnmarshal(*destination)
+
+	var zeroValue T
+	messages := make([]T, 0, len(raws))
+	for i, raw := range raws {
+		typ := reflect.TypeOf(zeroValue).Elem()
+		msg := reflect.New(typ).Interface().(T)
+		if err := protojson.Unmarshal(raw, msg); err != nil {
+			return nil, fmt.Errorf("item %d: protojson unmarshal failed: %w", i, err)
+		}
+		messages = append(messages, msg)
 	}
-	for i, item := range *destination {
+
+	for i, item := range messages {
 		if err := protovalidate.Validate(item); err != nil {
-			return fmt.Errorf("error validating item %d: %w", i, err)
+			return nil, fmt.Errorf("error validating item %d: %w", i, err)
 		}
 	}
-	return nil
+
+	return messages, nil
 }

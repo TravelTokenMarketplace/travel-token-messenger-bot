@@ -4,11 +4,13 @@
 package state
 
 import (
+	"log"
 	"sync"
 	"time"
 )
 
 // Constants for entry timeout
+// Must be bigger than config.BuyableUntilDefault
 const entryTimeout = 10 * time.Minute
 
 type UnifiedPrice struct {
@@ -26,7 +28,7 @@ type UnifiedPrice struct {
 type SearchData struct {
 	NumResults   int
 	NumTravelers int
-	// TODO: Add information needed for seat selection
+	SeatMapIndex int
 	Prices       []*UnifiedPrice // Validation price for the search results
 	JSONRequest  string          // Mainly for debugging purposes
 	JSONResponse string          // Mainly for debugging purposes
@@ -52,10 +54,18 @@ type ValidationResult struct {
 	CreatedAt time.Time
 }
 
+type MintResult struct {
+	MintID       string
+	SeatMapIndex int
+	CreatedAt    time.Time
+	Bought       bool
+}
+
 // Store holds the in-memory state.
 type Store struct {
 	searchResults     map[string]SearchResult
 	validationResults map[string]ValidationResult
+	mintResults       map[string]MintResult
 	mu                sync.RWMutex
 }
 
@@ -71,6 +81,7 @@ func GetStore() *Store {
 		instance = &Store{
 			searchResults:     make(map[string]SearchResult),
 			validationResults: make(map[string]ValidationResult),
+			mintResults:       make(map[string]MintResult),
 		}
 		go instance.cleanupExpiredEntries()
 	})
@@ -113,6 +124,50 @@ func (s *Store) GetValidationResult(validationID string) (ValidationResult, bool
 	return result, exists
 }
 
+func (s *Store) AddMintResult(mintID string, seatMapIndex int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mintResults[mintID] = MintResult{
+		MintID:       mintID,
+		SeatMapIndex: seatMapIndex,
+		CreatedAt:    time.Now(),
+	}
+}
+
+func (s *Store) SetMintBought(mintID string, bought bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result, exists := s.mintResults[mintID]
+	if !exists {
+		log.Printf("SetMintBought error: mint ID %s not found in store", mintID)
+		return
+	}
+
+	result.Bought = bought
+	s.mintResults[mintID] = result
+}
+
+func (s *Store) RemoveMintResult(mintID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists := s.mintResults[mintID]
+	if !exists {
+		log.Printf("RemoveMintResult error: mint ID %s not found in store", mintID)
+		return
+	}
+
+	delete(s.mintResults, mintID)
+}
+
+func (s *Store) GetMintResult(mintID string) (MintResult, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	result, exists := s.mintResults[mintID]
+	return result, exists
+}
+
 // cleanupExpiredEntries removes entries that have expired based on the entryTimeout.
 func (s *Store) cleanupExpiredEntries() {
 	for {
@@ -127,6 +182,11 @@ func (s *Store) cleanupExpiredEntries() {
 		for id, result := range s.validationResults {
 			if now.Sub(result.CreatedAt) > entryTimeout {
 				delete(s.validationResults, id)
+			}
+		}
+		for id, result := range s.mintResults {
+			if now.Sub(result.CreatedAt) > entryTimeout {
+				delete(s.mintResults, id)
 			}
 		}
 		s.mu.Unlock()

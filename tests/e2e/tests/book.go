@@ -24,23 +24,28 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func mintBuyTokenV3(
+func mintBuyTransportTokenV3(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
 	supplierPPEventStream events.EventsService_SubscribeClient,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
-) (uint64, *typesv3.Price) {
-	searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, e, distributorBot, supplierBot) // see test_accommodation_v3.go
-	_, err := supplierPPEventStream.Recv()                                                                                     // skip AccommodationSearchRequest
+) (
+	tokenID uint64,
+	mintID string,
+	price *typesv3.Price,
+) {
+	productListResp := testTransportV3ProductListService(ctx, t, e, distributorBot, supplierBot)                                       // see test_transport_v3.go
+	searchID, resultID, totalPrice := testTransportV3SearchServiceWithFilters(ctx, t, e, distributorBot, supplierBot, productListResp) // see test_transport_v3.go
+	_, err := supplierPPEventStream.Recv()                                                                                             // skip TransportSearchRequest
 	require.NoError(t, err)
 
-	validationID := testValidateV2(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
+	validationID := testValidateV3(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
 	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
 	require.NoError(t, err)
 
-	tokenID, bookingPrice, _ := testMintV3(ctx, t, e, distributorBot, supplierBot, validationID)
+	tokenID, mintID, bookingPrice := testMintV3(ctx, t, e, distributorBot, supplierBot, validationID)
 	_, err = supplierPPEventStream.Recv() // skip MintRequest
 	require.NoError(t, err)
 
@@ -50,10 +55,93 @@ func mintBuyTokenV3(
 	tokenBoughtNotification := &notificationv2.TokenBought{}
 	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
 
-	return tokenID, bookingPrice
+	return tokenID, mintID, bookingPrice
+}
+
+func mintBuyAccommodationTokenV3(
+	ctx context.Context,
+	t *testing.T,
+	e *suite.Environment,
+	supplierPPEventStream events.EventsService_SubscribeClient,
+	distributorBot *bot.Bot,
+	supplierBot *bot.Bot,
+) (
+	tokenID uint64,
+	mintID string,
+	price *typesv3.Price,
+) {
+	searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, e, distributorBot, supplierBot) // see test_accommodation_v3.go
+	_, err := supplierPPEventStream.Recv()                                                                                     // skip AccommodationSearchRequest
+	require.NoError(t, err)
+
+	validationID := testValidateV3(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
+	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
+	require.NoError(t, err)
+
+	tokenID, mintID, bookingPrice := testMintV3(ctx, t, e, distributorBot, supplierBot, validationID)
+	_, err = supplierPPEventStream.Recv() // skip MintRequest
+	require.NoError(t, err)
+
+	eventMsg, err := supplierPPEventStream.Recv()
+	require.NoError(t, err)
+	e.DebugPrintProtoMessage(eventMsg)
+	tokenBoughtNotification := &notificationv2.TokenBought{}
+	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
+
+	return tokenID, mintID, bookingPrice
 }
 
 // validate
+
+func testValidateV3(
+	ctx context.Context,
+	t *testing.T,
+	e *suite.Environment,
+	distributorBot *bot.Bot,
+	supplierBot *bot.Bot,
+	searchID string,
+	resultID int32,
+	expectedTotalPrice *big.Int,
+) (validateID string) {
+	req := &bookv3.ValidationRequest{
+		ValidationObject: &bookv3.ValidationObject{
+			SearchIdentifier: &typesv3.SearchIdentifier{
+				SearchId: &typesv1.UUID{Value: searchID},
+				ResultId: resultID,
+			},
+		},
+	}
+	resp, err := distributorBot.ValidationServiceV3.Validation(
+		requestContext(ctx, supplierBot.CMAccountAddress()),
+		req,
+	)
+	require.NoError(t, err)
+	e.DebugPrintRequestResponse(req, resp)
+
+	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
+	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+
+	// Check if the validationObject is correct in the response
+	require.NotEmpty(t, resp.ValidationObject, "unexpected empty response ValidationObject")
+	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier, "unexpected empty response ValidationObject.SearchIdentifier")
+	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier.SearchId, "unexpected empty response ValidationObject.SearchIdentifier.SearchId")
+	require.NotEmpty(t, resp.ValidationObject.SearchIdentifier.SearchId.Value, "unexpected empty response ValidationObject.SearchIdentifier.SearchId.Value")
+	require.Equal(t, searchID, resp.ValidationObject.SearchIdentifier.SearchId.Value, "unexpected searchID in response")
+	require.Equal(t, resultID, resp.ValidationObject.SearchIdentifier.ResultId, "unexpected resultID in response")
+
+	// Check if the price per night is as expected
+	require.NotEmpty(t, resp.PriceDetail, "unexpected empty response PriceDetail")
+	require.NotEmpty(t, resp.PriceDetail.Price, "unexpected empty response PriceDetail.Price")
+	require.NotEmpty(t, resp.PriceDetail.Price.Value, "unexpected empty response PriceDetail.Price.Value")
+
+	totalPrice := priceBigV3(t, resp.PriceDetail.Price)
+	require.True(t, totalPrice.Cmp(expectedTotalPrice) == 0, "unexpected total price")
+
+	// Last check if the validationID is set and if yes extract it and pass it back for the mint step
+	require.NotEmpty(t, resp.ValidationId, "unexpected empty response validationID")
+	require.NotEmpty(t, resp.ValidationId.Value, "unexpected empty response validationID.Value")
+	return resp.ValidationId.Value
+}
 
 func testValidateV2(
 	ctx context.Context,
@@ -116,8 +204,8 @@ func testMintV2(
 	validationID string,
 ) (
 	tokenID uint64,
-	price *typesv2.Price,
 	mintID string,
+	price *typesv2.Price,
 ) {
 	req := &bookv2.MintRequest{
 		Header:       &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
@@ -140,7 +228,7 @@ func testMintV2(
 	require.NotEmpty(t, resp.MintTransactionId, "unexpected empty response MintTransactionId")
 	require.NotEmpty(t, resp.BuyTransactionId, "unexpected empty response BuyTransactionId")
 
-	return resp.BookingTokenId, resp.Price, resp.MintId.Value
+	return resp.BookingTokenId, resp.MintId.Value, resp.Price
 }
 
 func testMintV3(
@@ -152,8 +240,8 @@ func testMintV3(
 	validationID string,
 ) (
 	tokenID uint64,
-	price *typesv3.Price,
 	mintID string,
+	price *typesv3.Price,
 ) {
 	req := &bookv3.MintRequest{
 		Header:       &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
@@ -176,7 +264,7 @@ func testMintV3(
 	require.NotEmpty(t, resp.MintTransactionId, "unexpected empty response MintTransactionId")
 	require.NotEmpty(t, resp.BuyTransactionId, "unexpected empty response BuyTransactionId")
 
-	return resp.BookingTokenId, resp.Price, resp.MintId.Value
+	return resp.BookingTokenId, resp.MintId.Value, resp.Price
 }
 
 // verify blockchain state
