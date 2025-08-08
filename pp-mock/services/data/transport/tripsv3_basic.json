@@ -1,0 +1,161 @@
+[
+	{
+		"supplierCode": {
+			"supplierCode": "AB",
+			"supplierNumber": 4567
+		},
+		"segments": [
+			{
+				"segmentId": "SEG1234",
+				"providerCode": "EW",
+				"productCode": {
+					"code": "IATA4589",
+					"type": "PRODUCT_CODE_TYPE_IATA"
+				},
+				"departure": {
+					"dateTime": "2024-05-15T12:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "PMI",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				},
+				"arrival": {
+					"dateTime": "2024-05-15T13:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "BCN",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				}
+			}
+		],
+		"lastModified": "2025-03-03T11:06:40Z"
+	},
+	{
+		"supplierCode": {
+			"supplierCode": "LH",
+			"supplierNumber": 7453
+		},
+		"segments": [
+			{
+				"segmentId": "SEG5678",
+				"providerCode": "LH",
+				"retailerCode": "BA",
+				"subSupplierCode": "NS",
+				"productCode": {
+					"code": "IATA1234",
+					"type": "PRODUCT_CODE_TYPE_IATA"
+				},
+				"departure": {
+					"dateTime": "2024-05-15T14:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "BCN",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				},
+				"arrival": {
+					"dateTime": "2024-05-15T15:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "MAD",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				}
+			},
+			{
+				"segmentId": "SEG91011",
+				"providerCode": "AF",
+				"productCode": {
+					"code": "IATA5678",
+					"type": "PRODUCT_CODE_TYPE_IATA"
+				},
+				"departure": {
+					"dateTime": "2024-05-15T16:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "MAD",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				},
+				"arrival": {
+					"dateTime": "2024-05-15T17:20:00Z",
+					"location": {
+						"locationCode": {
+							"code": "LIS",
+							"type": "LOCATION_CODE_TYPE_IATA_CODE"
+						}
+					}
+				}
+			}
+		],
+		"lastModified": "2025-02-19T21:20:00Z"
+	},
+	{
+		"supplierCode": {
+			"supplierCode": "DB",
+			"supplierNumber": 5483
+		},
+		"segments": [
+			{
+				"segmentId": "SEG8321",
+				"providerCode": "DB",
+				"productCode": {
+					"code": "RE3-89875",
+					"type": "PRODUCT_CODE_TYPE_SUPPLIER"
+				},
+				"departure": {
+					"dateTime": "2025-03-19T08:03:57Z",
+					"location": {
+						"locationCode": {
+							"code": "LAN",
+							"type": "LOCATION_CODE_TYPE_3ALPHA_CODE"
+						}
+					}
+				},
+				"arrival": {
+					"dateTime": "2025-03-19T09:03:57Z",
+					"location": {
+						"locationCode": {
+							"code": "HAM",
+							"type": "LOCATION_CODE_TYPE_3ALPHA_CODE"
+						}
+					}
+				}
+			},
+			{
+				"segmentId": "SEG8323",
+				"providerCode": "ICE",
+				"productCode": {
+					"code": "ICE-757",
+					"type": "PRODUCT_CODE_TYPE_SUPPLIER"
+				},
+				"departure": {
+					"dateTime": "2025-03-19T10:03:57Z",
+					"location": {
+						"locationCode": {
+							"code": "HAM",
+							"type": "LOCATION_CODE_TYPE_3ALPHA_CODE"
+						}
+					}
+				},
+				"arrival": {
+					"dateTime": "2025-03-19T11:03:57Z",
+					"location": {
+						"locationCode": {
+							"code": "BER",
+							"type": "LOCATION_CODE_TYPE_3ALPHA_CODE"
+						}
+					}
+				}
+			}
+		],
+		"lastModified": "2025-02-19T21:20:00Z"
+	}
+]
