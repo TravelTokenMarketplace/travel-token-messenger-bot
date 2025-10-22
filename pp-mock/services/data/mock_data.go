@@ -7,13 +7,10 @@ import (
 	"fmt"
 	"reflect"
 
-	accommodationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v1"
 	accommodationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v2"
 	accommodationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v3"
-	activityv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v1"
 	activityv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v2"
 	activityv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v3"
-	transportv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v1"
 	transportv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v2"
 	transportv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v3"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
@@ -25,9 +22,6 @@ import (
 
 // * Accommodation
 
-//go:embed accommodation/propertiesv1.json
-var propertiesV1JSON []byte
-
 //go:embed accommodation/propertiesv2.json
 var propertiesV2JSON []byte
 
@@ -35,9 +29,6 @@ var propertiesV2JSON []byte
 var propertiesV3JSON []byte
 
 // * Transport
-
-//go:embed transport/tripsv1.json
-var tripsV1JSON []byte
 
 //go:embed transport/tripsv2.json
 var tripsV2JSON []byte
@@ -49,15 +40,6 @@ var tripsV3BasicJSON []byte
 var tripsV3ExtendedJSON []byte
 
 // * Activity
-
-//go:embed activity/activityv1.json
-var activityV1JSON []byte
-
-//go:embed activity/activityv1_extended.json
-var activityExtendedV1JSON []byte
-
-//go:embed activity/activityv1_search.json
-var activitySearchResultV1JSON []byte
 
 //go:embed activity/activityv2.json
 var activityV2JSON []byte
@@ -91,19 +73,13 @@ const (
 )
 
 var (
-	PropertiesV1 []*accommodationv1.PropertyExtendedInfo // used by product list, info and search
 	PropertiesV2 []*accommodationv2.PropertyExtendedInfo // used by product list, info and search
 	PropertiesV3 []*accommodationv3.PropertyExtendedInfo // used by product list, info and search
 
-	TripsV1 []*transportv1.Trip // used by search
 	TripsV2 []*transportv2.Trip // used by search
 
 	TripsBasicV3    []*transportv3.TripBasic    // used by product list
 	TripsExtendedV3 []*transportv3.TripExtended // used by search
-
-	ActivityV1             []*activityv1.Activity             // used by product list
-	ActivityExtendedV1     []*activityv1.ActivityExtendedInfo // used by product info
-	ActivitySearchResultV1 []*activityv1.ActivitySearchResult // used by search
 
 	ActivityV2             []*activityv2.Activity             // used by product list
 	ActivityExtendedV2     []*activityv2.ActivityExtendedInfo // used by product info
@@ -118,23 +94,15 @@ var (
 )
 
 func init() {
-	// AccommodationV1
-	PropertiesV1 = mustUnmarshalStrictAndValidate[*accommodationv1.PropertyExtendedInfo](propertiesV1JSON, "error unmarshaling properties v1")
 	// AccommodationV2
 	PropertiesV2 = mustUnmarshalStrictAndValidate[*accommodationv2.PropertyExtendedInfo](propertiesV2JSON, "error unmarshaling properties v2")
 	// AccommodationV3
 	PropertiesV3 = mustUnmarshalStrictAndValidate[*accommodationv3.PropertyExtendedInfo](propertiesV3JSON, "error unmarshaling properties v3")
-	// TransportV1
-	TripsV1 = mustUnmarshalStrictAndValidate[*transportv1.Trip](tripsV1JSON, "error unmarshaling trips v1")
 	// TransportV2
 	TripsV2 = mustUnmarshalStrictAndValidate[*transportv2.Trip](tripsV2JSON, "error unmarshaling trips v2")
 	// TransportV3
 	TripsBasicV3 = mustUnmarshalStrictAndValidate[*transportv3.TripBasic](tripsV3BasicJSON, "error unmarshaling trips basic v3")
 	TripsExtendedV3 = mustUnmarshalStrictAndValidate[*transportv3.TripExtended](tripsV3ExtendedJSON, "error unmarshaling trips extended v3")
-	// ActivityV1
-	ActivityV1 = mustUnmarshalStrictAndValidate[*activityv1.Activity](activityV1JSON, "error unmarshaling activities v1")
-	ActivityExtendedV1 = mustUnmarshalStrictAndValidate[*activityv1.ActivityExtendedInfo](activityExtendedV1JSON, "error unmarshaling activities extended v1")
-	ActivitySearchResultV1 = mustUnmarshalStrictAndValidate[*activityv1.ActivitySearchResult](activitySearchResultV1JSON, "error unmarshaling activities search v1")
 	// ActivityV2
 	ActivityV2 = mustUnmarshalStrictAndValidate[*activityv2.Activity](activityV2JSON, "error unmarshaling activities v2")
 	ActivityExtendedV2 = mustUnmarshalStrictAndValidate[*activityv2.ActivityExtendedInfo](activityExtendedV2JSON, "error unmarshaling activities extended v2")
