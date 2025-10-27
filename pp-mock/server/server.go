@@ -17,10 +17,12 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/events"
 	accommodation_v2 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/accommodation/v2"
 	accommodation_v3 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/accommodation/v3"
+	accommodation_v4 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/accommodation/v4"
 	activity_v2 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/activity/v2"
 	activity_v3 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/activity/v3"
 	book_v2 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/book/v2"
 	book_v3 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/book/v3"
+	book_v4 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/book/v4"
 	cancellation_v1 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/cancellation/v1"
 	notification_v1 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/notification/v1"
 	notification_v2 "github.com/chain4travel/camino-messenger-bot/v11/pp-mock/handlers/notification/v2"
@@ -33,10 +35,12 @@ import (
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v2/accommodationv2grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v3/accommodationv3grpc"
+	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v4/accommodationv4grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v2/activityv2grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v3/activityv3grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v2/bookv2grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v3/bookv3grpc"
+	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v4/bookv4grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/notification/v1/notificationv1grpc"
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/notification/v2/notificationv2grpc"
@@ -48,7 +52,9 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -91,6 +97,11 @@ func Run() error {
 	accommodationv3grpc.RegisterAccommodationSearchServiceServer(grpcServer, accommodation_v3.NewAccommodationSearchServer())
 	accommodationv3grpc.RegisterAccommodationProductInfoServiceServer(grpcServer, accommodation_v3.NewAccommodationProductInfoServer())
 	accommodationv3grpc.RegisterAccommodationProductListServiceServer(grpcServer, accommodation_v3.NewAccommodationProductListServer())
+	// Accommodation V4
+	accommodationv4grpc.RegisterAccommodationSearchServiceServer(grpcServer, accommodation_v4.NewAccommodationSearchServer())
+	accommodationv4grpc.RegisterAccommodationProductInfoServiceServer(grpcServer, accommodation_v4.NewAccommodationProductInfoServer())
+	accommodationv4grpc.RegisterAccommodationProductListServiceServer(grpcServer, accommodation_v4.NewAccommodationProductListServer())
+	accommodationv4grpc.RegisterAccommodationProductShortListServiceServer(grpcServer, accommodation_v4.NewAccommodationProductShortListServer())
 
 	// Activity V2
 	activityv2grpc.RegisterActivityProductListServiceServer(grpcServer, activity_v2.NewActivityProductListServer())
@@ -107,6 +118,9 @@ func Run() error {
 	// Book V3
 	bookv3grpc.RegisterMintServiceServer(grpcServer, book_v3.NewMintServiceServer())
 	bookv3grpc.RegisterValidationServiceServer(grpcServer, book_v3.NewValidationServiceServer())
+	// Book V4
+	bookv4grpc.RegisterMintServiceServer(grpcServer, book_v4.NewMintServiceServer())
+	bookv4grpc.RegisterValidationServiceServer(grpcServer, book_v4.NewValidationServiceServer())
 
 	// Ping V1
 	pingv1grpc.RegisterPingServiceServer(grpcServer, ping_v1.NewPingServiceServer())
@@ -196,17 +210,18 @@ func loggingInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo
 	resp, err := handler(ctx, req)
 	if err != nil {
 		log.Printf("Error handling request: %v", err)
+		return resp, status.Errorf(codes.Internal, "error handling request: %v", err)
 	}
-	return resp, err
+	return resp, nil
 }
 
 func protoValidateInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	protoReq, ok := req.(proto.Message)
 	if !ok {
-		return nil, fmt.Errorf("request is not a proto message: %T", req)
+		return nil, status.Errorf(codes.InvalidArgument, "request is not a proto message: %T", req)
 	}
 	if err := protovalidate.Validate(protoReq); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return nil, status.Errorf(codes.InvalidArgument, "request validation failed: %v", err)
 	}
 	resp, err := handler(ctx, req)
 	if err != nil {
@@ -214,10 +229,10 @@ func protoValidateInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerI
 	}
 	protoResp, ok := resp.(proto.Message)
 	if !ok {
-		return nil, fmt.Errorf("response is not a proto message: %T", resp)
+		return nil, status.Errorf(codes.Internal, "response is not a proto message: %T", resp)
 	}
 	if err := protovalidate.Validate(protoResp); err != nil {
-		return nil, fmt.Errorf("response validation failed: %w", err)
+		return nil, status.Errorf(codes.Internal, "response validation failed: %v", err)
 	}
 	return resp, nil
 }
