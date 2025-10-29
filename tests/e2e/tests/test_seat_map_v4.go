@@ -48,20 +48,28 @@ func (tt *TestSeatMapV4) Run(t *testing.T) {
 
 	tt.prepare(ctx, t)
 
-	t.Run("Transport List->Search->SeatMapAvailability with searchID", func(t *testing.T) {
-		productListResp := testTransportV3ProductListService(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot)                       // see test_transport_v3.go
-		searchID, _, _ := testTransportV3SearchServiceWithFilters(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, productListResp) // see test_transport_v3.go
-		tt.testSeatMapAvailabilityV4WithSearchID(ctx, t, searchID)
-	})
 	t.Run("SeatMapAvailability with non-existing searchID", func(t *testing.T) {
 		tt.testSeatMapAvailabilityV4WithBadSearchID(ctx, t)
 	})
-	t.Run("Search->Validate->Mint->SeatMapAvailability with mintID", func(t *testing.T) {
-		_, mintID, _ := mintBuyTransportTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
-		tt.testSeatMapAvailabilityV4WithMintID(ctx, t, mintID)
-	})
 	t.Run("SeatMapAvailability with non-existing mintID", func(t *testing.T) {
 		tt.testSeatMapAvailabilityV4WithBadMintID(ctx, t)
+	})
+	t.Run("Transport List->Search->SeatMapAvailability with searchID", func(t *testing.T) {
+		productListResp := testTransportV3ProductListService(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot)                       // see test_transport_v3.go
+		searchID, _, _ := testTransportV3SearchServiceWithFilters(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, productListResp) // see test_transport_v3.go
+		tt.testSeatMapAvailabilityV4WithSearchID(ctx, t, searchID, mockdata.SeatMapAvailabilityV4[0])
+	})
+	t.Run("TransportSearch->Validate->Mint->SeatMapAvailability with mintID", func(t *testing.T) {
+		_, mintID, _ := mintBuyTransportTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
+		tt.testSeatMapAvailabilityV4WithMintID(ctx, t, mintID, mockdata.SeatMapAvailabilityV4[0])
+	})
+	t.Run("ActivitySearch->SeatMapAvailability with searchID", func(t *testing.T) {
+		searchID, _, _ := testActivityV3SearchServiceWithTravelPeriod(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot) // see test_activity_v3.go
+		tt.testSeatMapAvailabilityV4WithSearchID(ctx, t, searchID, mockdata.SeatMapAvailabilityV4[1])
+	})
+	t.Run("ActivitySearch->Validate->Mint->SeatMapAvailability with mintID", func(t *testing.T) {
+		_, mintID, _ := mintBuyActivityTokenV3(ctx, t, tt.Environment, tt.supplierPPEventStream, tt.distributorBot, tt.supplierBot)
+		tt.testSeatMapAvailabilityV4WithMintID(ctx, t, mintID, mockdata.SeatMapAvailabilityV4[1])
 	})
 	t.Run("SeatMap non-existing seatMap id", func(t *testing.T) {
 		tt.testSeatMapV4BadID(ctx, t)
@@ -69,8 +77,11 @@ func (tt *TestSeatMapV4) Run(t *testing.T) {
 	t.Run("SeatMap without requested language", func(t *testing.T) {
 		tt.testSeatMapV4WithoutLocalization(ctx, t)
 	})
-	t.Run("SeatMap", func(t *testing.T) {
-		tt.testSeatMapV4(ctx, t)
+	t.Run("SeatMap for transport", func(t *testing.T) {
+		tt.testSeatMapV4(ctx, t, mockdata.SeatMapV4[0])
+	})
+	t.Run("SeatMap for activity", func(t *testing.T) {
+		tt.testSeatMapV4(ctx, t, mockdata.SeatMapV4[1])
 	})
 }
 
@@ -78,6 +89,7 @@ func (tt *TestSeatMapV4) prepare(ctx context.Context, t *testing.T) {
 	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
 		botGenerated.TransportProductListServiceV3,
 		botGenerated.TransportSearchServiceV3,
+		botGenerated.ActivitySearchServiceV3,
 		botGenerated.ValidationServiceV3,
 		botGenerated.MintServiceV3,
 		botGenerated.SeatMapServiceV4,
@@ -95,10 +107,11 @@ func (tt *TestSeatMapV4) prepare(ctx context.Context, t *testing.T) {
 			bot.WithServices([]bot.CMService{
 				{Name: botGenerated.TransportProductListServiceV3, Fee: 100},
 				{Name: botGenerated.TransportSearchServiceV3, Fee: 110},
-				{Name: botGenerated.ValidationServiceV3, Fee: 120},
-				{Name: botGenerated.MintServiceV3, Fee: 130},
-				{Name: botGenerated.SeatMapServiceV4, Fee: 140},
-				{Name: botGenerated.SeatMapAvailabilityServiceV4, Fee: 150},
+				{Name: botGenerated.ActivitySearchServiceV3, Fee: 120},
+				{Name: botGenerated.ValidationServiceV3, Fee: 130},
+				{Name: botGenerated.MintServiceV3, Fee: 140},
+				{Name: botGenerated.SeatMapServiceV4, Fee: 150},
+				{Name: botGenerated.SeatMapAvailabilityServiceV4, Fee: 160},
 			}),
 		)
 		var err error
@@ -116,7 +129,7 @@ func (tt *TestSeatMapV4) prepare(ctx context.Context, t *testing.T) {
 	wg.Wait()
 }
 
-func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithSearchID(ctx context.Context, t *testing.T, searchID string) {
+func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithSearchID(ctx context.Context, t *testing.T, searchID string, expectedSeatMapInventory *typesv4.SeatMapInventory) {
 	req := &seatmapv4.SeatMapAvailabilityRequest{
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 		Identifier: &seatmapv4.SeatMapAvailabilityRequest_SearchIdentifier{
@@ -134,7 +147,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithSearchID(ctx context.Conte
 
 	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.True(t, proto.Equal(mockdata.SeatMapAvailabilityV4[0], resp.SeatMap), "unexpected seat map availability data in response")
+	require.True(t, proto.Equal(expectedSeatMapInventory, resp.SeatMap), "unexpected seat map availability data in response")
 }
 
 func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadSearchID(ctx context.Context, t *testing.T) {
@@ -156,7 +169,12 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadSearchID(ctx context.Co
 	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
 }
 
-func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(ctx context.Context, t *testing.T, mintID string) {
+func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(
+	ctx context.Context,
+	t *testing.T,
+	mintID string,
+	expectedSeatMapInventory *typesv4.SeatMapInventory,
+) {
 	req := &seatmapv4.SeatMapAvailabilityRequest{
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 		Identifier: &seatmapv4.SeatMapAvailabilityRequest_MintId{
@@ -172,7 +190,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(ctx context.Context
 
 	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.True(t, proto.Equal(mockdata.SeatMapAvailabilityV4[0], resp.SeatMap), "unexpected seat map availability data in response")
+	require.True(t, proto.Equal(expectedSeatMapInventory, resp.SeatMap), "unexpected seat map availability data in response")
 }
 
 func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadMintID(ctx context.Context, t *testing.T) {
@@ -270,11 +288,11 @@ func (tt *TestSeatMapV4) testSeatMapV4WithoutLocalization(ctx context.Context, t
 	require.True(t, proto.Equal(expectedSeatMap, resp.SeatMap), "unexpected seat map data in response")
 }
 
-func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T) {
+func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, expectedSeatMap *typesv4.SeatMap) {
 	expectedLang := typesv1.Language_LANGUAGE_EN
 	req := &seatmapv4.SeatMapRequest{
 		Header:    &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
-		MapId:     mockdata.SeatMapV4[0].Id.Id,
+		MapId:     expectedSeatMap.Id.Id,
 		Languages: []typesv1.Language{expectedLang},
 	}
 	resp, err := tt.distributorBot.SeatMapServiceV4.SeatMap(
@@ -289,47 +307,122 @@ func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T) {
 	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
 
-	// Check seatMap description and section names/descriptions language
-	// Also set all localized strings to nil for easier comparison
+	// Compare seatMap with expectedSeatMap
 
-	for _, section := range resp.SeatMap.Sections {
+	expectedSeatMap = common.CloneProto(expectedSeatMap)
+
+	// Order sections by their traversal order
+	orderedSections := []*typesv4.Section{}
+	for _, section := range expectedSeatMap.Sections {
 		traverseSection(section, func(s *typesv4.Section) {
-			require.Len(t, s.Names, 1, "unexpected number of section names")
-			require.Equal(t, expectedLang, s.Names[0].Language, "unexpected language in section name")
-			s.Names = nil
-
-			seatList, ok := s.SeatInfo.(*typesv4.Section_SeatList)
-			if !ok {
-				return
-			}
-
-			for _, seat := range seatList.SeatList.Seats {
-				require.Len(t, seat.GetAttributes().Features, 1, "unexpected number of seat features")
-				require.Equal(t, expectedLang, seat.Attributes.Features[0].Language, "unexpected language in seat feature")
-				seat.Attributes.Features = nil
-			}
+			orderedSections = append(orderedSections, s)
 		})
 	}
 
-	// Check seatMap
+	// Check seatMap localized strings and strip it and expected seatMap of localized strings for easier comparison
 
-	expectedSeatMap := common.CloneProto(mockdata.SeatMapV4[0])
+	checkAndStripAttributes := func(expectedAttributes, attributes *typesv4.SeatAttributes, expectedLang typesv1.Language) {
+		require.NotNil(t, attributes)
 
-	// Set all localized strings to nil for easier comparison
-	for _, section := range expectedSeatMap.Sections {
-		traverseSection(section, func(s *typesv4.Section) {
-			s.Names = nil
+		// features
+		var expectedFeature *typesv4.LocalizedSeatAttributeSet
+		for _, feature := range expectedAttributes.Features {
+			if feature.Language == expectedLang {
+				expectedFeature = feature
+				break
+			}
+		}
+		expectedAttributes.Features = nil
 
-			seatList, ok := s.SeatInfo.(*typesv4.Section_SeatList)
-			if !ok {
+		if expectedFeature != nil {
+			require.Len(t, attributes.Features, 1)
+			require.True(t, proto.Equal(expectedFeature, attributes.Features[0]), "unexpected seat map feature")
+			attributes.Features = nil
+		} else {
+			require.Nil(t, attributes.Features)
+		}
+
+		// descriptions
+		var expectedDescription *typesv4.LocalizedDescriptionSet
+		for _, description := range expectedAttributes.Descriptions {
+			if description.Language == expectedLang {
+				expectedDescription = description
+				break
+			}
+		}
+		expectedAttributes.Descriptions = nil
+
+		if expectedDescription != nil {
+			require.Len(t, attributes.Descriptions, 1)
+			require.True(t, proto.Equal(expectedDescription, attributes.Descriptions[0]), "unexpected seat map description")
+			attributes.Descriptions = nil
+		} else {
+			require.Nil(t, attributes.Descriptions)
+		}
+
+		// restrictions
+		var expectedRestriction *typesv4.LocalizedSeatAttributeSet
+		for _, restriction := range expectedAttributes.Restrictions {
+			if restriction.Language == expectedLang {
+				expectedRestriction = restriction
+				break
+			}
+		}
+		expectedAttributes.Restrictions = nil
+
+		if expectedRestriction != nil {
+			require.Len(t, attributes.Restrictions, 1)
+			require.True(t, proto.Equal(expectedRestriction, attributes.Restrictions[0]), "unexpected seat map restriction")
+			attributes.Restrictions = nil
+		} else {
+			require.Nil(t, attributes.Restrictions)
+		}
+	}
+
+	sectionIndex := 0
+	for _, section := range resp.SeatMap.Sections {
+		traverseSection(section, func(traversedSection *typesv4.Section) {
+			expectedSection := orderedSections[sectionIndex]
+			sectionIndex++
+
+			// check name
+			var expectedName *typesv4.LocalizedString
+			for _, name := range expectedSection.Names {
+				if name.Language == expectedLang {
+					expectedName = name
+					break
+				}
+			}
+			expectedSection.Names = nil
+
+			require.Len(t, traversedSection.Names, 1, "unexpected number of section names")
+			require.True(t, proto.Equal(expectedName, traversedSection.Names[0]), "unexpected section name")
+			traversedSection.Names = nil
+
+			// check attributes
+			if expectedSection.Attributes == nil {
+				require.Nil(t, traversedSection.Attributes)
+			} else {
+				checkAndStripAttributes(expectedSection.Attributes, traversedSection.Attributes, expectedLang)
+			}
+
+			// check seats' attributes
+			expectedSeatList, expectSeatList := expectedSection.SeatInfo.(*typesv4.Section_SeatList)
+			seatList, hasSeatList := traversedSection.SeatInfo.(*typesv4.Section_SeatList)
+
+			require.Equal(t, expectSeatList, hasSeatList)
+			if !expectSeatList {
 				return
 			}
 
-			for _, seat := range seatList.SeatList.Seats {
-				if seat.Attributes == nil {
-					continue
+			for i, traversedSeat := range seatList.SeatList.Seats {
+				expectedSeat := expectedSeatList.SeatList.Seats[i]
+
+				if expectedSeat.Attributes == nil {
+					require.Nil(t, traversedSeat.Attributes)
+				} else {
+					checkAndStripAttributes(expectedSeat.Attributes, traversedSeat.Attributes, expectedLang)
 				}
-				seat.Attributes.Features = nil
 			}
 		})
 	}
@@ -341,7 +434,8 @@ func traverseSection(section *typesv4.Section, f func(*typesv4.Section)) {
 	if f != nil {
 		f(section)
 	}
-	for _, section := range section.Sections {
+
+	for _, section := range section.GetSubsections().GetSections() {
 		traverseSection(section, f)
 	}
 }

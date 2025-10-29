@@ -52,5 +52,38 @@
                 }
             }
         ]
+    },
+    {
+        "id": "Vila-Park-2025-Ozzy",
+        "sections": [
+            {
+                "id": "north-stand",
+                "subsections": {
+                    "sections": [
+                        {
+                            "id": "T1",
+                            "seatList": {
+                                "ids": [
+                                    "T1-01",
+                                    "T1-02"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "T2",
+                            "seatCount": 50
+                        },
+                        {
+                            "id": "R1",
+                            "seatCount": 50
+                        }
+                    ]
+                }
+            },
+            {
+                "id": "standing",
+                "seatCount": 3000
+            }
+        ]
     }
 ]

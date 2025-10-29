@@ -3145,5 +3145,126 @@
                 }
             }
         ]
+    },
+    {
+        "id": {
+            "id": "Vila-Park-2025-Ozzy"
+        },
+        "sections": [
+            {
+                "id": "north-stand",
+                "names": [
+                    {
+                        "text": "North Stand",
+                        "language": "LANGUAGE_EN"
+                    }
+                ],
+                "subsections": {
+                    "sections": [
+                        {
+                            "id": "T1",
+                            "names": [
+                                {
+                                    "text": "Block T1",
+                                    "language": "LANGUAGE_EN"
+                                }
+                            ],
+                            "seatList": {
+                                "seats": [
+                                    {
+                                        "id": "T1-01",
+                                        "location": {
+                                            "vector": {
+                                                "label": "Row 1, Seat 1"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "id": "T1-02",
+                                        "location": {
+                                            "vector": {
+                                                "label": "Row 1, Seat 2"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "id": "T2",
+                            "names": [
+                                {
+                                    "text": "Block T2",
+                                    "language": "LANGUAGE_EN"
+                                }
+                            ],
+                            "seatCount": 50
+                        },
+                        {
+                            "id": "R1",
+                            "names": [
+                                {
+                                    "text": "Block R1",
+                                    "language": "LANGUAGE_EN"
+                                }
+                            ],
+                            "seatCount": 50
+                        }
+                    ]
+                },
+                "image": {
+                    "file": {
+                        "name": "view-north-stand.jpg",
+                        "uri": "https://example.com/view-north-stand.jpg",
+                        "lastModified": "2025-07-29T14:22:17.000000214Z",
+                        "description": "This is some description of this image file",
+                        "type": "MIME_TYPE_OTHER",
+                        "size": 1048576,
+                        "checksum": {
+                            "hashAlgorithm": "HASH_ALGORITHM_SHA_256",
+                            "hashBinary": "bnLVBOLMLNM8NXCaJnVudDqhCsY="
+                        }
+                    },
+                    "width": 600,
+                    "height": 750
+                },
+                "attributes": {
+                    "descriptions": [
+                        {
+                            "language": "LANGUAGE_EN",
+                            "descriptions": [
+                                {
+                                    "category": "GENERAL",
+                                    "text": "Behind stage."
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "id": "standing",
+                "names": [
+                    {
+                        "text": "Standing Area",
+                        "language": "LANGUAGE_EN"
+                    }
+                ],
+                "seatCount": 3000,
+                "attributes": {
+                    "descriptions": [
+                        {
+                            "language": "LANGUAGE_EN",
+                            "descriptions": [
+                                {
+                                    "category": "GENERAL",
+                                    "text": "General Admission central."
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
     }
 ]
