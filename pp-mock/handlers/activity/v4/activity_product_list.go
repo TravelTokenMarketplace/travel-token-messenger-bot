@@ -22,11 +22,11 @@ func NewActivityProductListServer() activityv4grpc.ActivityProductListServiceSer
 }
 
 func (s *activityProductListV4Server) ActivityProductList(_ context.Context, req *activityv4.ActivityProductListRequest) (*activityv4.ActivityProductListResponse, error) {
-	filteredActivities := filterExtendedByModifiedAfter(mockdata.ActivityExtendedV4, req.GetModifiedAfter().AsTime())
+	filteredActivities := filterExtendedBySupplierCodes(mockdata.ActivityExtendedV4, req.SupplierCodes)
 
 	response := &activityv4.ActivityProductListResponse{
-		Header:        common.SuccessHeaderV4(),
-		SupplierCodes: extendedToSupplierProductCodes(filteredActivities),
+		Header:     common.SuccessHeaderV4(),
+		Activities: extendedToActivityInfo(filteredActivities),
 	}
 
 	if len(filteredActivities) == 0 {

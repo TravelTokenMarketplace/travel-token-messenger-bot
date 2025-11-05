@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func filterBySupplierCodes(
+func filterExtendedBySupplierCodes(
 	activities []*activityv4.ActivityExtendedInfo,
 	supplierCodes []*typesv4.SupplierProductCode,
 ) []*activityv4.ActivityExtendedInfo {
@@ -25,7 +25,7 @@ func filterBySupplierCodes(
 	filtered := []*activityv4.ActivityExtendedInfo{}
 	for _, activity := range activities {
 		for _, code := range supplierCodes {
-			if proto.Equal(activity.SupplierCode, code) {
+			if proto.Equal(activity.Activity.SupplierCode, code) {
 				filtered = append(filtered, common.CloneProto(activity))
 				break
 			}
@@ -40,7 +40,7 @@ func filterExtendedByModifiedAfter(
 ) []*activityv4.ActivityExtendedInfo {
 	filtered := []*activityv4.ActivityExtendedInfo{}
 	for _, activity := range activities {
-		if activity.LastModified.AsTime().After(modifiedAfter) {
+		if activity.Activity.LastModified.AsTime().After(modifiedAfter) {
 			filtered = append(filtered, common.CloneProto(activity))
 		}
 	}
@@ -78,7 +78,7 @@ func filterSearchResultActivitiesBySupplierCodes(
 	filtered := []*activityv4.ActivitySearchResult{}
 	for _, activity := range activities {
 		for _, code := range supplierCodes {
-			if proto.Equal(activity.Info.SupplierCode, code) {
+			if proto.Equal(activity.SupplierCode, code) {
 				filtered = append(filtered, common.CloneProto(activity))
 				break
 			}
@@ -99,7 +99,7 @@ func filterSearchResultActivitiesByServiceCodes(
 
 	for _, activity := range activities {
 		for _, code := range serviceCodes {
-			if activity.Info.ServiceCode == code {
+			if activity.ServiceCode == code {
 				filtered = append(filtered, common.CloneProto(activity))
 				break
 			}
@@ -118,10 +118,21 @@ func filterSearchResultActivitiesByCurrency(activities []*activityv4.ActivitySea
 	return filtered
 }
 
-func extendedToSupplierProductCodes(activities []*activityv4.ActivityExtendedInfo) []*typesv4.SupplierProductCode {
-	supplierProductCodes := make([]*typesv4.SupplierProductCode, 0, len(activities))
+func extendedToShortListItem(activities []*activityv4.ActivityExtendedInfo) []*activityv4.ActivityShortListItem {
+	shortListItems := make([]*activityv4.ActivityShortListItem, 0, len(activities))
 	for _, activity := range activities {
-		supplierProductCodes = append(supplierProductCodes, activity.SupplierCode)
+		shortListItems = append(shortListItems, &activityv4.ActivityShortListItem{
+			SupplierCode: common.CloneProto(activity.Activity.SupplierCode),
+			Status:       activity.Activity.Status,
+		})
 	}
-	return supplierProductCodes
+	return shortListItems
+}
+
+func extendedToActivityInfo(activities []*activityv4.ActivityExtendedInfo) []*activityv4.ActivityInfo {
+	infoItems := make([]*activityv4.ActivityInfo, 0, len(activities))
+	for _, activity := range activities {
+		infoItems = append(infoItems, common.CloneProto(activity.Activity))
+	}
+	return infoItems
 }
