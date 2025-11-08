@@ -6,6 +6,7 @@ package v4
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v4/accommodationv4grpc"
 	accommodationv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v4"
@@ -27,7 +28,10 @@ func NewAccommodationSearchServer() accommodationv4grpc.AccommodationSearchServi
 
 func (s *accommodationSearchV4Server) AccommodationSearch(_ context.Context, req *accommodationv4.AccommodationSearchRequest) (*accommodationv4.AccommodationSearchResponse, error) {
 	resp := &accommodationv4.AccommodationSearchResponse{
-		SearchId: &typesv4.UUID{Value: uuid.New().String()},
+		SearchId: &typesv4.ExpiringUUID{
+			Id:         &typesv4.UUID{Value: uuid.New().String()},
+			Expiration: timestamppb.New(time.Now().Add(state.EntryTimeout)),
+		},
 	}
 
 	// loop queries and check if there is travel period
@@ -184,7 +188,7 @@ func (s *accommodationSearchV4Server) AccommodationSearch(_ context.Context, req
 	if len(searchResults) == 0 {
 		common.AddHeaderInfoV4(resp.Header, fmt.Sprintf("No results found for search %v", req.Queries))
 	} else {
-		state.GetStore().AddSearchResult(resp.SearchId.Value, state.SearchData{
+		state.GetStore().AddSearchResult(resp.SearchId.Id.Value, state.SearchData{
 			NumResults:   len(searchResults),
 			NumTravelers: len(req.Queries[0].Travellers),
 			Prices:       validationPrices,

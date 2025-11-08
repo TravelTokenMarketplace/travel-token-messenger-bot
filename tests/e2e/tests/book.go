@@ -11,7 +11,7 @@ import (
 	bookv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v2"
 	bookv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v3"
 	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
-	notificationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v2"
+	notificationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v3"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
@@ -54,7 +54,7 @@ func mintBuyAccommodationTokenV3(
 	eventMsg, err := supplierPPEventStream.Recv()
 	require.NoError(t, err)
 	e.DebugPrintProtoMessage(eventMsg)
-	tokenBoughtNotification := &notificationv2.TokenBought{}
+	tokenBoughtNotification := &notificationv3.TokenBought{}
 	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
 
 	return tokenID, mintID, bookingPrice
@@ -75,7 +75,7 @@ func testValidateV4(
 	req := &bookv4.ValidationRequest{
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 		ValidationObject: &bookv4.ValidationObject{
-			SearchIdentifier: &typesv4.SearchIdentifier{
+			SearchResultIdentifier: &typesv4.SearchResultIdentifier{
 				SearchId: &typesv4.UUID{Value: searchID},
 				ResultId: resultID,
 			},
@@ -91,12 +91,12 @@ func testValidateV4(
 	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
 	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
 
-	require.Equal(t, searchID, resp.ValidationObject.SearchIdentifier.SearchId.Value, "unexpected searchID in response")
-	require.Equal(t, resultID, resp.ValidationObject.SearchIdentifier.ResultId, "unexpected resultID in response")
+	require.Equal(t, searchID, resp.ValidationObject.SearchResultIdentifier.SearchId.Value, "unexpected searchID in response")
+	require.Equal(t, resultID, resp.ValidationObject.SearchResultIdentifier.ResultId, "unexpected resultID in response")
 
 	require.True(t, proto.Equal(expectedTotalPrice, resp.TotalPrice.Value), "unexpected response TotalPrice: got %+v, want %+v", resp.TotalPrice.Value, expectedTotalPrice)
 
-	return resp.ValidationId.Value
+	return resp.ValidationId.Id.Value
 }
 
 func testValidateV3(
