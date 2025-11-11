@@ -6,12 +6,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/v11/pkg/cm_accounts"
+	"github.com/chain4travel/camino-messenger-bot/v11/pkg/conversion"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
 	cancellationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v1"
@@ -20,7 +20,6 @@ import (
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -62,7 +61,7 @@ func (s *cancellationV1Service) InitiateCancellation(
 ) (*cancellationv1.InitiateCancellationResponse, error) {
 	response := &cancellationv1.InitiateCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
@@ -75,7 +74,7 @@ func (s *cancellationV1Service) InitiateCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	reasonValue, err := uint16FromProtoEnumNumber(request.Reason.Number())
+	reasonValue, err := conversion.ProtoEnumNumberToUInt16(request.Reason.Number())
 	if err != nil {
 		err := fmt.Errorf("error converting reason to uint16: %w", err)
 		s.logger.Error(err)
@@ -102,7 +101,7 @@ func (s *cancellationV1Service) CounterCancellation(
 ) (*cancellationv1.CounterCancellationResponse, error) {
 	response := &cancellationv1.CounterCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
@@ -114,7 +113,7 @@ func (s *cancellationV1Service) CounterCancellation(
 		return response, err
 	}
 
-	reasonValue, err := uint16FromProtoEnumNumber(request.Reason.Number())
+	reasonValue, err := conversion.ProtoEnumNumberToUInt16(request.Reason.Number())
 	if err != nil {
 		err := fmt.Errorf("error converting reason to uint16: %w", err)
 		s.logger.Error(err)
@@ -141,7 +140,7 @@ func (s *cancellationV1Service) AcceptCancellation(
 ) (*cancellationv1.AcceptCancellationResponse, error) {
 	response := &cancellationv1.AcceptCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
@@ -173,13 +172,13 @@ func (s *cancellationV1Service) RejectCancellation(
 ) (*cancellationv1.RejectCancellationResponse, error) {
 	response := &cancellationv1.RejectCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	reasonValue, err := uint16FromProtoEnumNumber(request.Reason.Number())
+	reasonValue, err := conversion.ProtoEnumNumberToUInt16(request.Reason.Number())
 	if err != nil {
 		err := fmt.Errorf("error converting reason to uint16: %w", err)
 		s.logger.Error(err)
@@ -206,13 +205,13 @@ func (s *cancellationV1Service) WithdrawCancellation(
 ) (*cancellationv1.WithdrawCancellationResponse, error) {
 	response := &cancellationv1.WithdrawCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	reasonValue, err := uint16FromProtoEnumNumber(request.Reason.Number())
+	reasonValue, err := conversion.ProtoEnumNumberToUInt16(request.Reason.Number())
 	if err != nil {
 		err := fmt.Errorf("error converting reason to uint16: %w", err)
 		s.logger.Error(err)
@@ -239,7 +238,7 @@ func (s *cancellationV1Service) FinalizeCancellation(
 ) (*cancellationv1.FinalizeCancellationResponse, error) {
 	response := &cancellationv1.FinalizeCancellationResponse{
 		Header: &typesv1.ResponseHeader{
-			BaseHeader: &typesv1.Header{Version: version.Version},
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
 		},
 	}
 
@@ -264,18 +263,4 @@ func (s *cancellationV1Service) FinalizeCancellation(
 	s.logger.Infof("Finalized cancellation for token %s with tx: %s", tokenID.String(), response.TransactionId.Hash)
 
 	return response, nil
-}
-
-// Safely converts an int32 to uint16, returning an error if out of range.
-func uint16FromProtoEnumNumber(value protoreflect.EnumNumber) (uint16, error) {
-	if value < 0 || value > math.MaxUint16 {
-		return 0, fmt.Errorf("value out of range for uint16: %d", value)
-	}
-	// TODO @VjeraTurk check if false positives are removed in newer versions
-	// https://github.com/securego/gosec/issues/1212
-	// https://github.com/securego/gosec/pull/1194
-
-	// Otherwise lint.sh fails with G115: integer overflow conversion int32 -> uint16 (gosec)
-	// nolint:gosec
-	return uint16(value), nil
 }

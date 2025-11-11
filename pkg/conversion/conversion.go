@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Safely converts an int to int32, returning an error if out of range.
@@ -15,6 +17,14 @@ func IntToInt32(value int) (int32, error) {
 		return 0, fmt.Errorf("value out of range for int32: %d", value)
 	}
 	return int32(value), nil // nolint:gosec
+}
+
+// Safely converts an int to uint32, returning an error if out of range.
+func IntToUInt32(value int) (uint32, error) {
+	if value < 0 {
+		return 0, fmt.Errorf("value out of range for uint32: %d", value)
+	}
+	return uint32(value), nil // nolint:gosec
 }
 
 // Safely converts an uint32 to int32, panicking with error if out of range.
@@ -79,4 +89,12 @@ func MustInt32ToUInt64(value int32) uint64 {
 		panic(fmt.Errorf("value out of range for uint64: %d", value))
 	}
 	return uint64(value) // nolint:gosec
+}
+
+// Safely converts an int32 protoreflect.EnumNumber to uint16, returning an error if out of range.
+func ProtoEnumNumberToUInt16(value protoreflect.EnumNumber) (uint16, error) {
+	if value < 0 || value > math.MaxUint16 {
+		return 0, fmt.Errorf("value out of range for uint16: %d", value)
+	}
+	return uint16(value), nil // nolint:gosec
 }
