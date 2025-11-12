@@ -5,12 +5,15 @@ package tests
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
 
 	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
 	notificationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v3"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v11/internal/rpc/generated"
+	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/proto/pb/events"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/bot"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/partner_plugin"
@@ -53,8 +56,12 @@ func (tt *TestMintV4) Run(t *testing.T) {
 		}
 	})
 
-	t.Run("Search->Validate->Mint->TokenReservationExpiredNotification", func(t *testing.T) {
+	t.Run("Search->Validate->Mint(not enough funds to buy)->TokenReservationExpiredNotification", func(t *testing.T) {
 		tt.testMintV4TokenExpiredCase(ctx, t)
+	})
+
+	t.Run("Search->Validate->Mint(wrong expected price)->TokenReservationExpiredNotification", func(t *testing.T) {
+		tt.testMintV4UnexpectedPrice(ctx, t)
 	})
 }
 
@@ -104,7 +111,9 @@ func (tt *TestMintV4) testMintV4FullWorkflow(ctx context.Context, t *testing.T) 
 	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
 	require.NoError(t, err)
 
-	tokenID, mintID, _ := testMintV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, validationID, totalPrice)
+	balanceBefore := tt.Environment.Balance(ctx, t, tt.distributorBot)
+
+	tokenID, mintID, mintRespPrice := testMintV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, validationID, common.BookingTokenPriceV4)
 	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
 	require.NoError(t, err)
 
@@ -119,6 +128,8 @@ func (tt *TestMintV4) testMintV4FullWorkflow(ctx context.Context, t *testing.T) 
 	require.NotNil(t, tokenBoughtNotification.MintId)
 	require.Equal(t, tokenBoughtNotification.MintId.Value, mintID)
 	require.NotEmpty(t, tokenBoughtNotification.TxId)
+
+	verifyBookingTokenStateBoughtWithPriceV4(ctx, t, tt.Environment, tt.distributorBot, tokenID, mintRespPrice, balanceBefore)
 }
 
 func (tt *TestMintV4) testMintV4TokenExpiredCase(ctx context.Context, t *testing.T) {
@@ -145,11 +156,13 @@ func (tt *TestMintV4) testMintV4TokenExpiredCase(ctx context.Context, t *testing
 	var tokenID1 uint64
 	var mintID1 string
 
-	tokenID1, mintID1 = tt.testMintV4MintV4ExpectedError(ctx, t, validationID1, totalPrice)
+	balanceBefore := tt.Environment.Balance(ctx, t, tt.distributorBotWithoutFunds)
+
+	tokenID1, mintID1 = tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBotWithoutFunds, validationID1, totalPrice)
 	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
 	require.NoError(t, err)
 
-	tokenID2, mintID2 := tt.testMintV4MintV4ExpectedError(ctx, t, validationID2, totalPrice)
+	tokenID2, mintID2 := tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBotWithoutFunds, validationID2, totalPrice)
 	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
 	require.NoError(t, err)
 
@@ -174,11 +187,48 @@ func (tt *TestMintV4) testMintV4TokenExpiredCase(ctx context.Context, t *testing
 	require.Equal(t, tokenExpiredNotification.TokenId, tokenID2)
 	require.NotNil(t, tokenExpiredNotification.MintId)
 	require.Equal(t, tokenExpiredNotification.MintId.Value, mintID2)
+
+	verifyBookingTokenStateNotBoughtWithPriceV4(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot, tokenID1, common.BookingTokenPriceV4, balanceBefore)
+	verifyBookingTokenStateNotBoughtWithPriceV4(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot, tokenID2, common.BookingTokenPriceV4, balanceBefore)
+}
+
+func (tt *TestMintV4) testMintV4UnexpectedPrice(ctx context.Context, t *testing.T) {
+	searchID, resultID, expectedPrice := testAccommodationV4SearchService(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot) // see test_accommodation_v4.go
+	_, err := tt.supplierPPEventStream.Recv()                                                                                        // skip AccommodationSearchRequest
+	require.NoError(t, err)
+
+	validationID := testValidateV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, searchID, resultID, expectedPrice)
+	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
+	require.NoError(t, err)
+
+	balanceBefore := tt.Environment.Balance(ctx, t, tt.distributorBot)
+
+	// modify expected price to be different from the one returned by pp-mock mint response
+	expectedPrice = common.CloneProto(common.BookingTokenPriceV4)
+	value, err := strconv.ParseInt(common.BookingTokenPriceV4.Value, 10, 64)
+	require.NoError(t, err)
+	expectedPrice.Value = fmt.Sprintf("%d", value+10)
+
+	tokenID, mintID := tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBot, validationID, expectedPrice)
+	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
+	require.NoError(t, err)
+
+	eventMsg, err := tt.supplierPPEventStream.Recv()
+	require.NoError(t, err)
+	tt.DebugPrintProtoMessage(eventMsg)
+	tokenExpiredNotification := &notificationv3.TokenReservationExpired{}
+	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenExpiredNotification))
+	require.Equal(t, tokenExpiredNotification.TokenId, tokenID)
+	require.NotNil(t, tokenExpiredNotification.MintId)
+	require.Equal(t, tokenExpiredNotification.MintId.Value, mintID)
+
+	verifyBookingTokenStateNotBoughtWithPriceV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, tokenID, common.BookingTokenPriceV4, balanceBefore)
 }
 
 func (tt *TestMintV4) testMintV4MintV4ExpectedError(
 	ctx context.Context,
 	t *testing.T,
+	distributorBot *bot.Bot,
 	validationID string,
 	expectedPrice *typesv4.Price,
 ) (
@@ -195,7 +245,7 @@ func (tt *TestMintV4) testMintV4MintV4ExpectedError(
 			Gender:     typesv4.GenderType_GENDER_TYPE_UNSPECIFIED,
 		}},
 	}
-	resp, err := tt.distributorBotWithoutFunds.MintServiceV4.Mint(
+	resp, err := distributorBot.MintServiceV4.Mint(
 		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)

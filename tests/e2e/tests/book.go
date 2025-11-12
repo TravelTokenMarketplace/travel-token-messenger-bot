@@ -19,6 +19,7 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/booking"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/conversion"
 	"github.com/chain4travel/camino-messenger-bot/v11/pkg/price"
+	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v11/pp-mock/proto/pb/events"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/bot"
 	"github.com/chain4travel/camino-messenger-bot/v11/tests/e2e/suite"
@@ -47,7 +48,7 @@ func mintBuyAccommodationTokenV4(
 	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
 	require.NoError(t, err)
 
-	tokenID, mintID, bookingPrice := testMintV4(ctx, t, e, distributorBot, supplierBot, validationID, totalPrice)
+	tokenID, mintID, bookingPrice := testMintV4(ctx, t, e, distributorBot, supplierBot, validationID, common.BookingTokenPriceV4)
 	_, err = supplierPPEventStream.Recv() // skip MintRequest
 	require.NoError(t, err)
 
@@ -347,41 +348,60 @@ func testMintV2(
 
 // verify blockchain state
 
-func verifyBookingTokenStateWithPriceV4(
+func verifyBookingTokenStateNotBoughtWithPriceV4(
+	ctx context.Context,
+	t *testing.T,
+	e *suite.Environment,
+	distributorBot *bot.Bot,
+	supplierBot *bot.Bot,
+	tokenID uint64,
+	tokenPrice *typesv4.Price,
+	distributorBalanceBefore *big.Int,
+) {
+	require.Equal(t, booking.NativePaymentToken, getPaymentTokenFromPriceV4(t, tokenPrice))
+	expectedReservationPrice, err := price.ToBigInt(tokenPrice.Value, conversion.MustUInt32ToInt32(tokenPrice.Decimals), price.NativeTokenDecimals)
+	require.NoError(t, err)
+	verifyBookingTokenStateNotBought(ctx, t, e, distributorBot, supplierBot, tokenID, expectedReservationPrice, distributorBalanceBefore)
+}
+
+func verifyBookingTokenStateBoughtWithPriceV4(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
 	distributorBot *bot.Bot,
 	tokenID uint64,
 	tokenPrice *typesv4.Price,
+	distributorBalanceBefore *big.Int,
 ) {
 	require.Equal(t, booking.NativePaymentToken, getPaymentTokenFromPriceV4(t, tokenPrice))
 	expectedReservationPrice, err := price.ToBigInt(tokenPrice.Value, conversion.MustUInt32ToInt32(tokenPrice.Decimals), price.NativeTokenDecimals)
 	require.NoError(t, err)
-	verifyBookingTokenState(ctx, t, e, distributorBot, tokenID, expectedReservationPrice)
+	verifyBookingTokenStateBought(ctx, t, e, distributorBot, tokenID, expectedReservationPrice, distributorBalanceBefore)
 }
 
-func verifyBookingTokenStateWithPriceV2(
+func verifyBookingTokenStateBoughtWithPriceV2(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
 	distributorBot *bot.Bot,
 	tokenID uint64,
 	tokenPrice *typesv2.Price,
+	distributorBalanceBefore *big.Int,
 ) {
 	require.Equal(t, booking.NativePaymentToken, getPaymentTokenFromPriceV2(t, tokenPrice))
 	expectedReservationPrice, err := price.ToBigInt(tokenPrice.Value, tokenPrice.Decimals, price.NativeTokenDecimals)
 	require.NoError(t, err)
-	verifyBookingTokenState(ctx, t, e, distributorBot, tokenID, expectedReservationPrice)
+	verifyBookingTokenStateBought(ctx, t, e, distributorBot, tokenID, expectedReservationPrice, distributorBalanceBefore)
 }
 
-func verifyBookingTokenState(
+func verifyBookingTokenStateBought(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
 	distributorBot *bot.Bot,
 	tokenID uint64,
 	expectedReservationPrice *big.Int,
+	distributorBalanceBefore *big.Int,
 ) {
 	bigTokenID := big.NewInt(0).SetUint64(tokenID)
 	callOpts := &bind.CallOpts{Context: ctx}
@@ -398,4 +418,36 @@ func verifyBookingTokenState(
 	tokenStatus, err := e.CaminoNetwork.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
 	require.NoError(t, err)
 	require.Equal(t, booking.StatusBought, booking.Status(tokenStatus))
+
+	expectedBalanceAfter := big.NewInt(0).Sub(distributorBalanceBefore, expectedReservationPrice)
+	require.Equal(t, expectedBalanceAfter, e.Balance(ctx, t, distributorBot), "unexpected balance")
+}
+
+func verifyBookingTokenStateNotBought(
+	ctx context.Context,
+	t *testing.T,
+	e *suite.Environment,
+	distributorBot *bot.Bot,
+	supplierBot *bot.Bot,
+	tokenID uint64,
+	expectedReservationPrice *big.Int,
+	distributorBalanceBefore *big.Int,
+) {
+	bigTokenID := big.NewInt(0).SetUint64(tokenID)
+	callOpts := &bind.CallOpts{Context: ctx}
+
+	reservationPrice, err := e.CaminoNetwork.Client.BookingToken.GetReservationPrice(callOpts, bigTokenID)
+	require.NoError(t, err)
+	require.Equal(t, booking.NativePaymentToken, reservationPrice.PaymentToken)
+	require.Equal(t, expectedReservationPrice, reservationPrice.Price)
+
+	ownerAddr, err := e.CaminoNetwork.Client.BookingToken.OwnerOf(callOpts, bigTokenID)
+	require.NoError(t, err)
+	require.Equal(t, supplierBot.CMAccountAddress(), ownerAddr)
+
+	tokenStatus, err := e.CaminoNetwork.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
+	require.NoError(t, err)
+	require.NotEqual(t, booking.StatusBought, booking.Status(tokenStatus))
+
+	require.Equal(t, distributorBalanceBefore, e.Balance(ctx, t, distributorBot), "unexpected balance")
 }
