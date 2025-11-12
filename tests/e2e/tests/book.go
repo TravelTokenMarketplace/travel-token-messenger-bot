@@ -144,6 +144,7 @@ func testValidateV3(
 	expectedTotalPrice *big.Int,
 ) (validateID string) {
 	req := &bookv3.ValidationRequest{
+		Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 		ValidationObject: &bookv3.ValidationObject{
 			SearchIdentifier: &typesv3.SearchIdentifier{
 				SearchId: &typesv1.UUID{Value: searchID},
@@ -194,6 +195,7 @@ func testValidateV2(
 	expectedTotalPrice *big.Int,
 ) (validateID string) {
 	req := &bookv2.ValidationRequest{
+		Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 		ValidationObject: &bookv2.ValidationObject{
 			SearchIdentifier: &typesv2.SearchIdentifier{
 				SearchId: &typesv1.UUID{Value: searchID},
@@ -251,6 +253,7 @@ func testMintV4(
 	req := &bookv4.MintRequest{
 		Header:        &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 		ValidationId:  &typesv4.UUID{Value: validationID},
+		BuyerAddress:  &typesv4.EVMAddress{Address: "0x0000000000000000000000000000000000000000"},
 		ExpectedPrice: expectedPrice,
 		Travellers: []*typesv4.ExtensiveTraveller{{
 			FirstNames: []string{"FirstName"},

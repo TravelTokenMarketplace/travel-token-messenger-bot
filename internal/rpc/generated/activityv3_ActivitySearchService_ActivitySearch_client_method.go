@@ -11,6 +11,7 @@ import (
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -21,15 +22,26 @@ func (s ActivitySearchServiceV3Client) Call(ctx context.Context, requestIntf pro
 	if !ok {
 		return nil, ActivitySearchServiceV3Response, fmt.Errorf("invalid request type")
 	}
+
 	response, err := s.client.ActivitySearch(ctx, request, opts...)
-	if response == nil {
-		response = &activityv3.ActivitySearchResponse{}
-	}
-	if response.Header == nil {
-		response.Header = &typesv1.ResponseHeader{}
+
+	// we need those check for pre-protovalidate cmp versions
+	if response.Header == nil { // Header must be present, so errors can be added to it
+		response.Header = &typesv1.ResponseHeader{
+			BaseHeader: &typesv1.Header{},
+		}
 		if err == nil {
 			err = rpc.ErrNilResponseHeader
 		}
 	}
+	if response.Header.BaseHeader == nil { // BaseHeader must be present, so version can be set
+		response.Header.BaseHeader = &typesv1.Header{}
+		if err == nil {
+			err = rpc.ErrNilResponseHeader
+		}
+	}
+
+	response.Header.BaseHeader.Version = version.VersionV1
+
 	return response, ActivitySearchServiceV3Response, err
 }

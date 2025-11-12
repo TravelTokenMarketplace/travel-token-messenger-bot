@@ -7,17 +7,36 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
+
+	"buf.build/go/protovalidate"
+
 	pingv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v1"
 )
 
 func (s *pingv1PingServiceServer) Ping(ctx context.Context, request *pingv1.PingRequest) (*pingv1.PingResponse, error) {
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// we need this check for pre-protovalidate cmp versions
+	// Header.BaseHeader must be present, so version can be set
+	if request.Header.GetBaseHeader() == nil {
+		return nil, rpc.ErrNilResponseHeader
+	}
+
+	request.Header.BaseHeader.Version = version.VersionV1
+
 	response, err := s.reqHandler.HandleMessageRequest(ctx, PingServiceV1Request, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process %s request: %w", PingServiceV1Request, err)
 	}
+
 	resp, ok := response.(*pingv1.PingResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: expected %s, got %T", PingServiceV1Response, response)
 	}
+
 	return resp, nil
 }

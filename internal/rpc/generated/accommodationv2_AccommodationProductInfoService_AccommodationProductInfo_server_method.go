@@ -7,17 +7,36 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
+
+	"buf.build/go/protovalidate"
+
 	accommodationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v2"
 )
 
 func (s *accommodationv2AccommodationProductInfoServiceServer) AccommodationProductInfo(ctx context.Context, request *accommodationv2.AccommodationProductInfoRequest) (*accommodationv2.AccommodationProductInfoResponse, error) {
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// we need this check for pre-protovalidate cmp versions
+	// Header.BaseHeader must be present, so version can be set
+	if request.Header.GetBaseHeader() == nil {
+		return nil, rpc.ErrNilResponseHeader
+	}
+
+	request.Header.BaseHeader.Version = version.VersionV1
+
 	response, err := s.reqHandler.HandleMessageRequest(ctx, AccommodationProductInfoServiceV2Request, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process %s request: %w", AccommodationProductInfoServiceV2Request, err)
 	}
+
 	resp, ok := response.(*accommodationv2.AccommodationProductInfoResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: expected %s, got %T", AccommodationProductInfoServiceV2Response, response)
 	}
+
 	return resp, nil
 }

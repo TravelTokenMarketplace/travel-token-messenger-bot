@@ -7,17 +7,36 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
+
+	"buf.build/go/protovalidate"
+
 	seat_mapv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v4"
 )
 
 func (s *seat_mapv4SeatMapServiceServer) SeatMap(ctx context.Context, request *seat_mapv4.SeatMapRequest) (*seat_mapv4.SeatMapResponse, error) {
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// we need this check for pre-protovalidate cmp versions
+	// Header.BaseHeader must be present, so version can be set
+	if request.Header.GetBaseHeader() == nil {
+		return nil, rpc.ErrNilResponseHeader
+	}
+
+	request.Header.BaseHeader.Version = version.VersionV4
+
 	response, err := s.reqHandler.HandleMessageRequest(ctx, SeatMapServiceV4Request, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process %s request: %w", SeatMapServiceV4Request, err)
 	}
+
 	resp, ok := response.(*seat_mapv4.SeatMapResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: expected %s, got %T", SeatMapServiceV4Response, response)
 	}
+
 	return resp, nil
 }

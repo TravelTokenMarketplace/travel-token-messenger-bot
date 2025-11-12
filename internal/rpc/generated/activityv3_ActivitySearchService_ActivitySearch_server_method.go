@@ -7,17 +7,36 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v11/internal/version"
+
+	"buf.build/go/protovalidate"
+
 	activityv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v3"
 )
 
 func (s *activityv3ActivitySearchServiceServer) ActivitySearch(ctx context.Context, request *activityv3.ActivitySearchRequest) (*activityv3.ActivitySearchResponse, error) {
+	if err := protovalidate.Validate(request); err != nil {
+		return nil, fmt.Errorf("request validation failed: %w", err)
+	}
+
+	// we need this check for pre-protovalidate cmp versions
+	// Header.BaseHeader must be present, so version can be set
+	if request.Header.GetBaseHeader() == nil {
+		return nil, rpc.ErrNilResponseHeader
+	}
+
+	request.Header.BaseHeader.Version = version.VersionV1
+
 	response, err := s.reqHandler.HandleMessageRequest(ctx, ActivitySearchServiceV3Request, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process %s request: %w", ActivitySearchServiceV3Request, err)
 	}
+
 	resp, ok := response.(*activityv3.ActivitySearchResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type: expected %s, got %T", ActivitySearchServiceV3Response, response)
 	}
+
 	return resp, nil
 }
