@@ -13,30 +13,44 @@ import (
 	"buf.build/go/protovalidate"
 
 	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 )
 
 func (s *bookv4MintServiceServer) Mint(ctx context.Context, request *bookv4.MintRequest) (*bookv4.MintResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return s.errorResponse(fmt.Sprintf("request validation failed: %v", err)), nil
 	}
 
 	// we need this check for pre-protovalidate cmp versions
 	// Header.BaseHeader must be present, so version can be set
 	if request.Header.GetBaseHeader() == nil {
-		return nil, rpc.ErrNilResponseHeader
+		return s.errorResponse(rpc.ErrNilResponseHeader.Error()), nil
 	}
 
 	request.Header.BaseHeader.Version = version.VersionV4
 
-	response, err := s.reqHandler.HandleMessageRequest(ctx, MintServiceV4Request, request)
+	responseIntf, err := s.reqHandler.HandleMessageRequest(ctx, MintServiceV4Request, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process %s request: %w", MintServiceV4Request, err)
+		return s.errorResponse(err.Error()), nil
 	}
 
-	resp, ok := response.(*bookv4.MintResponse)
+	response, ok := responseIntf.(*bookv4.MintResponse)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: expected %s, got %T", MintServiceV4Response, response)
+		return s.errorResponse(fmt.Sprintf("invalid response type: expected %s, got %T", MintServiceV4Response, response)), nil
 	}
 
-	return resp, nil
+	return response, nil
+}
+
+func (s *bookv4MintServiceServer) errorResponse(errorMessage string) *bookv4.MintResponse {
+	return &bookv4.MintResponse{
+		Header: &typesv4.ResponseHeader{
+			BaseHeader: &typesv4.Header{Version: version.VersionV4},
+			Status:     typesv4.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv4.Alert{{
+				Message: errorMessage,
+				Type:    typesv4.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
 }

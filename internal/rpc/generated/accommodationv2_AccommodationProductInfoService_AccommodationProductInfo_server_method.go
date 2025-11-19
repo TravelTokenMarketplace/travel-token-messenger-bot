@@ -13,30 +13,44 @@ import (
 	"buf.build/go/protovalidate"
 
 	accommodationv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v2"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 )
 
 func (s *accommodationv2AccommodationProductInfoServiceServer) AccommodationProductInfo(ctx context.Context, request *accommodationv2.AccommodationProductInfoRequest) (*accommodationv2.AccommodationProductInfoResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return s.errorResponse(fmt.Sprintf("request validation failed: %v", err)), nil
 	}
 
 	// we need this check for pre-protovalidate cmp versions
 	// Header.BaseHeader must be present, so version can be set
 	if request.Header.GetBaseHeader() == nil {
-		return nil, rpc.ErrNilResponseHeader
+		return s.errorResponse(rpc.ErrNilResponseHeader.Error()), nil
 	}
 
 	request.Header.BaseHeader.Version = version.VersionV1
 
-	response, err := s.reqHandler.HandleMessageRequest(ctx, AccommodationProductInfoServiceV2Request, request)
+	responseIntf, err := s.reqHandler.HandleMessageRequest(ctx, AccommodationProductInfoServiceV2Request, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process %s request: %w", AccommodationProductInfoServiceV2Request, err)
+		return s.errorResponse(err.Error()), nil
 	}
 
-	resp, ok := response.(*accommodationv2.AccommodationProductInfoResponse)
+	response, ok := responseIntf.(*accommodationv2.AccommodationProductInfoResponse)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: expected %s, got %T", AccommodationProductInfoServiceV2Response, response)
+		return s.errorResponse(fmt.Sprintf("invalid response type: expected %s, got %T", AccommodationProductInfoServiceV2Response, response)), nil
 	}
 
-	return resp, nil
+	return response, nil
+}
+
+func (s *accommodationv2AccommodationProductInfoServiceServer) errorResponse(errorMessage string) *accommodationv2.AccommodationProductInfoResponse {
+	return &accommodationv2.AccommodationProductInfoResponse{
+		Header: &typesv1.ResponseHeader{
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
+			Status:     typesv1.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv1.Alert{{
+				Message: errorMessage,
+				Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
 }

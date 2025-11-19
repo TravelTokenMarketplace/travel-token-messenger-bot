@@ -13,30 +13,44 @@ import (
 	"buf.build/go/protovalidate"
 
 	seat_mapv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v2"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 )
 
 func (s *seat_mapv2SeatMapServiceServer) SeatMap(ctx context.Context, request *seat_mapv2.SeatMapRequest) (*seat_mapv2.SeatMapResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return s.errorResponse(fmt.Sprintf("request validation failed: %v", err)), nil
 	}
 
 	// we need this check for pre-protovalidate cmp versions
 	// Header.BaseHeader must be present, so version can be set
 	if request.Header.GetBaseHeader() == nil {
-		return nil, rpc.ErrNilResponseHeader
+		return s.errorResponse(rpc.ErrNilResponseHeader.Error()), nil
 	}
 
 	request.Header.BaseHeader.Version = version.VersionV1
 
-	response, err := s.reqHandler.HandleMessageRequest(ctx, SeatMapServiceV2Request, request)
+	responseIntf, err := s.reqHandler.HandleMessageRequest(ctx, SeatMapServiceV2Request, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process %s request: %w", SeatMapServiceV2Request, err)
+		return s.errorResponse(err.Error()), nil
 	}
 
-	resp, ok := response.(*seat_mapv2.SeatMapResponse)
+	response, ok := responseIntf.(*seat_mapv2.SeatMapResponse)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: expected %s, got %T", SeatMapServiceV2Response, response)
+		return s.errorResponse(fmt.Sprintf("invalid response type: expected %s, got %T", SeatMapServiceV2Response, response)), nil
 	}
 
-	return resp, nil
+	return response, nil
+}
+
+func (s *seat_mapv2SeatMapServiceServer) errorResponse(errorMessage string) *seat_mapv2.SeatMapResponse {
+	return &seat_mapv2.SeatMapResponse{
+		Header: &typesv1.ResponseHeader{
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
+			Status:     typesv1.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv1.Alert{{
+				Message: errorMessage,
+				Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
 }

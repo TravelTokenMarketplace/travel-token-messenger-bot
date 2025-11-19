@@ -11,11 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"github.com/chain4travel/camino-matrix-app-service/config"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/encryption"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/partnerplugin"
+	"github.com/chain4travel/camino-messenger-bot/v12/internal/rpc"
 	"github.com/chain4travel/camino-messenger-bot/v12/pkg/chequehandler"
 	"github.com/chain4travel/camino-messenger-bot/v12/pkg/cheques"
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/v12/pkg/cm_accounts"
@@ -237,9 +239,7 @@ func (p *messageProcessor) SendRequestMessage(
 		return nil, err
 	}
 
-	if err := p.responseHandler.PrepareRequest(requestMsg.Content); err != nil {
-		return nil, err
-	}
+	p.responseHandler.PrepareRequest(requestMsg.Content)
 
 	serviceFeeCheque, err := p.chequeHandler.IssueCheque(
 		ctx,
@@ -284,6 +284,10 @@ func (p *messageProcessor) SendRequestMessage(
 	select {
 	case responseMsg := <-responseChan:
 		if responseMsg.RequestID == requestMsg.RequestID {
+			if err := protovalidate.Validate(responseMsg.Content); err != nil {
+				return nil, fmt.Errorf("response validation failed: %w", err)
+			}
+
 			p.responseHandler.ProcessResponseMessage(ctx, requestMsg, responseMsg)
 			return responseMsg, nil
 		} else {
@@ -315,31 +319,17 @@ func (p *messageProcessor) respond(
 		return err
 	}
 
-	if err := p.chequeHandler.VerifyCheque(ctx, serviceFeeCheque, senderBotAddress, serviceFee); err != nil {
+	if err := p.chequeHandler.VerifyAndStoreCheque(ctx, serviceFeeCheque, senderBotAddress, serviceFee); err != nil {
 		return err
 	}
 
-	p.logger.Infof("CMAccount %s is calling partner-plugin of the CMAccount %s", serviceFeeCheque.FromCMAccount, serviceFeeCheque.ToCMAccount)
-
-	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToPP)
-
-	responseMsg, err := p.partnerPlugin.DoServiceRequest(
+	responseMsg := p.validateAndRespond(
 		ctx,
 		requestMsg,
 		service,
 		serviceFeeCheque.FromCMAccount,
 		serviceFeeCheque.ToCMAccount,
 	)
-	if err != nil {
-		errMessage := fmt.Sprintf("error calling partner plugin service: %v", err)
-		p.logger.Errorf(errMessage)
-		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
-	}
-
-	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromPP)
-
-	// is is expected, that PrepareResponseMessage will correctly process failure responses
-	p.responseHandler.PrepareResponseMessage(ctx, requestMsg, responseMsg)
 
 	p.logger.Infof("Supplier: Bot %s responding to BOT %s", p.botAddress, senderBotAddress)
 
@@ -356,6 +346,55 @@ func (p *messageProcessor) respond(
 	}
 
 	return p.messenger.SendMessage(ctx, encodedResponseMessage, senderBotAddress, networkFeeCheque)
+}
+
+func (p *messageProcessor) validateAndRespond(
+	ctx context.Context,
+	requestMsg *types.Message,
+	serviceClient rpc.Client,
+	fromCMAccount ethCommon.Address,
+	toCMAccount ethCommon.Address,
+) *types.Message {
+	responseMsg := &types.Message{
+		RequestID:  requestMsg.RequestID,
+		Timestamps: requestMsg.Timestamps,
+	}
+
+	err := protovalidate.Validate(requestMsg.Content)
+	if err != nil {
+		errMessage := fmt.Sprintf("request message validation failed: %v", err)
+		responseMsg.Content, responseMsg.Type = serviceClient.ErrorResponseAndType(errMessage)
+		p.logger.Errorf(errMessage)
+		return responseMsg
+	}
+
+	p.logger.Infof("CMAccount %s is calling partner-plugin of the CMAccount %s", fromCMAccount, toCMAccount)
+
+	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToPP)
+
+	responseMsg.Content, responseMsg.Type, err = p.partnerPlugin.DoServiceRequest(
+		ctx,
+		requestMsg,
+		serviceClient,
+		fromCMAccount,
+		toCMAccount,
+	)
+	if err != nil {
+		errMessage := fmt.Sprintf("error calling partner plugin service: %v", err)
+		p.logger.Errorf(errMessage)
+		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
+	} else if err := protovalidate.Validate(responseMsg.Content); err != nil {
+		errMessage := fmt.Sprintf("response message content validation failed: %v", err)
+		p.logger.Errorf(errMessage)
+		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
+	}
+
+	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromPP)
+
+	// is is expected, that PrepareResponseMessage will correctly process failure responses
+	p.responseHandler.PrepareResponseMessage(ctx, requestMsg, responseMsg)
+
+	return responseMsg
 }
 
 func (p *messageProcessor) forwardToHandler(msg *types.Message) error {

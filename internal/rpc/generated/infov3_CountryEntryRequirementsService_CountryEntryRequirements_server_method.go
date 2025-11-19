@@ -13,30 +13,44 @@ import (
 	"buf.build/go/protovalidate"
 
 	infov3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/info/v3"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 )
 
 func (s *infov3CountryEntryRequirementsServiceServer) CountryEntryRequirements(ctx context.Context, request *infov3.CountryEntryRequirementsRequest) (*infov3.CountryEntryRequirementsResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return s.errorResponse(fmt.Sprintf("request validation failed: %v", err)), nil
 	}
 
 	// we need this check for pre-protovalidate cmp versions
 	// Header.BaseHeader must be present, so version can be set
 	if request.Header.GetBaseHeader() == nil {
-		return nil, rpc.ErrNilResponseHeader
+		return s.errorResponse(rpc.ErrNilResponseHeader.Error()), nil
 	}
 
 	request.Header.BaseHeader.Version = version.VersionV4
 
-	response, err := s.reqHandler.HandleMessageRequest(ctx, CountryEntryRequirementsServiceV3Request, request)
+	responseIntf, err := s.reqHandler.HandleMessageRequest(ctx, CountryEntryRequirementsServiceV3Request, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process %s request: %w", CountryEntryRequirementsServiceV3Request, err)
+		return s.errorResponse(err.Error()), nil
 	}
 
-	resp, ok := response.(*infov3.CountryEntryRequirementsResponse)
+	response, ok := responseIntf.(*infov3.CountryEntryRequirementsResponse)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: expected %s, got %T", CountryEntryRequirementsServiceV3Response, response)
+		return s.errorResponse(fmt.Sprintf("invalid response type: expected %s, got %T", CountryEntryRequirementsServiceV3Response, response)), nil
 	}
 
-	return resp, nil
+	return response, nil
+}
+
+func (s *infov3CountryEntryRequirementsServiceServer) errorResponse(errorMessage string) *infov3.CountryEntryRequirementsResponse {
+	return &infov3.CountryEntryRequirementsResponse{
+		Header: &typesv4.ResponseHeader{
+			BaseHeader: &typesv4.Header{Version: version.VersionV4},
+			Status:     typesv4.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv4.Alert{{
+				Message: errorMessage,
+				Type:    typesv4.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
 }

@@ -13,30 +13,44 @@ import (
 	"buf.build/go/protovalidate"
 
 	transportv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v3"
+	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 )
 
 func (s *transportv3TransportSearchServiceServer) TransportSearch(ctx context.Context, request *transportv3.TransportSearchRequest) (*transportv3.TransportSearchResponse, error) {
 	if err := protovalidate.Validate(request); err != nil {
-		return nil, fmt.Errorf("request validation failed: %w", err)
+		return s.errorResponse(fmt.Sprintf("request validation failed: %v", err)), nil
 	}
 
 	// we need this check for pre-protovalidate cmp versions
 	// Header.BaseHeader must be present, so version can be set
 	if request.Header.GetBaseHeader() == nil {
-		return nil, rpc.ErrNilResponseHeader
+		return s.errorResponse(rpc.ErrNilResponseHeader.Error()), nil
 	}
 
 	request.Header.BaseHeader.Version = version.VersionV1
 
-	response, err := s.reqHandler.HandleMessageRequest(ctx, TransportSearchServiceV3Request, request)
+	responseIntf, err := s.reqHandler.HandleMessageRequest(ctx, TransportSearchServiceV3Request, request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process %s request: %w", TransportSearchServiceV3Request, err)
+		return s.errorResponse(err.Error()), nil
 	}
 
-	resp, ok := response.(*transportv3.TransportSearchResponse)
+	response, ok := responseIntf.(*transportv3.TransportSearchResponse)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: expected %s, got %T", TransportSearchServiceV3Response, response)
+		return s.errorResponse(fmt.Sprintf("invalid response type: expected %s, got %T", TransportSearchServiceV3Response, response)), nil
 	}
 
-	return resp, nil
+	return response, nil
+}
+
+func (s *transportv3TransportSearchServiceServer) errorResponse(errorMessage string) *transportv3.TransportSearchResponse {
+	return &transportv3.TransportSearchResponse{
+		Header: &typesv1.ResponseHeader{
+			BaseHeader: &typesv1.Header{Version: version.VersionV1},
+			Status:     typesv1.StatusType_STATUS_TYPE_FAILURE,
+			Alerts: []*typesv1.Alert{{
+				Message: errorMessage,
+				Type:    typesv1.AlertType_ALERT_TYPE_ERROR,
+			}},
+		},
+	}
 }
