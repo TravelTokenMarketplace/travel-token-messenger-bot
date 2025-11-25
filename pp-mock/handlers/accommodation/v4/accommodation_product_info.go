@@ -8,6 +8,7 @@ import (
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v4/accommodationv4grpc"
 	accommodationv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v4"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/common"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data"
 )
@@ -25,12 +26,16 @@ func (s *accommodationProductInfoV4Server) AccommodationProductInfo(_ context.Co
 	filteredProperties = filterExtendedPropertiesByLanguage(filteredProperties, req.Languages)
 
 	response := &accommodationv4.AccommodationProductInfoResponse{
-		Header:     common.SuccessHeaderV4(),
-		Properties: filteredProperties,
+		Response: &accommodationv4.AccommodationProductInfoResponse_SuccessResponse{
+			SuccessResponse: &accommodationv4.AccommodationProductInfoSuccessResponse{
+				Header:     common.SuccessHeaderV4(),
+				Properties: filteredProperties,
+			},
+		},
 	}
 
 	if len(filteredProperties) == 0 {
-		common.AddHeaderInfoV4(response.Header, "No properties found that match request")
+		common.AddHeaderAlertV4(response.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_NO_CONTENT, "No properties found that match request")
 	}
 
 	return response, nil

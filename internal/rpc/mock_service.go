@@ -43,7 +43,7 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Call mocks base method.
-func (m *MockService) Call(ctx context.Context, request protoreflect.ProtoMessage, opts ...grpc.CallOption) (protoreflect.ProtoMessage, types.MessageType, error) {
+func (m *MockService) Call(ctx context.Context, request protoreflect.ProtoMessage, opts ...grpc.CallOption) (protoreflect.ProtoMessage, types.MessageType) {
 	m.ctrl.T.Helper()
 	varargs := []any{ctx, request}
 	for _, a := range opts {
@@ -52,8 +52,7 @@ func (m *MockService) Call(ctx context.Context, request protoreflect.ProtoMessag
 	ret := m.ctrl.Call(m, "Call", varargs...)
 	ret0, _ := ret[0].(protoreflect.ProtoMessage)
 	ret1, _ := ret[1].(types.MessageType)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	return ret0, ret1
 }
 
 // Call indicates an expected call of Call.
@@ -63,19 +62,19 @@ func (mr *MockServiceMockRecorder) Call(ctx, request any, opts ...any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockService)(nil).Call), varargs...)
 }
 
-// ErrorResponseAndType mocks base method.
-func (m *MockService) ErrorResponseAndType(errorMessage string) (protoreflect.ProtoMessage, types.MessageType) {
+// InvalidProtoErrResponseAndType mocks base method.
+func (m *MockService) InvalidProtoErrResponseAndType(errorMessage string) (protoreflect.ProtoMessage, types.MessageType) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ErrorResponseAndType", errorMessage)
+	ret := m.ctrl.Call(m, "InvalidProtoErrResponseAndType", errorMessage)
 	ret0, _ := ret[0].(protoreflect.ProtoMessage)
 	ret1, _ := ret[1].(types.MessageType)
 	return ret0, ret1
 }
 
-// ErrorResponseAndType indicates an expected call of ErrorResponseAndType.
-func (mr *MockServiceMockRecorder) ErrorResponseAndType(errorMessage any) *gomock.Call {
+// InvalidProtoErrResponseAndType indicates an expected call of InvalidProtoErrResponseAndType.
+func (mr *MockServiceMockRecorder) InvalidProtoErrResponseAndType(errorMessage any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ErrorResponseAndType", reflect.TypeOf((*MockService)(nil).ErrorResponseAndType), errorMessage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InvalidProtoErrResponseAndType", reflect.TypeOf((*MockService)(nil).InvalidProtoErrResponseAndType), errorMessage)
 }
 
 // Name mocks base method.

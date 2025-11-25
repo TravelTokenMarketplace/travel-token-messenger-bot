@@ -4,6 +4,7 @@
 package common
 
 import (
+	"fmt"
 	"math/big"
 	"time"
 
@@ -12,7 +13,10 @@ import (
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	"github.com/chain4travel/camino-messenger-bot/v12/pkg/price"
+	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/handlers/state"
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -22,6 +26,8 @@ const (
 	BookingTokenPriceValue             = "1"
 	FreeCancellationDuration           = 7 * 24 * time.Hour
 	CancellationPolicyID               = "pp-mock-full-refund"
+	TravelPeriodMinStartOffset         = time.Hour * 24
+	TravelPeriodMaxDuration            = time.Hour * 24 * 60
 )
 
 var (
@@ -47,6 +53,12 @@ var (
 			Currency: &typesv4.Currency_NativeToken{},
 		},
 	}
+
+	TravelPeriodErrorStr = fmt.Sprintf(
+		"Travel period is outside of the allowed constraints. The range is [now+%d, now+%d] days. Additionally the start date must be before the end date.",
+		TravelPeriodMinStartOffset/(time.Hour*24),
+		(TravelPeriodMinStartOffset+TravelPeriodMaxDuration)/(time.Hour*24),
+	)
 )
 
 func init() {
@@ -93,18 +105,23 @@ func TimeToDateV4(time time.Time) *typesv4.Date {
 
 // only period between now + 60 days is allowed for bookings
 func IsTravelPeriodAllowedV1(travelPeriod *typesv1.TravelPeriod) bool {
-	startDate := time.Now()
-	endDate := time.Now().Add(time.Hour * 24 * 60) // 60 days from now
+	startDate := time.Now().Truncate(time.Hour * 24).Add(TravelPeriodMinStartOffset)
+	endDate := startDate.Add(TravelPeriodMaxDuration) // 60 days from startDate
 
-	return DateV1ToTime(travelPeriod.StartDate).After(startDate) && DateV1ToTime(travelPeriod.EndDate).Before(endDate) && DateV1ToTime(travelPeriod.StartDate).Before(DateV1ToTime(travelPeriod.EndDate))
+	return !DateV1ToTime(travelPeriod.StartDate).Before(startDate) && !DateV1ToTime(travelPeriod.EndDate).After(endDate) && DateV1ToTime(travelPeriod.StartDate).Before(DateV1ToTime(travelPeriod.EndDate))
 }
 
 // only period between now + 60 days is allowed for bookings
 func IsTravelPeriodAllowedV4(travelPeriod *typesv4.TravelPeriod) bool {
-	startDate := time.Now()
-	endDate := time.Now().Add(time.Hour * 24 * 60) // 60 days from now
+	return IsTravelPeriodAllowedV4WithTime(time.Now(), travelPeriod)
+}
 
-	return DateV4ToTime(travelPeriod.StartDate).After(startDate) && DateV4ToTime(travelPeriod.EndDate).Before(endDate) && DateV4ToTime(travelPeriod.StartDate).Before(DateV4ToTime(travelPeriod.EndDate))
+// only period between now + 60 days is allowed for bookings
+func IsTravelPeriodAllowedV4WithTime(now time.Time, travelPeriod *typesv4.TravelPeriod) bool {
+	startDate := now.Truncate(time.Hour * 24).Add(TravelPeriodMinStartOffset)
+	endDate := startDate.Add(TravelPeriodMaxDuration) // 60 days from startDate
+
+	return !DateV4ToTime(travelPeriod.StartDate).Before(startDate) && !DateV4ToTime(travelPeriod.EndDate).After(endDate) && DateV4ToTime(travelPeriod.StartDate).Before(DateV4ToTime(travelPeriod.EndDate))
 }
 
 func AreTravelDatesValidV1(departureDate, arrivalDate *typesv1.Date) bool {
@@ -206,39 +223,33 @@ func AddHeaderInfoV1(header *typesv1.ResponseHeader, message string) {
 
 // v4
 
-func SuccessHeaderV4() *typesv4.ResponseHeader {
-	return &typesv4.ResponseHeader{
+func SuccessHeaderV4() *typesv4.SuccessResponseHeader {
+	return &typesv4.SuccessResponseHeader{
 		BaseHeader: &typesv4.Header{Version: &typesv4.Version{}},
-		Status:     typesv4.StatusType_STATUS_TYPE_SUCCESS,
 	}
 }
 
-func ErrorHeaderV4(message string) *typesv4.ResponseHeader {
-	return &typesv4.ResponseHeader{
+func ErrorHeaderV4(code typesv4.ErrorCode, message string) *typesv4.ErrorResponseHeader {
+	return &typesv4.ErrorResponseHeader{
 		BaseHeader: &typesv4.Header{Version: &typesv4.Version{}},
-		Status:     typesv4.StatusType_STATUS_TYPE_FAILURE,
-		Alerts:     []*typesv4.Alert{{Message: message, Type: typesv4.AlertType_ALERT_TYPE_ERROR}},
+		Errors: []*typesv4.Error{{
+			Code:    code,
+			Message: message,
+		}},
 	}
 }
 
-func AddHeaderErrorV4(header *typesv4.ResponseHeader, message string) {
-	header.Alerts = append(header.Alerts, &typesv4.Alert{
-		Type:    typesv4.AlertType_ALERT_TYPE_ERROR,
-		Message: message,
-	})
-	header.Status = typesv4.StatusType_STATUS_TYPE_FAILURE
+func AddHeaderAlertV4(header *typesv4.SuccessResponseHeader, code typesv4.AlertCode, message string) {
+	header.Alerts = append(header.Alerts, &typesv4.Alert{Code: code, Message: message})
 }
 
-func AddHeaderWarningV4(header *typesv4.ResponseHeader, message string) {
-	header.Alerts = append(header.Alerts, &typesv4.Alert{
-		Type:    typesv4.AlertType_ALERT_TYPE_WARNING,
-		Message: message,
-	})
+func NewExpiringUUID() *typesv4.ExpiringUUID {
+	return NewExpiringUUIDWithTime(time.Now())
 }
 
-func AddHeaderInfoV4(header *typesv4.ResponseHeader, message string) {
-	header.Alerts = append(header.Alerts, &typesv4.Alert{
-		Type:    typesv4.AlertType_ALERT_TYPE_INFO,
-		Message: message,
-	})
+func NewExpiringUUIDWithTime(now time.Time) *typesv4.ExpiringUUID {
+	return &typesv4.ExpiringUUID{
+		Id:         &typesv4.UUID{Value: uuid.New().String()},
+		Expiration: timestamppb.New(now.Add(state.EntryTimeout)),
+	}
 }

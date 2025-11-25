@@ -11,6 +11,7 @@ import (
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v4/activityv4grpc"
 	activityv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v4"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 )
 
 var _ activityv4grpc.ActivityProductListServiceServer = (*activityProductListV4Server)(nil)
@@ -25,12 +26,16 @@ func (s *activityProductListV4Server) ActivityProductList(_ context.Context, req
 	filteredActivities := filterExtendedBySupplierCodes(mockdata.ActivityExtendedV4, req.SupplierCodes)
 
 	response := &activityv4.ActivityProductListResponse{
-		Header:     common.SuccessHeaderV4(),
-		Activities: extendedToActivityInfo(filteredActivities),
+		Response: &activityv4.ActivityProductListResponse_SuccessResponse{
+			SuccessResponse: &activityv4.ActivityProductListSuccessResponse{
+				Header:     common.SuccessHeaderV4(),
+				Activities: extendedToActivityInfo(filteredActivities),
+			},
+		},
 	}
 
 	if len(filteredActivities) == 0 {
-		common.AddHeaderInfoV4(response.Header, "No activities found that match request")
+		common.AddHeaderAlertV4(response.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_NO_CONTENT, "No activities found that match request")
 	}
 
 	return response, nil

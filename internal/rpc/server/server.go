@@ -10,7 +10,6 @@ import (
 	"net"
 
 	"github.com/chain4travel/camino-messenger-bot/v12/config"
-	"github.com/chain4travel/camino-messenger-bot/v12/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/rpc"
@@ -47,7 +46,6 @@ type Server interface {
 func NewServer(
 	cfg config.RPCServerConfig,
 	logger *zap.SugaredLogger,
-	responseHeaderHandler common.ResponseHeaderHandler,
 	processor messaging.MessageProcessor,
 	serviceRegistry messaging.ServiceRegistry,
 	cancellationV1Service cancellationv1grpc.CancellationServiceServer,
@@ -70,20 +68,16 @@ func NewServer(
 	}
 
 	s := &server{
-		cfg:                   cfg,
-		logger:                logger,
-		responseHeaderHandler: responseHeaderHandler,
-		processor:             processor,
-		serviceRegistry:       serviceRegistry,
+		cfg:             cfg,
+		logger:          logger,
+		processor:       processor,
+		serviceRegistry: serviceRegistry,
 	}
 
 	opts = append(opts, grpc.ChainUnaryInterceptor(
 		s.unaryRecoverInterceptor,
 		selector.UnaryServerInterceptor( // for all cancellation v1/v2 methods
-			chainUnaryServerInterceptors(
-				s.tracingInterceptor,
-				s.errorHandlingInterceptor,
-			),
+			s.tracingInterceptor,
 			selector.MatchFunc(func(_ context.Context, callMeta interceptors.CallMeta) bool {
 				return cancellationv1grpc.CancellationService_ServiceDesc.ServiceName == callMeta.Service ||
 					cancellationv2grpc.CancellationService_ServiceDesc.ServiceName == callMeta.Service
@@ -105,12 +99,11 @@ func NewServer(
 }
 
 type server struct {
-	grpcServer            *grpc.Server
-	cfg                   config.RPCServerConfig
-	logger                *zap.SugaredLogger
-	responseHeaderHandler common.ResponseHeaderHandler
-	processor             messaging.MessageProcessor
-	serviceRegistry       messaging.ServiceRegistry
+	grpcServer      *grpc.Server
+	cfg             config.RPCServerConfig
+	logger          *zap.SugaredLogger
+	processor       messaging.MessageProcessor
+	serviceRegistry messaging.ServiceRegistry
 
 	readiness.UnimplementedReadinessServiceServer
 }
@@ -181,23 +174,6 @@ func (s *server) HandleMessageRequest(ctx context.Context, requestType types.Mes
 	))
 }
 
-func (s *server) errorHandlingInterceptor(
-	ctx context.Context,
-	request any,
-	_ *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (response any, err error) {
-	response, err = handler(ctx, request)
-	if err != nil {
-		responseProtoMessage, ok := response.(protoreflect.ProtoMessage)
-		if !ok {
-			return response, err
-		}
-		s.responseHeaderHandler.AddError(responseProtoMessage, err.Error())
-	}
-	return response, nil
-}
-
 func (s *server) getRecipientAddress(ctx context.Context) (ethCommon.Address, error) {
 	mdPairs, ok := grpcMetadata.FromIncomingContext(ctx)
 	if !ok {
@@ -215,7 +191,8 @@ func (s *server) getRecipientAddress(ctx context.Context) (ethCommon.Address, er
 func (s *server) unaryRecoverInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			recipientCMAccountAddress, err := s.getRecipientAddress(ctx)
+			var recipientCMAccountAddress ethCommon.Address
+			recipientCMAccountAddress, err = s.getRecipientAddress(ctx)
 			if err != nil {
 				s.logger.Errorf("failed to get recipient cm account address from request context: %v", err)
 			}
@@ -248,18 +225,4 @@ func (s *server) tracingInterceptor(ctx context.Context, req any, _ *grpc.UnaryS
 	}()
 
 	return handler(ctx, req)
-}
-
-func chainUnaryServerInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	composed := interceptors[len(interceptors)-1]
-	for i := len(interceptors) - 2; i >= 0; i-- {
-		interceptor := interceptors[i]
-		next := composed
-		composed = func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-			return interceptor(ctx, req, info, func(ctx2 context.Context, innerReq any) (any, error) {
-				return next(ctx2, innerReq, info, handler)
-			})
-		}
-	}
-	return composed
 }

@@ -5,7 +5,6 @@ package v4
 
 import (
 	"context"
-	"time"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v4/activityv4grpc"
 	activityv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v4"
@@ -13,30 +12,25 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var _ activityv4grpc.ActivitySearchServiceServer = (*activitySearchV3Server)(nil)
+var _ activityv4grpc.ActivitySearchServiceServer = (*activitySearchV4Server)(nil)
 
-type activitySearchV3Server struct{}
+type activitySearchV4Server struct{}
 
 func NewActivitySearchServer() activityv4grpc.ActivitySearchServiceServer {
-	return &activitySearchV3Server{}
+	return &activitySearchV4Server{}
 }
 
-func (s *activitySearchV3Server) ActivitySearch(_ context.Context, req *activityv4.ActivitySearchRequest) (*activityv4.ActivitySearchResponse, error) {
-	resp := &activityv4.ActivitySearchResponse{
-		SearchId: &typesv4.ExpiringUUID{
-			Id:         &typesv4.UUID{Value: uuid.New().String()},
-			Expiration: timestamppb.New(time.Now().Add(state.EntryTimeout)),
-		},
-		Travellers: req.Travellers,
-	}
-
+func (s *activitySearchV4Server) ActivitySearch(_ context.Context, req *activityv4.ActivitySearchRequest) (*activityv4.ActivitySearchResponse, error) {
 	if !common.IsTravelPeriodAllowedV4(req.TravelPeriod) {
-		resp.Header = common.ErrorHeaderV4("Travel period is outside of the allowed constraints. The range is now() - now()+60 days. Additionally the start date must be before the end date.")
-		return resp, nil
+		return &activityv4.ActivitySearchResponse{
+			Response: &activityv4.ActivitySearchResponse_ErrorResponse{
+				ErrorResponse: &activityv4.ActivitySearchErrorResponse{
+					Header: common.ErrorHeaderV4(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, common.TravelPeriodErrorStr),
+				},
+			},
+		}, nil
 	}
 
 	filteredActivities := filterSearchResultActivitiesBySupplierCodes(mockdata.ActivitySearchResultV4, req.SearchParametersActivity.GetSupplierCodes())
@@ -52,20 +46,27 @@ func (s *activitySearchV3Server) ActivitySearch(_ context.Context, req *activity
 		validationPrices = append(validationPrices, validationPrice)
 		resultIDnum++
 	}
-
-	resp.Header = common.SuccessHeaderV4()
-	resp.Results = filteredActivities
+	resp := &activityv4.ActivitySearchResponse{
+		Response: &activityv4.ActivitySearchResponse_SuccessResponse{
+			SuccessResponse: &activityv4.ActivitySearchSuccessResponse{
+				Header:     common.SuccessHeaderV4(),
+				SearchId:   common.NewExpiringUUID(),
+				Travellers: req.Travellers,
+				Results:    filteredActivities,
+			},
+		},
+	}
 
 	if len(filteredActivities) == 0 {
-		common.AddHeaderInfoV4(resp.Header, "No results found for search")
+		common.AddHeaderAlertV4(resp.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_NO_CONTENT, "No results found for search")
 	} else {
-		state.GetStore().AddSearchResult(resp.SearchId.Id.Value, state.SearchData{
+		state.GetStore().AddSearchResult(resp.GetSuccessResponse().SearchId.Id.Value, state.SearchData{
 			NumResults:   len(filteredActivities),
 			NumTravelers: len(req.Travellers),
 			Prices:       validationPrices,
 			JSONRequest:  req.String(),
 			JSONResponse: resp.String(),
-			SeatMapID:    resp.Results[0].SeatMapId.GetId(),
+			SeatMapID:    resp.GetSuccessResponse().Results[0].SeatMapId.GetId(),
 		})
 	}
 

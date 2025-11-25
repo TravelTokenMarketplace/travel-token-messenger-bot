@@ -13,7 +13,6 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/chain4travel/camino-matrix-app-service/config"
-	"github.com/chain4travel/camino-messenger-bot/v12/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/encryption"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/partnerplugin"
@@ -79,7 +78,6 @@ func NewMessageProcessor(
 	partnerPlugin partnerplugin.PartnerPlugin,
 	chequeHandler chequehandler.ChequeHandler,
 	cmAccounts cmaccounts.Service,
-	responseHeaderHandler common.ResponseHeaderHandler,
 	maxAllowedServiceFee *big.Int,
 	messageEncoder EncoderDecoder,
 ) MessageProcessor {
@@ -97,7 +95,6 @@ func NewMessageProcessor(
 		cmAccountAddress:                    cmAccountAddress,
 		networkFeeRecipientBotAddress:       networkFeeRecipientBotAddress,
 		networkFeeRecipientCMAccountAddress: networkFeeRecipientCMAccountAddress,
-		responseHeaderHandler:               responseHeaderHandler,
 		maxAllowedServiceFee:                maxAllowedServiceFee,
 		encoderDecoder:                      messageEncoder,
 	}
@@ -111,17 +108,16 @@ type messageProcessor struct {
 	networkFeeRecipientCMAccountAddress ethCommon.Address
 	maxAllowedServiceFee                *big.Int
 
-	messenger             Messenger
-	logger                *zap.SugaredLogger
-	responseChannelsLock  sync.RWMutex
-	responseChannels      map[string]chan *types.Message
-	serviceRegistry       ServiceRegistry
-	responseHandler       ResponseHandler
-	partnerPlugin         partnerplugin.PartnerPlugin
-	chequeHandler         chequehandler.ChequeHandler
-	cmAccounts            cmaccounts.Service
-	responseHeaderHandler common.ResponseHeaderHandler
-	encoderDecoder        EncoderDecoder
+	messenger            Messenger
+	logger               *zap.SugaredLogger
+	responseChannelsLock sync.RWMutex
+	responseChannels     map[string]chan *types.Message
+	serviceRegistry      ServiceRegistry
+	responseHandler      ResponseHandler
+	partnerPlugin        partnerplugin.PartnerPlugin
+	chequeHandler        chequehandler.ChequeHandler
+	cmAccounts           cmaccounts.Service
+	encoderDecoder       EncoderDecoder
 }
 
 func (p *messageProcessor) Start(ctx context.Context) {
@@ -216,21 +212,20 @@ func (p *messageProcessor) SendRequestMessage(
 	// lookup for CM Account -> bot
 	recipientBotAddr, err := p.cmAccounts.GetFirstChequeOperator(ctx, recipientCMAccount)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", rpc.ErrBlockchain, err)
 	}
 
 	isBotAllowed, err := p.cmAccounts.IsBotAllowed(ctx, p.cmAccountAddress, p.botAddress)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", rpc.ErrBlockchain, err)
 	}
 	if !isBotAllowed {
-		return nil, ErrBotMissingChequeOperatorRole
+		return nil, fmt.Errorf("%w: %w", rpc.ErrBusinessProcess, ErrBotMissingChequeOperatorRole)
 	}
 
 	serviceFee, err := p.cmAccounts.GetServiceFee(ctx, recipientCMAccount, requestMsg.Type.ToServiceName())
 	if err != nil {
-		// TODO @evlekht explicitly say if service is not supported and its not just some network error
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", rpc.ErrBlockchain, err)
 	}
 
 	if serviceFee.Cmp(p.maxAllowedServiceFee) > 0 {
@@ -285,7 +280,7 @@ func (p *messageProcessor) SendRequestMessage(
 	case responseMsg := <-responseChan:
 		if responseMsg.RequestID == requestMsg.RequestID {
 			if err := protovalidate.Validate(responseMsg.Content); err != nil {
-				return nil, fmt.Errorf("response validation failed: %w", err)
+				return nil, fmt.Errorf("response validation failed: %w: %w", rpc.ErrInvalidProto, err)
 			}
 
 			p.responseHandler.ProcessResponseMessage(ctx, requestMsg, responseMsg)
@@ -360,10 +355,9 @@ func (p *messageProcessor) validateAndRespond(
 		Timestamps: requestMsg.Timestamps,
 	}
 
-	err := protovalidate.Validate(requestMsg.Content)
-	if err != nil {
+	if err := protovalidate.Validate(requestMsg.Content); err != nil {
 		errMessage := fmt.Sprintf("request message validation failed: %v", err)
-		responseMsg.Content, responseMsg.Type = serviceClient.ErrorResponseAndType(errMessage)
+		responseMsg.Content, responseMsg.Type = serviceClient.InvalidProtoErrResponseAndType(errMessage)
 		p.logger.Errorf(errMessage)
 		return responseMsg
 	}
@@ -372,22 +366,13 @@ func (p *messageProcessor) validateAndRespond(
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToPP)
 
-	responseMsg.Content, responseMsg.Type, err = p.partnerPlugin.DoServiceRequest(
+	responseMsg.Content, responseMsg.Type = p.partnerPlugin.DoServiceRequest(
 		ctx,
 		requestMsg,
 		serviceClient,
 		fromCMAccount,
 		toCMAccount,
 	)
-	if err != nil {
-		errMessage := fmt.Sprintf("error calling partner plugin service: %v", err)
-		p.logger.Errorf(errMessage)
-		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
-	} else if err := protovalidate.Validate(responseMsg.Content); err != nil {
-		errMessage := fmt.Sprintf("response message content validation failed: %v", err)
-		p.logger.Errorf(errMessage)
-		p.responseHeaderHandler.AddError(responseMsg.Content, errMessage)
-	}
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromPP)
 

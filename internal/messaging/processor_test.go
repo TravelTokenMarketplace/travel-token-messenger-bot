@@ -14,7 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chain4travel/camino-matrix-app-service/config"
-	"github.com/chain4travel/camino-messenger-bot/v12/internal/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/encryption"
 	types "github.com/chain4travel/camino-messenger-bot/v12/internal/messaging/types"
 	"github.com/chain4travel/camino-messenger-bot/v12/internal/partnerplugin"
@@ -33,26 +32,24 @@ import (
 )
 
 type messageProcessorArgs struct {
-	messenger             *MockMessenger
-	serviceRegistry       *MockServiceRegistry
-	responseHandler       *MockResponseHandler
-	partnerPlugin         *partnerplugin.MockPartnerPlugin
-	chequeHandler         *chequehandler.MockChequeHandler
-	cmAccounts            *cmaccounts.MockService
-	responseHeaderHandler *common.MockResponseHeaderHandler
-	encoderDecoder        *MockEncoderDecoder
+	messenger       *MockMessenger
+	serviceRegistry *MockServiceRegistry
+	responseHandler *MockResponseHandler
+	partnerPlugin   *partnerplugin.MockPartnerPlugin
+	chequeHandler   *chequehandler.MockChequeHandler
+	cmAccounts      *cmaccounts.MockService
+	encoderDecoder  *MockEncoderDecoder
 }
 
 func defaultMessageProcessorArgs(c *gomock.Controller) messageProcessorArgs {
 	return messageProcessorArgs{
-		messenger:             NewMockMessenger(c),
-		serviceRegistry:       NewMockServiceRegistry(c),
-		responseHandler:       NewMockResponseHandler(c),
-		partnerPlugin:         partnerplugin.NewMockPartnerPlugin(c),
-		chequeHandler:         chequehandler.NewMockChequeHandler(c),
-		cmAccounts:            cmaccounts.NewMockService(c),
-		responseHeaderHandler: common.NewMockResponseHeaderHandler(c),
-		encoderDecoder:        NewMockEncoderDecoder(c),
+		messenger:       NewMockMessenger(c),
+		serviceRegistry: NewMockServiceRegistry(c),
+		responseHandler: NewMockResponseHandler(c),
+		partnerPlugin:   partnerplugin.NewMockPartnerPlugin(c),
+		chequeHandler:   chequehandler.NewMockChequeHandler(c),
+		cmAccounts:      cmaccounts.NewMockService(c),
+		encoderDecoder:  NewMockEncoderDecoder(c),
 	}
 }
 
@@ -138,7 +135,7 @@ func TestProcessIncomingMessage(t *testing.T) {
 				pArgs.serviceRegistry.EXPECT().GetService(a.requestMessage.Type).Return(rpcService, true)
 				pArgs.cmAccounts.EXPECT().GetServiceFee(m.Context, ownCMAccount, serviceName).Return(serviceFee, nil)
 				pArgs.chequeHandler.EXPECT().VerifyAndStoreCheque(m.Context, a.serviceFeeCheque, a.senderBotAddress, serviceFee).Return(nil)
-				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.serviceFeeCheque.FromCMAccount, a.serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type, nil)
+				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.serviceFeeCheque.FromCMAccount, a.serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type)
 				pArgs.responseHandler.EXPECT().PrepareResponseMessage(m.Context, a.requestMessage, equalExceptTimestamps(responseMessage))
 				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), nil, a.senderBotAddress, a.sharedKey).Return(encodedRespMsg, nil)
 				pArgs.chequeHandler.EXPECT().IssueCheque(m.Context, networkFeeCMAccount, networkFeeBot, networkFee).Return(respNetworkFeeCheque, nil)
@@ -164,7 +161,7 @@ func TestProcessIncomingMessage(t *testing.T) {
 				pArgs.serviceRegistry.EXPECT().GetService(a.requestMessage.Type).Return(rpcService, true)
 				pArgs.cmAccounts.EXPECT().GetServiceFee(m.Context, ownCMAccount, serviceName).Return(serviceFee, nil)
 				pArgs.chequeHandler.EXPECT().VerifyAndStoreCheque(m.Context, a.serviceFeeCheque, a.senderBotAddress, serviceFee).Return(nil)
-				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.serviceFeeCheque.FromCMAccount, a.serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type, nil)
+				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.serviceFeeCheque.FromCMAccount, a.serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type)
 				pArgs.responseHandler.EXPECT().PrepareResponseMessage(m.Context, a.requestMessage, equalExceptTimestamps(responseMessage))
 				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), nil, a.senderBotAddress, a.sharedKey).Return(encodedRespMsg, nil)
 				pArgs.chequeHandler.EXPECT().IssueCheque(m.Context, networkFeeCMAccount, networkFeeBot, networkFee).Return(respNetworkFeeCheque, nil)
@@ -218,7 +215,6 @@ func TestProcessIncomingMessage(t *testing.T) {
 				messageProcessorArgs.partnerPlugin,
 				messageProcessorArgs.chequeHandler,
 				messageProcessorArgs.cmAccounts,
-				messageProcessorArgs.responseHeaderHandler,
 				big.NewInt(0),
 				messageProcessorArgs.encoderDecoder,
 			)
@@ -381,7 +377,6 @@ func TestSendRequestMessage(t *testing.T) {
 				messageProcessorArgs.partnerPlugin,
 				messageProcessorArgs.chequeHandler,
 				messageProcessorArgs.cmAccounts,
-				messageProcessorArgs.responseHeaderHandler,
 				big.NewInt(1), // max allowed service fee
 				messageProcessorArgs.encoderDecoder,
 			)
@@ -405,7 +400,6 @@ func TestStart(t *testing.T) {
 	chequeHandler := chequehandler.NewMockChequeHandler(c)
 	partnerPlugin := partnerplugin.NewMockPartnerPlugin(c)
 	messenger := NewMockMessenger(c)
-	responseHeaderHandler := common.NewMockResponseHeaderHandler(c)
 	encoderDecoder := NewMockEncoderDecoder(c)
 	responseHandler := NewMockResponseHandler(c)
 
@@ -481,7 +475,7 @@ func TestStart(t *testing.T) {
 	cmAccounts.EXPECT().GetServiceFee(m.Context, ownCMAccount, serviceName).Return(serviceFee, nil)
 	chequeHandler.EXPECT().VerifyAndStoreCheque(m.Context, serviceFeeCheque, senderBot, serviceFee).Return(nil)
 	responseHandler.EXPECT().PrepareResponseMessage(m.Context, requestMsg, equalExceptTimestamps(responseMessage))
-	partnerPlugin.EXPECT().DoServiceRequest(m.Context, requestMsg, rpcService, serviceFeeCheque.FromCMAccount, serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type, nil)
+	partnerPlugin.EXPECT().DoServiceRequest(m.Context, requestMsg, rpcService, serviceFeeCheque.FromCMAccount, serviceFeeCheque.ToCMAccount).Return(responseMessage.Content, responseMessage.Type)
 	encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), nil, senderBot, sharedKey).Return(encodedRespMsg, nil)
 	chequeHandler.EXPECT().IssueCheque(m.Context, networkFeeCMAccount, networkFeeBot, networkFee).Return(respNetworkFeeCheque, nil)
 	messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBot, respNetworkFeeCheque).Return(nil)
@@ -509,7 +503,6 @@ func TestStart(t *testing.T) {
 		partnerPlugin,
 		chequeHandler,
 		cmAccounts,
-		responseHeaderHandler,
 		big.NewInt(1),
 		encoderDecoder,
 	).Start(ctx)

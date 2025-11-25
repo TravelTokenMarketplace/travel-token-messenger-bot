@@ -8,6 +8,7 @@ import (
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/seat_map/v4/seat_mapv4grpc"
 	seat_mapv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v4"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data"
@@ -36,13 +37,24 @@ func (s *seatMapAvailabilityV4Server) SeatMapAvailability(_ context.Context, req
 		}
 	}
 
-	resp := &seat_mapv4.SeatMapAvailabilityResponse{Header: common.SuccessHeaderV4()}
+	seatMapAvailability := filterSeatMapAvailabilityByID(mockdata.SeatMapAvailabilityV4, seatMapID)
 
-	if seatMapID == "" {
-		common.AddHeaderErrorV4(resp.Header, "Seat map availability not found for given identifier")
-		return resp, nil
+	if seatMapAvailability == nil {
+		return &seat_mapv4.SeatMapAvailabilityResponse{
+			Response: &seat_mapv4.SeatMapAvailabilityResponse_ErrorResponse{
+				ErrorResponse: &seat_mapv4.SeatMapAvailabilityErrorResponse{
+					Header: common.ErrorHeaderV4(typesv4.ErrorCode_ERROR_CODE_INVALID_IDENTIFIERS, "Seat map availability not found for given identifier"),
+				},
+			},
+		}, nil
 	}
 
-	resp.SeatMap = filterSeatMapAvailabilityByID(mockdata.SeatMapAvailabilityV4, seatMapID)
-	return resp, nil
+	return &seat_mapv4.SeatMapAvailabilityResponse{
+		Response: &seat_mapv4.SeatMapAvailabilityResponse_SuccessResponse{
+			SuccessResponse: &seat_mapv4.SeatMapAvailabilitySuccessResponse{
+				Header:  common.SuccessHeaderV4(),
+				SeatMap: seatMapAvailability,
+			},
+		},
+	}, nil
 }

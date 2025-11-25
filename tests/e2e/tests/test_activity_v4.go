@@ -12,6 +12,7 @@ import (
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/go/protovalidate"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v12/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/common"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data"
@@ -124,11 +125,13 @@ func (tt *TestActivityV4) testActivityV4ProductShortListService(ctx context.Cont
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
-	requireProtoSlicesElementsMatch(t, expectedItems, resp.ActivityShortListItems)
+	requireProtoSlicesElementsMatch(t, expectedItems, successResp.ActivityShortListItems)
 }
 
 // Product list request with a modification filter set. It should only return one fitting result.
@@ -155,11 +158,13 @@ func (tt *TestActivityV4) testActivityV4ProductShortListServiceWithFilter(ctx co
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
-	requireProtoSlicesElementsMatch(t, expectedItems, resp.ActivityShortListItems)
+	requireProtoSlicesElementsMatch(t, expectedItems, successResp.ActivityShortListItems)
 }
 
 // Simple product list request which shall return all activities. Checking if all are present
@@ -177,11 +182,13 @@ func (tt *TestActivityV4) testActivityV4ProductListService(ctx context.Context, 
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
-	requireProtoSlicesElementsMatch(t, expectedItems, resp.Activities)
+	requireProtoSlicesElementsMatch(t, expectedItems, successResp.Activities)
 }
 
 // Get detailed activity information for a specific supplier code.
@@ -198,20 +205,22 @@ func (tt *TestActivityV4) testActivityV4ProductInfoService(ctx context.Context, 
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
 	// The response should contain only the one activity filtered in the request
-	require.Len(t, resp.Activities, 1, "unexpected number of activities in response")
+	require.Len(t, successResp.Activities, 1, "unexpected number of activities in response")
 
 	expectedActivity := activityExtendedV4WithSupplierCode(t, mockdata.ActivityExtendedV4, expectedSupplierCode)
-	require.True(t, proto.Equal(resp.Activities[0], expectedActivity), "activity fields does not match expected mock data activity, but their supplier codes match (%+v)", expectedSupplierCode)
+	require.True(t, proto.Equal(successResp.Activities[0], expectedActivity), "activity fields does not match expected mock data activity, but their supplier codes match (%+v)", expectedSupplierCode)
 }
 
 func (tt *TestActivityV4) testActivityV4SearchServiceTravelPeriodOutOfBounds(ctx context.Context, t *testing.T) {
-	const nights = 12                                 // 12 nights
-	startDate := time.Now().Add(time.Hour * 24 * 100) // in 100 days, outside of allowed travel period
+	const nights = 12                                                                                              // 12 nights
+	startDate := time.Now().Add(common.TravelPeriodMinStartOffset + common.TravelPeriodMaxDuration + 24*time.Hour) // outside of allowed travel period
 	endDate := startDate.Add(time.Hour * 24 * time.Duration(nights))
 
 	req := &activityv4.ActivitySearchRequest{
@@ -237,8 +246,9 @@ func (tt *TestActivityV4) testActivityV4SearchServiceTravelPeriodOutOfBounds(ctx
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
+	require.True(t, resp.HasErrorResponse(), "unexpected response status")
 }
 
 // Test search with a valid travel period. Expect valid search results.
@@ -290,19 +300,21 @@ func testActivityV4SearchService(
 	)
 	require.NoError(t, err)
 	e.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
 	// check resultIDs and reset them for clean comparison with mock data
-	for i, result := range resp.Results {
+	for i, result := range successResp.Results {
 		require.Equal(t, uint32(i), result.ResultId, "unexpected ResultId in response") //nolint:gosec
 		result.ResultId = 0
 	}
 
-	requireProtoSlicesElementsMatch(t, expectedSearchResults, resp.Results)
+	requireProtoSlicesElementsMatch(t, expectedSearchResults, successResp.Results)
 
-	return resp.SearchId.Id.Value, resp.Results[0].ResultId, resp.Results[0].TotalPrice.Value
+	return successResp.SearchId.Id.Value, successResp.Results[0].ResultId, successResp.Results[0].TotalPrice.Value
 }
 
 func activityExtendedV4WithSupplierCode(

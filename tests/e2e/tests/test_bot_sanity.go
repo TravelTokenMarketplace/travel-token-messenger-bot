@@ -10,6 +10,7 @@ import (
 
 	pingv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v2"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/go/protovalidate"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v12/internal/rpc/generated"
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/v12/pkg/cm_accounts"
 	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/blockchain"
@@ -143,8 +144,10 @@ func testBotSanitySendCommonRequest(ctx context.Context, t *testing.T, pingMessa
 		req,
 	)
 	require.NoError(t, err)
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status)
-	require.Len(t, resp.Header.Alerts, 1)
-	require.Equal(t, typesv4.AlertType_ALERT_TYPE_ERROR, resp.Header.Alerts[0].Type)
-	return resp.Header.Alerts[0].Message
+	require.NoError(t, protovalidate.Validate(resp))
+
+	errResp := resp.GetErrorResponse()
+	require.NotNil(t, errResp, "expected error response")
+	require.Len(t, errResp.Header.Errors, 1, "expected one alert in response header")
+	return errResp.Header.Errors[0].Message
 }

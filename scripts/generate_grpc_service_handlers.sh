@@ -1,12 +1,7 @@
 #!/bin/bash
 
 BUF_SDK_BASE="buf.build/gen/go/chain4travel/camino-messenger-protocol"
-TEMPLATES_DIR="templates"
-CLIENT_TEMPLATE="${TEMPLATES_DIR}/client.go.tpl"
-CLIENT_METHOD_TEMPLATE="${TEMPLATES_DIR}/client_method.go.tpl"
-SERVER_TEMPLATE="${TEMPLATES_DIR}/server.go.tpl"
-SERVER_P2P_METHOD_TEMPLATE="${TEMPLATES_DIR}/server_p2p_method.go.tpl"
-
+TEMPLATES_DIR_BASE="templates"
 P2P_OUTPATH="internal/rpc/generated"
 LOCAL_OUTPATH="internal/rpc/generated"
 E2E_GEN_OUTPATH="tests/e2e/bot/generated"
@@ -61,7 +56,7 @@ function generate_with_templates() {
 		# Generate client
 		CLIENT_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_client.go"
 		echo "🔨 Generating client: $CLIENT_GEN_FILE"
-		cp $CLIENT_TEMPLATE "$CLIENT_GEN_FILE"
+		cp "$CLIENT_TEMPLATE" "$CLIENT_GEN_FILE"
 
 		sed -i "${replace_params[@]}" "$CLIENT_GEN_FILE"
 		sed -i -e "s#{{TEMPLATE}}#$CLIENT_TEMPLATE#g" "$CLIENT_GEN_FILE"
@@ -79,13 +74,13 @@ function generate_with_templates() {
 				EMPTY_IMPORT='"google.golang.org/protobuf/types/known/emptypb"'
 				TYPE_PACKAGE="emptypb"
 			fi
-			METHOD_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_${METHOD}_client_method.go"
+			METHOD_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_client_method.go"
 			## This is added to fix shellcheck issue SC2086
 			method_params=()
 			eval "method_params+=( $METHOD_PARAM_REPLACE )"
 
 			echo "🔨 Generating client method: $METHOD_GEN_FILE"
-			cp $CLIENT_METHOD_TEMPLATE "$METHOD_GEN_FILE"
+			cp "$CLIENT_METHOD_TEMPLATE" "$METHOD_GEN_FILE"
 			sed -i "${replace_params[@]}" "$METHOD_GEN_FILE"
 			sed -i "${method_params[@]}" "$METHOD_GEN_FILE"
 			sed -i -e "s#{{TEMPLATE}}#$CLIENT_METHOD_TEMPLATE#g" "$METHOD_GEN_FILE"
@@ -94,7 +89,7 @@ function generate_with_templates() {
 		# Generate server
 		SERVER_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_server.go"
 		echo "🔨 Generating server: $SERVER_GEN_FILE"
-		cp $SERVER_TEMPLATE "$SERVER_GEN_FILE"
+		cp "$SERVER_TEMPLATE" "$SERVER_GEN_FILE"
 		sed -i "${replace_params[@]}" "$SERVER_GEN_FILE"
 		sed -i -e "s#{{TEMPLATE}}#$SERVER_TEMPLATE#g" "$SERVER_GEN_FILE"
 
@@ -112,14 +107,14 @@ function generate_with_templates() {
 				EMPTY_IMPORT='"google.golang.org/protobuf/types/known/emptypb"'
 				TYPE_PACKAGE="emptypb"
 			fi
-			METHOD_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_${METHOD}_server_method.go"
+			METHOD_GEN_FILE="${P2P_OUTPATH}/${TYPE_PACKAGE}_${SERVICE}_server_method.go"
 
 			## This is added to fix shellcheck issue SC2086
 			method_params=()
 			eval "method_params+=( $METHOD_PARAM_REPLACE )"
 
 			echo "🔨 Generating server method: $METHOD_GEN_FILE"
-			cp $SERVER_P2P_METHOD_TEMPLATE "$METHOD_GEN_FILE"
+			cp "$SERVER_P2P_METHOD_TEMPLATE" "$METHOD_GEN_FILE"
 			sed -i "${replace_params[@]}" "$METHOD_GEN_FILE"
 			sed -i "${method_params[@]}" "$METHOD_GEN_FILE"
 			sed -i -e "s#{{TEMPLATE}}#$SERVER_P2P_METHOD_TEMPLATE#g" "$METHOD_GEN_FILE"
@@ -168,12 +163,12 @@ function generate_register_services_client() {
 		echo "    \"google.golang.org/grpc\""
 		echo ")"
 		echo
-		echo "func RegisterClientServices(rpcConn *grpc.ClientConn, serviceNames map[string]struct{}) map[types.MessageType]rpc.Service {"
+		echo "func RegisterServiceClients(rpcConn *grpc.ClientConn, serviceNames map[string]struct{}) map[types.MessageType]rpc.Service {"
 		echo "    services := make(map[types.MessageType]rpc.Service, len(serviceNames))"
 		echo
 		for service in "${_SERVICES[@]}" ; do
 			echo "    if _, ok := serviceNames[${service}]; ok {"
-			echo "        services[${service}Request] = rpc.NewService(New${service}(rpcConn), ${service})"
+			echo "        services[${service}Request] = rpc.NewService(New${service}Client(rpcConn), ${service})"
 			echo "        delete(serviceNames, ${service})"
 			echo "    }"
 		done
@@ -370,8 +365,20 @@ while read -r file ; do
 	ON_CHAIN=${TAGS_LINE#*on-chain:}
 	ON_CHAIN=${ON_CHAIN%%[[:space:]]*}
 
+    STRUCTURE=1
+    if [[ $TAGS_LINE =~ structure:([0-9]+) ]]; then
+        STRUCTURE="${BASH_REMATCH[1]}"
+    fi
+    TEMPLATES_DIR="${TEMPLATES_DIR_BASE}/v${STRUCTURE}"
+
+    CLIENT_TEMPLATE="${TEMPLATES_DIR}/client.go.tpl"
+    CLIENT_METHOD_TEMPLATE="${TEMPLATES_DIR}/client_method.go.tpl"
+    SERVER_TEMPLATE="${TEMPLATES_DIR}/server.go.tpl"
+    SERVER_P2P_METHOD_TEMPLATE="${TEMPLATES_DIR}/server_p2p_method.go.tpl"
+
 	FQPN=$(grep -P 'FullMethodName' "$file" | grep -oP 'cmp\.services\.[^/]+' | head -n1) # only 1 - it may contain more
 	SERVICE=${FQPN##*.}
+	SERVICE=${SERVICE%Service}
 	PACKAGE=$(grep -oP '^package \S+$' "$file" | cut -d" " -f2)
 	TYPE=${PACKAGE%*grpc}
 	VERSION=$(echo "$FQPN" | grep -oP "\.v[0-9]+\." | cut -d"." -f2 )
@@ -387,7 +394,7 @@ while read -r file ; do
 		exit 1
 	fi
 
-	COMMON_TYPES_VERSION=$(grep -oP '(?<=Header \*v)\d+(?=\.ResponseHeader)' "$pb_file" | tail -n 1)
+	COMMON_TYPES_VERSION=$(grep -oP '(?<=Header \*v)\d+(?=\.(?:Success)?ResponseHeader)' "$pb_file" | tail -n 1)
 
 	echo "🔑 FQPN      : $FQPN"
 	echo "⚙️ Service   : $SERVICE"
@@ -427,8 +434,8 @@ while read -r file ; do
 		# PingServiceV1Request pingv1 PingRequest
 		# PingServiceV1Response pingv1 PingResponse
 		if [[ "$ROUTING" == "p2p" ]]; then
-			UNMARSHAL_METHODS+=("${SERVICE}V${VERSION:1}Request $TYPE $INPUT")
-			UNMARSHAL_METHODS+=("${SERVICE}V${VERSION:1}Response $TYPE $OUTPUT")
+			UNMARSHAL_METHODS+=("${SERVICE}ServiceV${VERSION:1}Request $TYPE $INPUT")
+			UNMARSHAL_METHODS+=("${SERVICE}ServiceV${VERSION:1}Response $TYPE $OUTPUT")
 		fi
 
 		echo " ◉ $method (↓ in: '$INPUT' - ↑ out: '$OUTPUT')"
@@ -448,11 +455,11 @@ while read -r file ; do
 
 	E2E_GRPC_INCLUDES+=("$GRPC_INCLUDE")
 	E2E_PACKAGES+=("$PACKAGE")
-	E2E_TYPES+=("${SERVICE}Client")
-	E2E_CLIENT_FIELDS+=("${SERVICE}V${VERSION:1}")
+	E2E_TYPES+=("${SERVICE}ServiceClient")
+	E2E_CLIENT_FIELDS+=("${SERVICE}ServiceV${VERSION:1}")
 
 	if [[ "$ROUTING" == "p2p" ]]; then
-		SERVICES_TO_REGISTER+=("${SERVICE}V${VERSION:1}")
+		SERVICES_TO_REGISTER+=("${SERVICE}ServiceV${VERSION:1}")
 		PROTO_INCLUDES_FOR_UNMARSHALLING+=("$PROTO_INCLUDE")
 	fi
 
@@ -462,7 +469,7 @@ done < <(find "$SDK_GRPC_PATH/cmp/services/" -name "*_grpc.pb.go" | sort)
 generate_register_services_server "$REGISTER_SERVICES_SERVER_FILE" SERVICES_TO_REGISTER
 generate_register_services_client "$REGISTER_SERVICES_CLIENT_FILE" SERVICES_TO_REGISTER
 generate_unmarshalling "$UNMARSHALLING_FILE" PROTO_INCLUDES_FOR_UNMARSHALLING UNMARSHAL_METHODS
-generate_e2e_bot_client "${E2E_BOT_CLIENT_FILE}" E2E_GRPC_INCLUDES E2E_PACKAGES E2E_TYPES E2E_CLIENT_FIELDS
+generate_e2e_bot_client "$E2E_BOT_CLIENT_FILE" E2E_GRPC_INCLUDES E2E_PACKAGES E2E_TYPES E2E_CLIENT_FIELDS
 
 echo "🧹 Running gofumpt on all generated files"
 $FUMPT -w $P2P_OUTPATH

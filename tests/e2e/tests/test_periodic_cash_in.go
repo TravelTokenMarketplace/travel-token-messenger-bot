@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	pingv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v1"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	pingv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v2"
+	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/go/protovalidate"
 	"github.com/chain4travel/camino-matrix-app-service/config"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v12/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/bot"
@@ -58,20 +59,20 @@ func (tt *TestCashIn) Run(t *testing.T) {
 	tt.prepare(ctx, t)
 
 	t.Run("Ping", func(t *testing.T) {
-		tt.testPeriodicCashInWithPingV1(ctx, t)
+		tt.testPeriodicCashInWithPingV2(ctx, t)
 	})
 }
 
 func (tt *TestCashIn) prepare(ctx context.Context, t *testing.T) {
 	// Register all the services needed for the tests
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx, botGenerated.PingServiceV1))
+	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx, botGenerated.PingServiceV2))
 
 	tt.pingFee = 5_000_000_000_000_000
 
 	// bot with partnerPlugin and without rpc server (supplier)
 	tt.supplierPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
 	tt.supplierBot = tt.CreateBot(ctx, t, true, tt.supplierPartnerPlugin,
-		bot.WithServices([]bot.CMService{{Name: botGenerated.PingServiceV1, Fee: tt.pingFee}}),
+		bot.WithServices([]bot.CMService{{Name: botGenerated.PingServiceV2, Fee: tt.pingFee}}),
 		bot.WithCashInPeriod(tt.cashInPeriodSeconds), // cash-in every 10 seconds
 	)
 
@@ -82,7 +83,7 @@ func (tt *TestCashIn) prepare(ctx context.Context, t *testing.T) {
 	)
 }
 
-func (tt *TestCashIn) testPeriodicCashInWithPingV1(ctx context.Context, t *testing.T) {
+func (tt *TestCashIn) testPeriodicCashInWithPingV2(ctx context.Context, t *testing.T) {
 	initialDistributorBalance, err := tt.CaminoNetwork.Client.BalanceOf(ctx, tt.distributorBot.CMAccountAddress())
 	require.NoError(t, err)
 
@@ -109,21 +110,24 @@ func (tt *TestCashIn) testPeriodicCashInWithPingV1(ctx context.Context, t *testi
 
 	expectedResponseMessageSubString := fmt.Sprintf("Ping response to [%s] with request ID:", common.PingMessage)
 
-	req := &pingv1.PingRequest{
-		Header:      &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
-		PingMessage: common.PingMessage,
-		Timestamp:   timestamppb.Now(),
+	req := &pingv2.PingRequest{
+		Header:    &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
+		Message:   common.PingMessage,
+		Timestamp: timestamppb.Now(),
 	}
-	resp, err := tt.distributorBot.PingServiceV1.Ping(
+	resp, err := tt.distributorBot.PingServiceV2.Ping(
 		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
 		req,
 	)
 
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
-	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.Contains(t, resp.PingMessage, expectedResponseMessageSubString, "unexpected response message")
+	require.NoError(t, protovalidate.Validate(resp))
+
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
+	require.Contains(t, successResp.Message, expectedResponseMessageSubString, "unexpected response message")
 
 	expectedDistributorBalanceNullUSD := big.NewInt(0).Set(initialDistributorBalanceNullUSD)
 	expectedDistributorBalanceNullUSD.Sub(expectedDistributorBalanceNullUSD, pingFeeBig)

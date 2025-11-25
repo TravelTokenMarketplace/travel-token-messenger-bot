@@ -58,12 +58,32 @@
                 "longitude": 2.6502
             },
             "status": "PRODUCT_STATUS_ACTIVATED",
-            "airports": [
+            "transportHubs": [
                 {
-                    "code": "PMI"
+                    "locationCode": {
+                        "code": "PMI",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 },
                 {
-                    "code": "BCN"
+                    "locationCode": {
+                        "code": "BCN",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 }
             ]
         },
@@ -162,7 +182,6 @@
                 ]
             }
         ],
-        "paymentType": "MERCHANT",
         "rooms": [
             {
                 "supplierCode": "DBL-SEA",
@@ -242,22 +261,16 @@
                         ]
                     }
                 ],
-                "amenities": [
+                "attributes": [
                     {
-                        "type": "AMENITY_TYPE_INTERNET",
-                        "attributes": {
-                            "name": "Free WiFi",
-                            "type": "WIFI"
-                        }
-                    },
-                    {
-                        "type": "AMENITY_TYPE_OTHER",
-                        "attributes": {
-                            "name": "Private Balcony",
-                            "type": "BALCONY"
-                        }
+                        "type": "ROOM_ATTRIBUTE_TYPE_BALCONY"
                     }
                 ]
+            }
+        ],
+        "attributes": [
+            {
+                "type": "PROPERTY_ATTRIBUTE_TYPE_WIFI"
             }
         ]
     },
@@ -323,12 +336,32 @@
                 "longitude": 7.7491
             },
             "status": "PRODUCT_STATUS_ACTIVATED",
-            "airports": [
+            "transportHubs": [
                 {
-                    "code": "ZRH"
+                    "locationCode": {
+                        "code": "ZRH",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 },
                 {
-                    "code": "GVA"
+                    "locationCode": {
+                        "code": "GVA",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 }
             ]
         },
@@ -427,7 +460,6 @@
                 ]
             }
         ],
-        "paymentType": "MERCHANT",
         "rooms": [
             {
                 "supplierCode": "DBL-MTN",
@@ -507,22 +539,16 @@
                         ]
                     }
                 ],
-                "amenities": [
+                "attributes": [
                     {
-                        "type": "AMENITY_TYPE_INTERNET",
-                        "attributes": {
-                            "name": "Free WiFi",
-                            "type": "WIFI"
-                        }
-                    },
-                    {
-                        "type": "AMENITY_TYPE_OTHER",
-                        "attributes": {
-                            "name": "Private Balcony",
-                            "type": "BALCONY"
-                        }
+                        "type": "ROOM_ATTRIBUTE_TYPE_BALCONY"
                     }
                 ]
+            }
+        ],
+        "attributes": [
+            {
+                "type": "PROPERTY_ATTRIBUTE_TYPE_WIFI"
             }
         ]
     },
@@ -575,9 +601,19 @@
                 "longitude": 30.7133
             },
             "status": "PRODUCT_STATUS_ACTIVATED",
-            "airports": [
+            "transportHubs": [
                 {
-                    "code": "AYT"
+                    "locationCode": {
+                        "code": "AYT",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 }
             ]
         },
@@ -676,7 +712,6 @@
                 ]
             }
         ],
-        "paymentType": "MERCHANT",
         "rooms": [
             {
                 "supplierCode": "DBL-SEA",
@@ -755,22 +790,16 @@
                         ]
                     }
                 ],
-                "amenities": [
+                "attributes": [
                     {
-                        "type": "AMENITY_TYPE_INTERNET",
-                        "attributes": {
-                            "name": "Free WiFi",
-                            "type": "WIFI"
-                        }
-                    },
-                    {
-                        "type": "AMENITY_TYPE_OTHER",
-                        "attributes": {
-                            "name": "Private Balcony",
-                            "type": "BALCONY"
-                        }
+                        "type": "ROOM_ATTRIBUTE_TYPE_BALCONY"
                     }
                 ]
+            }
+        ],
+        "attributes": [
+            {
+                "type": "PROPERTY_ATTRIBUTE_TYPE_WIFI"
             }
         ]
     },
@@ -823,12 +852,32 @@
                 "longitude": 13.405
             },
             "status": "PRODUCT_STATUS_ACTIVATED",
-            "airports": [
+            "transportHubs": [
                 {
-                    "code": "TXL"
+                    "locationCode": {
+                        "code": "TXL",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 },
                 {
-                    "code": "SXF"
+                    "locationCode": {
+                        "code": "SXF",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 }
             ]
         },
@@ -927,7 +976,6 @@
                 ]
             }
         ],
-        "paymentType": "MERCHANT",
         "rooms": [
             {
                 "supplierCode": "DBL-CIT",
@@ -1006,22 +1054,16 @@
                         ]
                     }
                 ],
-                "amenities": [
+                "attributes": [
                     {
-                        "type": "AMENITY_TYPE_INTERNET",
-                        "attributes": {
-                            "name": "Free WiFi",
-                            "type": "WIFI"
-                        }
-                    },
-                    {
-                        "type": "AMENITY_TYPE_OTHER",
-                        "attributes": {
-                            "name": "Private Balcony",
-                            "type": "BALCONY"
-                        }
+                        "type": "ROOM_ATTRIBUTE_TYPE_BALCONY"
                     }
                 ]
+            }
+        ],
+        "attributes": [
+            {
+                "type": "PROPERTY_ATTRIBUTE_TYPE_WIFI"
             }
         ]
     },
@@ -1081,12 +1123,32 @@
                 "longitude": -156.6869
             },
             "status": "PRODUCT_STATUS_ACTIVATED",
-            "airports": [
+            "transportHubs": [
                 {
-                    "code": "OGG"
+                    "locationCode": {
+                        "code": "OGG",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 },
                 {
-                    "code": "HNL"
+                    "locationCode": {
+                        "code": "HNL",
+                        "type": "LOCATION_CODE_TYPE_IATA_CODE"
+                    },
+                    "distance": {
+                        "value": 15,
+                        "unit": "LENGTH_UNIT_KILOMETER"
+                    },
+                    "travelTime": {
+                        "minutes": 30
+                    }
                 }
             ]
         },
@@ -1185,7 +1247,6 @@
                 ]
             }
         ],
-        "paymentType": "MERCHANT",
         "rooms": [
             {
                 "supplierCode": "DBL-SEA",
@@ -1264,22 +1325,16 @@
                         ]
                     }
                 ],
-                "amenities": [
+                "attributes": [
                     {
-                        "type": "AMENITY_TYPE_INTERNET",
-                        "attributes": {
-                            "name": "Free WiFi",
-                            "type": "WIFI"
-                        }
-                    },
-                    {
-                        "type": "AMENITY_TYPE_OTHER",
-                        "attributes": {
-                            "name": "Private Balcony",
-                            "type": "BALCONY"
-                        }
+                        "type": "ROOM_ATTRIBUTE_TYPE_BALCONY"
                     }
                 ]
+            }
+        ],
+        "attributes": [
+            {
+                "type": "PROPERTY_ATTRIBUTE_TYPE_WIFI"
             }
         ]
     }

@@ -13,6 +13,7 @@ import (
 	transportv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v4"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/go/protovalidate"
 	botGenerated "github.com/chain4travel/camino-messenger-bot/v12/internal/rpc/generated"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/common"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/proto/pb/events"
@@ -137,10 +138,12 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithSearchID(ctx context.Conte
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.True(t, proto.Equal(expectedSeatMapInventory, resp.SeatMap), "unexpected seat map availability data in response")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
+	require.True(t, proto.Equal(expectedSeatMapInventory, successResp.SeatMap), "unexpected seat map availability data in response")
 }
 
 func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadSearchID(ctx context.Context, t *testing.T) {
@@ -158,8 +161,9 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadSearchID(ctx context.Co
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
+	require.True(t, resp.HasErrorResponse(), "unexpected response status")
 }
 
 func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(
@@ -189,10 +193,12 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.True(t, proto.Equal(expectedSeatMapInventory, resp.SeatMap), "unexpected seat map availability data in response")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
+	require.True(t, proto.Equal(expectedSeatMapInventory, successResp.SeatMap), "unexpected seat map availability data in response")
 }
 
 func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadMintID(ctx context.Context, t *testing.T) {
@@ -208,8 +214,9 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadMintID(ctx context.Cont
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
+	require.True(t, resp.HasErrorResponse(), "unexpected response status")
 }
 
 func (tt *TestSeatMapV4) testSeatMapV4BadID(ctx context.Context, t *testing.T) {
@@ -224,8 +231,9 @@ func (tt *TestSeatMapV4) testSeatMapV4BadID(ctx context.Context, t *testing.T) {
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_FAILURE, resp.Header.Status, "unexpected response status")
+	require.True(t, resp.HasErrorResponse(), "unexpected response status")
 }
 
 func (tt *TestSeatMapV4) testSeatMapV4WithoutLocalization(ctx context.Context, t *testing.T) {
@@ -240,27 +248,19 @@ func (tt *TestSeatMapV4) testSeatMapV4WithoutLocalization(ctx context.Context, t
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
 	// Check response header
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Len(t, resp.Header.Alerts, 1, "expected one alert in response header")
-	require.Equal(t, typesv4.AlertType_ALERT_TYPE_WARNING, resp.Header.Alerts[0].Type, "unexpected alert type in response header")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Len(t, successResp.Header.Alerts, 1, "expected one alert in response header")
 
 	// Check seatMap description and section names/descriptions language
 
-	for _, section := range resp.SeatMap.Sections {
+	for _, section := range successResp.SeatMap.Sections {
 		traverseSection(section, func(s *typesv4.Section) {
 			require.Empty(t, s.Names, "expected no section names")
-
-			seatList, ok := s.SeatInfo.(*typesv4.Section_SeatList)
-			if !ok {
-				return
-			}
-
-			for _, seat := range seatList.SeatList.Seats {
-				require.Empty(t, seat.GetAttributes().Features, "expected no seat features")
-			}
 		})
 	}
 
@@ -272,22 +272,10 @@ func (tt *TestSeatMapV4) testSeatMapV4WithoutLocalization(ctx context.Context, t
 	for _, section := range expectedSeatMap.Sections {
 		traverseSection(section, func(s *typesv4.Section) {
 			s.Names = nil
-
-			seatList, ok := s.SeatInfo.(*typesv4.Section_SeatList)
-			if !ok {
-				return
-			}
-
-			for _, seat := range seatList.SeatList.Seats {
-				if seat.Attributes == nil {
-					continue
-				}
-				seat.Attributes.Features = nil
-			}
 		})
 	}
 
-	require.True(t, proto.Equal(expectedSeatMap, resp.SeatMap), "unexpected seat map data in response")
+	require.True(t, proto.Equal(expectedSeatMap, successResp.SeatMap), "unexpected seat map data in response")
 }
 
 func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, seatMapID *typesv4.SeatMapID) {
@@ -312,11 +300,13 @@ func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, seatMa
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
 	// Check response header
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
 	// Compare seatMap with expectedSeatMap
 
@@ -330,71 +320,12 @@ func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, seatMa
 
 	// Check seatMap localized strings and strip it and expected seatMap of localized strings for easier comparison
 
-	checkAndStripAttributes := func(expectedAttributes, attributes *typesv4.SeatAttributes, expectedLang typesv1.Language) {
-		require.NotNil(t, attributes)
-
-		// features
-		var expectedFeature *typesv4.LocalizedSeatAttributeSet
-		for _, feature := range expectedAttributes.Features {
-			if feature.Language == expectedLang {
-				expectedFeature = feature
-				break
-			}
-		}
-		expectedAttributes.Features = nil
-
-		if expectedFeature != nil {
-			require.Len(t, attributes.Features, 1)
-			require.True(t, proto.Equal(expectedFeature, attributes.Features[0]), "unexpected seat map feature")
-			attributes.Features = nil
-		} else {
-			require.Nil(t, attributes.Features)
-		}
-
-		// descriptions
-		var expectedDescription *typesv4.LocalizedDescriptionSet
-		for _, description := range expectedAttributes.Descriptions {
-			if description.Language == expectedLang {
-				expectedDescription = description
-				break
-			}
-		}
-		expectedAttributes.Descriptions = nil
-
-		if expectedDescription != nil {
-			require.Len(t, attributes.Descriptions, 1)
-			require.True(t, proto.Equal(expectedDescription, attributes.Descriptions[0]), "unexpected seat map description")
-			attributes.Descriptions = nil
-		} else {
-			require.Nil(t, attributes.Descriptions)
-		}
-
-		// restrictions
-		var expectedRestriction *typesv4.LocalizedSeatAttributeSet
-		for _, restriction := range expectedAttributes.Restrictions {
-			if restriction.Language == expectedLang {
-				expectedRestriction = restriction
-				break
-			}
-		}
-		expectedAttributes.Restrictions = nil
-
-		if expectedRestriction != nil {
-			require.Len(t, attributes.Restrictions, 1)
-			require.True(t, proto.Equal(expectedRestriction, attributes.Restrictions[0]), "unexpected seat map restriction")
-			attributes.Restrictions = nil
-		} else {
-			require.Nil(t, attributes.Restrictions)
-		}
-	}
-
 	sectionIndex := 0
-	for _, section := range resp.SeatMap.Sections {
+	for _, section := range successResp.SeatMap.Sections {
 		traverseSection(section, func(traversedSection *typesv4.Section) {
 			expectedSection := orderedSections[sectionIndex]
 			sectionIndex++
 
-			// check name
 			var expectedName *typesv4.LocalizedString
 			for _, name := range expectedSection.Names {
 				if name.Language == expectedLang {
@@ -407,36 +338,10 @@ func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, seatMa
 			require.Len(t, traversedSection.Names, 1, "unexpected number of section names")
 			require.True(t, proto.Equal(expectedName, traversedSection.Names[0]), "unexpected section name")
 			traversedSection.Names = nil
-
-			// check attributes
-			if expectedSection.Attributes == nil {
-				require.Nil(t, traversedSection.Attributes)
-			} else {
-				checkAndStripAttributes(expectedSection.Attributes, traversedSection.Attributes, expectedLang)
-			}
-
-			// check seats' attributes
-			expectedSeatList, expectSeatList := expectedSection.SeatInfo.(*typesv4.Section_SeatList)
-			seatList, hasSeatList := traversedSection.SeatInfo.(*typesv4.Section_SeatList)
-
-			require.Equal(t, expectSeatList, hasSeatList)
-			if !expectSeatList {
-				return
-			}
-
-			for i, traversedSeat := range seatList.SeatList.Seats {
-				expectedSeat := expectedSeatList.SeatList.Seats[i]
-
-				if expectedSeat.Attributes == nil {
-					require.Nil(t, traversedSeat.Attributes)
-				} else {
-					checkAndStripAttributes(expectedSeat.Attributes, traversedSeat.Attributes, expectedLang)
-				}
-			}
 		})
 	}
 
-	require.True(t, proto.Equal(expectedSeatMap, resp.SeatMap), "unexpected seat map data in response")
+	require.True(t, proto.Equal(expectedSeatMap, successResp.SeatMap), "unexpected seat map data in response")
 }
 
 func (tt *TestSeatMapV4) transportV4ProductListGetTripWithSeatMap(
@@ -452,11 +357,13 @@ func (tt *TestSeatMapV4) transportV4ProductListGetTripWithSeatMap(
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
-	for _, trip := range resp.Trips {
+	for _, trip := range successResp.Trips {
 		if len(trip.Segments[0].SeatMapIds) > 0 {
 			return trip
 		}
@@ -527,12 +434,14 @@ func (tt *TestSeatMapV4) transportV4SearchWithSupplierCode(
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
-	require.NotNil(t, resp.Results[0].TravellingTrips[0].Segments[0].SeatMapId)
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
+	require.NotNil(t, successResp.Results[0].TravellingTrips[0].Segments[0].SeatMapId)
 
-	return resp.SearchId.Id.Value, resp.Results[0].ResultId, resp.Results[0].TotalPrice.Value, resp.Results[0].TravellingTrips[0].Segments[0].SeatMapId
+	return successResp.SearchId.Id.Value, successResp.Results[0].ResultId, successResp.Results[0].TotalPrice.Value, successResp.Results[0].TravellingTrips[0].Segments[0].SeatMapId
 }
 
 func (tt *TestSeatMapV4) activityV4SearchGetActivityWithSeatMap(
@@ -569,12 +478,14 @@ func (tt *TestSeatMapV4) activityV4SearchGetActivityWithSeatMap(
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp := resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
 	var supplierCode *typesv4.SupplierProductCode
-	for _, result := range resp.Results {
+	for _, result := range successResp.Results {
 		if result.SeatMapId != nil {
 			supplierCode = result.SupplierCode
 			break
@@ -606,11 +517,13 @@ func (tt *TestSeatMapV4) activityV4SearchGetActivityWithSeatMap(
 	)
 	require.NoError(t, err)
 	tt.DebugPrintRequestResponse(req, resp)
+	require.NoError(t, protovalidate.Validate(resp))
 
-	require.Equal(t, typesv4.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
-	require.Empty(t, resp.Header.Alerts, "unexpected response alerts")
+	successResp = resp.GetSuccessResponse()
+	require.NotNil(t, successResp, "unexpected response status")
+	require.Empty(t, successResp.Header.Alerts, "unexpected response alerts")
 
-	return resp.SearchId.Id.Value, resp.Results[0].ResultId, resp.Results[0].TotalPrice.Value, resp.Results[0].SeatMapId
+	return successResp.SearchId.Id.Value, successResp.Results[0].ResultId, successResp.Results[0].TotalPrice.Value, successResp.Results[0].SeatMapId
 }
 
 func traverseSection(section *typesv4.Section, f func(*typesv4.Section)) {

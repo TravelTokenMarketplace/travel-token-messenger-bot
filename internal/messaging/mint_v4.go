@@ -11,6 +11,7 @@ import (
 
 	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"github.com/chain4travel/camino-messenger-bot/v12/internal/version"
 	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 )
@@ -19,106 +20,113 @@ func (h *evmResponseHandler) prepareMintResponseV4(
 	ctx context.Context,
 	request *bookv4.MintRequest,
 	response *bookv4.MintResponse,
-) {
-	if response.Header.Status != typesv4.StatusType_STATUS_TYPE_SUCCESS {
-		return
+) *bookv4.MintResponse {
+	successResp := response.GetSuccessResponse()
+	if successResp == nil {
+		return response
 	}
 
-	h.logger.Debugf("Token URI: %s", response.BookingTokenUri)
+	h.logger.Debugf("Token URI: %s", successResp.BookingTokenUri)
 
-	buyableUntil, err := h.verifyAndFixBuyableUntil(response.BuyableUntil, time.Now())
+	buyableUntil, err := h.verifyAndFixBuyableUntil(successResp.BuyableUntil, time.Now())
 	if err != nil {
-		h.logger.Error(err)
-		h.responseHeaderHandler.AddError(response, err.Error())
-		return
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_INTERNAL, err.Error())
 	}
-	response.BuyableUntil = buyableUntil
+	successResp.BuyableUntil = buyableUntil
 
-	price, paymentToken, isoCurrency, err := h.priceHandler.GetPriceAndTokenV4(ctx, response.Price)
+	price, paymentToken, isoCurrency, err := h.priceHandler.GetPriceAndTokenV4(ctx, successResp.Price)
 	if err != nil {
-		errMessage := fmt.Sprintf("error getting price and payment token: %v", err)
-		h.logger.Errorf(errMessage)
-		h.responseHeaderHandler.AddError(response, errMessage)
-		return
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_INTERNAL, fmt.Sprintf("error getting price and payment token: %v", err))
 	}
 
 	receipt, tokenID, err := h.bookingService.MintBookingToken(
 		ctx,
 		common.HexToAddress(request.BuyerAddress.Address),
-		response.BookingTokenUri,
-		big.NewInt(response.BuyableUntil.Seconds),
+		successResp.BookingTokenUri,
+		big.NewInt(successResp.BuyableUntil.Seconds),
 		price,
 		paymentToken,
 		isoCurrency,
-		response.Cancellable,
+		successResp.Cancellable,
 	)
 	if err != nil {
-		errMessage := fmt.Sprintf("error minting NFT: %v", err)
-		h.logger.Errorf(errMessage)
-		h.responseHeaderHandler.AddError(response, errMessage)
-		return
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_BLOCKCHAIN_ERROR, fmt.Sprintf("error minting NFT: %v", err))
 	}
+
 	txID := receipt.TxHash.Hex()
 
 	h.logger.Infof("NFT minted with txID: %s", txID)
 
-	h.subscribeForTokenBoughtEvent(ctx, tokenID, response.MintId.Value, buyableUntil)
+	h.subscribeForTokenBoughtEvent(ctx, tokenID, successResp.MintId.Value, buyableUntil)
 
 	// TODO @evlekht pp will not know if we failed to mint or setup notification
 
-	response.Header.Status = typesv4.StatusType_STATUS_TYPE_SUCCESS
-	response.BookingTokenId = tokenID.Uint64()
-	response.MintTransactionId = &typesv4.EVMTransactionID{Hash: txID}
+	successResp.BookingTokenId = tokenID.Uint64()
+	successResp.MintTransactionId = &typesv4.EVMTransactionID{Hash: txID}
+
+	return response
 }
 
 func (h *evmResponseHandler) processMintResponseV4(
 	ctx context.Context,
 	request *bookv4.MintRequest,
 	response *bookv4.MintResponse,
-) {
-	if response.MintTransactionId == nil {
-		h.logger.Error(errMissingMintTxID)
-		h.responseHeaderHandler.AddError(response, errMissingMintTxID.Error())
-		return
+) *bookv4.MintResponse {
+	successResp := response.GetSuccessResponse()
+	if successResp == nil {
+		return response
 	}
 
-	if !proto.Equal(request.ExpectedPrice, response.Price) {
-		errMessage := "expected price does not match the mint response price"
-		h.logger.Error(errMessage)
-		h.responseHeaderHandler.AddError(response, errMessage)
-		return
+	if successResp.MintTransactionId == nil {
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, errMissingMintTxID.Error())
 	}
 
-	tokenID := new(big.Int).SetUint64(response.BookingTokenId)
-	price, paymentToken, _, err := h.priceHandler.GetPriceAndTokenV4(ctx, response.Price)
+	if !proto.Equal(request.ExpectedPrice, successResp.Price) {
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, "expected price does not match the mint response price")
+	}
+
+	tokenID := new(big.Int).SetUint64(successResp.BookingTokenId)
+	price, paymentToken, _, err := h.priceHandler.GetPriceAndTokenV4(ctx, successResp.Price)
 	if err != nil {
-		errMessage := fmt.Sprintf("error getting price and payment token: %v", err)
-		h.logger.Errorf(errMessage)
-		h.responseHeaderHandler.AddError(response, errMessage)
-		return
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_INTERNAL, fmt.Sprintf("error getting price and payment token: %v", err))
 	}
 
 	receipt, err := h.bookingService.BuyBookingToken(ctx, tokenID, price, paymentToken)
 	if err != nil {
-		errMessage := fmt.Sprintf("error buying NFT: %v", err)
-		h.logger.Errorf(errMessage)
-		h.responseHeaderHandler.AddError(response, errMessage)
-		return
+		return mintErrResponseV4(typesv4.ErrorCode_ERROR_CODE_BLOCKCHAIN_ERROR, fmt.Sprintf("error buying NFT: %v", err))
 	}
 
-	response.BuyTransactionId = &typesv4.EVMTransactionID{Hash: receipt.TxHash.Hex()}
+	successResp.BuyTransactionId = &typesv4.EVMTransactionID{Hash: receipt.TxHash.Hex()}
 
-	h.logger.Infof("Bought NFT: buy-tx %s, mint-tx %s", response.BuyTransactionId.Hash, response.MintTransactionId.Hash)
+	h.logger.Infof("Bought NFT: buy-tx %s, mint-tx %s", successResp.BuyTransactionId.Hash, successResp.MintTransactionId.Hash)
 
-	if response.Cancellable {
+	if successResp.Cancellable {
 		if err := h.eventListener.SubscribeCancellationEvents(ctx, tokenID); err != nil {
-			err := fmt.Errorf("error subscribing for cancellation events as distributor (tokenID: %d, mintID: %s): %w", tokenID.Int64(), response.MintId.Value, err)
+			err := fmt.Errorf("error subscribing for cancellation events as distributor (tokenID: %d, mintID: %s): %w", tokenID.Int64(), successResp.MintId.Value, err)
 			h.logger.Error(err)
-			response.Header.Alerts = append(response.Header.Alerts, &typesv4.Alert{
-				Type:    typesv4.AlertType_ALERT_TYPE_ERROR,
+			successResp.Header.Alerts = append(successResp.Header.Alerts, &typesv4.Alert{
+				Code:    typesv4.AlertCode_ALERT_CODE_INFORMATIONAL,
 				Message: err.Error(),
 			})
 		}
 		h.logger.Infof("Subscribed for cancellation events as distributor (tokenID: %s)", tokenID.String())
+	}
+
+	return response
+}
+
+func mintErrResponseV4(code typesv4.ErrorCode, errMessage string) *bookv4.MintResponse {
+	return &bookv4.MintResponse{
+		Response: &bookv4.MintResponse_ErrorResponse{
+			ErrorResponse: &bookv4.MintErrorResponse{
+				Header: &typesv4.ErrorResponseHeader{
+					BaseHeader: &typesv4.Header{Version: version.VersionV4},
+					Errors: []*typesv4.Error{{
+						Code:    code,
+						Message: errMessage,
+					}},
+				},
+			},
+		},
 	}
 }

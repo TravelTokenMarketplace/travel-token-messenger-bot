@@ -6,12 +6,10 @@ package v4
 import (
 	"context"
 	"math/big"
-	"time"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/transport/v4/transportv4grpc"
 	transportv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v4"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chain4travel/camino-messenger-bot/v12/pkg/conversion"
 	"github.com/chain4travel/camino-messenger-bot/v12/pkg/price"
@@ -19,7 +17,6 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data"
 	"github.com/chain4travel/camino-messenger-bot/v12/pp-mock/services/data/transport"
-	"github.com/google/uuid"
 )
 
 var _ transportv4grpc.TransportSearchServiceServer = (*transportSearchV4Server)(nil)
@@ -31,21 +28,13 @@ func NewTransportSearchServer() transportv4grpc.TransportSearchServiceServer {
 }
 
 func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transportv4.TransportSearchRequest) (*transportv4.TransportSearchResponse, error) {
-	resp := &transportv4.TransportSearchResponse{
-		SearchId: &typesv4.ExpiringUUID{
-			Id:         &typesv4.UUID{Value: uuid.New().String()},
-			Expiration: timestamppb.New(time.Now().Add(state.EntryTimeout)),
-		},
-	}
-
 	// edge-case prevention: check if the traveller definition is identical
 	// in all queries. If not return an "unsupported" error.
 	for i := 0; i < len(req.Queries); i++ {
 		travellersI := req.Queries[i].GetTravellers()
 		for j := i + 1; j < len(req.Queries); j++ {
 			if !common.ProtoSlicesEqual(travellersI, req.Queries[j].GetTravellers()) {
-				resp.Header = common.ErrorHeaderV4("Unsupported: Traveller definitions must be identical in all queries")
-				return resp, nil
+				return errSearchResp(typesv4.ErrorCode_ERROR_CODE_UNIMPLEMENTED, "Unsupported: Traveller definitions must be identical in all queries"), nil
 			}
 		}
 	}
@@ -54,15 +43,13 @@ func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transp
 	uniqueQueryIDs := make(map[uint32]struct{})
 	for _, query := range req.Queries {
 		if _, exists := uniqueQueryIDs[query.QueryId]; exists {
-			resp.Header = common.ErrorHeaderV4("Unsupported: Duplicate QueryId found in queries")
-			return resp, nil
+			return errSearchResp(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, "Unsupported: Duplicate QueryId found in queries"), nil
 		}
 		uniqueQueryIDs[query.QueryId] = struct{}{}
 
 		for _, queryTrip := range query.Trips {
 			if !common.AreTravelDatesValidV4(queryTrip.Departure.Date, queryTrip.Arrival.Date) {
-				resp.Header = common.ErrorHeaderV4("Invalid travel dates: departure must be before arrival")
-				return resp, nil
+				return errSearchResp(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, "Invalid travel dates: departure must be before arrival"), nil
 			}
 		}
 	}
@@ -73,8 +60,7 @@ func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transp
 	case *typesv4.Currency_IsoCurrency:
 		currencyDecimals = price.ISODecimals
 	default:
-		resp.Header = common.ErrorHeaderV4("not supported currency type; only NativeToken and ISOCurrency are supported")
-		return resp, nil
+		return errSearchResp(typesv4.ErrorCode_ERROR_CODE_INVALID_CURRENCY, "Not supported currency type; only NativeToken and ISOCurrency are supported"), nil
 	}
 
 	resultID := uint32(0)
@@ -110,8 +96,7 @@ func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transp
 				currencyDecimals,
 			)
 			if err != nil {
-				resp.Header = common.ErrorHeaderV4("Failed to convert tripSegment price to big int")
-				return resp, nil
+				return errSearchResp(typesv4.ErrorCode_ERROR_CODE_INTERNAL, "Failed to convert tripSegment price to big int"), nil
 			}
 
 			totalPriceBig = new(big.Int).Add(totalPriceBig, tripPriceBig)
@@ -134,7 +119,6 @@ func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transp
 			Bookability: &typesv4.Bookability{
 				Type: typesv4.BookabilityType_BOOKABILITY_TYPE_AVAILABLE,
 			},
-			CancelPolicy: &typesv4.CancelPolicy{},
 		})
 		resultID++
 
@@ -142,21 +126,38 @@ func (s *transportSearchV4Server) TransportSearch(_ context.Context, req *transp
 		validationPrices = append(validationPrices, validationPrice)
 	}
 
-	resp.Header = common.SuccessHeaderV4()
-	resp.Results = searchResults
+	resp := &transportv4.TransportSearchResponse{
+		Response: &transportv4.TransportSearchResponse_SuccessResponse{
+			SuccessResponse: &transportv4.TransportSearchSuccessResponse{
+				Header:   common.SuccessHeaderV4(),
+				SearchId: common.NewExpiringUUID(),
+				Results:  searchResults,
+			},
+		},
+	}
 
 	if len(searchResults) == 0 {
-		common.AddHeaderInfoV4(resp.Header, "No results found")
+		common.AddHeaderAlertV4(resp.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_NO_CONTENT, "No results found")
 	} else {
-		state.GetStore().AddSearchResult(resp.SearchId.Id.Value, state.SearchData{
+		state.GetStore().AddSearchResult(resp.GetSuccessResponse().SearchId.Id.Value, state.SearchData{
 			NumResults:   len(searchResults),
 			NumTravelers: len(req.Queries[0].Travellers),
 			Prices:       validationPrices,
 			JSONRequest:  req.String(),
 			JSONResponse: resp.String(),
-			SeatMapID:    resp.Results[0].TravellingTrips[0].Segments[0].SeatMapId.GetId(),
+			SeatMapID:    resp.GetSuccessResponse().Results[0].TravellingTrips[0].Segments[0].SeatMapId.GetId(),
 		})
 	}
 
 	return resp, nil
+}
+
+func errSearchResp(code typesv4.ErrorCode, message string) *transportv4.TransportSearchResponse {
+	return &transportv4.TransportSearchResponse{
+		Response: &transportv4.TransportSearchResponse_ErrorResponse{
+			ErrorResponse: &transportv4.TransportSearchErrorResponse{
+				Header: common.ErrorHeaderV4(code, message),
+			},
+		},
+	}
 }

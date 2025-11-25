@@ -12,15 +12,20 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var ErrNilResponseHeader = errors.New("response header is nil")
+var (
+	ErrNilResponseHeader = errors.New("response header is nil")
+	ErrInvalidProto      = errors.New("invalid proto message")
+	ErrBlockchain        = errors.New("blockchain error")
+	ErrBusinessProcess   = errors.New("business process error")
+)
 
 type RequestHandler interface {
 	HandleMessageRequest(ctx context.Context, requestType types.MessageType, request protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error)
 }
 
 type Client interface {
-	Call(ctx context.Context, request protoreflect.ProtoMessage, opts ...grpc.CallOption) (protoreflect.ProtoMessage, types.MessageType, error)
-	ErrorResponseAndType(errorMessage string) (protoreflect.ProtoMessage, types.MessageType)
+	Call(ctx context.Context, request protoreflect.ProtoMessage, opts ...grpc.CallOption) (protoreflect.ProtoMessage, types.MessageType)
+	InvalidProtoErrResponseAndType(errorMessage string) (protoreflect.ProtoMessage, types.MessageType)
 }
 
 type ServiceRegistry interface {
