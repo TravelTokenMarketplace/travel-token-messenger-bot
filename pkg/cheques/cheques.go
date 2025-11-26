@@ -4,11 +4,14 @@
 package cheques
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -32,6 +35,73 @@ type Cheque struct {
 	CreatedAt     *big.Int
 	ExpiresAt     *big.Int
 	PaymentToken  common.Address
+}
+
+type signedChequeJSON struct {
+	FromCMAccount string `json:"fromCMAccount"`
+	ToCMAccount   string `json:"toCMAccount"`
+	ToBot         string `json:"toBot"`
+	Counter       string `json:"counter"`
+	Amount        string `json:"amount"`
+	CreatedAt     string `json:"createdAt"`
+	ExpiresAt     string `json:"expiresAt"`
+	PaymentToken  string `json:"paymentToken"`
+	Signature     string `json:"signature"`
+}
+
+func (sc SignedCheque) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&signedChequeJSON{
+		FromCMAccount: sc.Cheque.FromCMAccount.Hex(),
+		ToCMAccount:   sc.Cheque.ToCMAccount.Hex(),
+		ToBot:         sc.Cheque.ToBot.Hex(),
+		Counter:       hexutil.EncodeBig(sc.Cheque.Counter),
+		Amount:        hexutil.EncodeBig(sc.Cheque.Amount),
+		CreatedAt:     hexutil.EncodeBig(sc.Cheque.CreatedAt),
+		ExpiresAt:     hexutil.EncodeBig(sc.Cheque.ExpiresAt),
+		PaymentToken:  sc.Cheque.PaymentToken.Hex(),
+		Signature:     hex.EncodeToString(sc.Signature),
+	})
+}
+
+func (sc *SignedCheque) UnmarshalJSON(data []byte) error {
+	var raw signedChequeJSON
+
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	sc.Cheque.Counter, err = hexutil.DecodeBig(raw.Counter)
+	if err != nil {
+		return err
+	}
+
+	sc.Cheque.Amount, err = hexutil.DecodeBig(raw.Amount)
+	if err != nil {
+		return err
+	}
+
+	sc.Cheque.CreatedAt, err = hexutil.DecodeBig(raw.CreatedAt)
+	if err != nil {
+		return err
+	}
+
+	sc.Cheque.ExpiresAt, err = hexutil.DecodeBig(raw.ExpiresAt)
+	if err != nil {
+		return err
+	}
+
+	sc.Signature, err = hex.DecodeString(raw.Signature)
+	if err != nil {
+		return fmt.Errorf("invalid signature hex string: %w", err)
+	}
+
+	sc.Cheque.FromCMAccount = common.HexToAddress(raw.FromCMAccount)
+	sc.Cheque.ToCMAccount = common.HexToAddress(raw.ToCMAccount)
+	sc.Cheque.ToBot = common.HexToAddress(raw.ToBot)
+	sc.Cheque.PaymentToken = common.HexToAddress(raw.PaymentToken)
+
+	return nil
 }
 
 func VerifyCheque(previousCheque, newCheque *SignedCheque, timestamp, minDurationUntilExpiration *big.Int) error {
