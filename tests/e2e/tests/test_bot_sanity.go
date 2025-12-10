@@ -15,11 +15,14 @@ import (
 	cmaccounts "github.com/chain4travel/camino-messenger-bot/v12/pkg/cm_accounts"
 	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/blockchain"
 	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/bot"
+	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/common"
 	partnerplugin "github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/partner_plugin"
 	"github.com/chain4travel/camino-messenger-bot/v12/tests/e2e/suite"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+const manyMessagesTestIterations = 1000
 
 var _ suite.Test = (*TestBotSanity)(nil)
 
@@ -32,6 +35,8 @@ type TestBotSanity struct {
 
 	supplierPartnerPlugin             *partnerplugin.PartnerPlugin
 	distributorBot                    *bot.Bot
+	supplierBot                       *bot.Bot
+	supplierBotWithBigFee             *bot.Bot
 	supplierBotUnregistered           *bot.Bot
 	supplierBotUnregisteredNoServices *bot.Bot
 	supplierBotNoServices             *bot.Bot
@@ -69,20 +74,23 @@ func (tt *TestBotSanity) Run(t *testing.T) {
 		)
 	})
 	t.Run("Supplier bot: unregistered / no services", func(t *testing.T) {
-		alertMessage := testBotSanitySendCommonRequest(ctx, t, "unregistered / no services", tt.distributorBot, tt.supplierBotUnregisteredNoServices)
+		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "unregistered / no services", tt.supplierBotUnregisteredNoServices)
 		require.Contains(t, alertMessage, cmaccounts.ErrorNoChequeOperators.Error())
 	})
 	t.Run("Supplier bot: unregistered / with services", func(t *testing.T) {
-		alertMessage := testBotSanitySendCommonRequest(ctx, t, "unregistered / with services", tt.distributorBot, tt.supplierBotUnregistered)
+		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "unregistered / with services", tt.supplierBotUnregistered)
 		require.Contains(t, alertMessage, cmaccounts.ErrorNoChequeOperators.Error())
 	})
 	t.Run("Supplier bot: registered / no services", func(t *testing.T) {
-		alertMessage := testBotSanitySendCommonRequest(ctx, t, "registered / no services", tt.distributorBot, tt.supplierBotNoServices)
+		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "registered / no services", tt.supplierBotNoServices)
 		require.Contains(t, alertMessage, cmaccounts.ErrorUnableToObtainServiceFee.Error())
 	})
 	t.Run("Supplier bot: registered / different services", func(t *testing.T) {
-		alertMessage := testBotSanitySendCommonRequest(ctx, t, "registered / different services", tt.distributorBot, tt.supplierBotDifferentServices)
+		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "registered / different services", tt.supplierBotDifferentServices)
 		require.Contains(t, alertMessage, cmaccounts.ErrorUnableToObtainServiceFee.Error())
+	})
+	t.Run("Many messages", func(t *testing.T) {
+		tt.testManyMessages(ctx, t)
 	})
 }
 
@@ -131,15 +139,48 @@ func (tt *TestBotSanity) prepareAfterCMManagerRegisterServices(ctx context.Conte
 
 	// bot without partnerPlugin and with rpc server (distributor)
 	tt.distributorBot = tt.CreateBot(ctx, t, true, nil)
+
+	// bot with partnerPlugin and without rpc server (supplier)
+	tt.supplierBot = tt.CreateBot(ctx, t, false, tt.supplierPartnerPlugin,
+		bot.WithServices([]bot.CMService{{Name: botGenerated.PingServiceV2, Fee: 100}}),
+	)
+
+	// bot with partnerPlugin (supplier), with ping service fee being very high
+	// this is needed, because conduit matrix server marshals json content of message and fails,
+	// if json contains numbers bigger than javaScript safe integer limit (2^53-1)
+	tt.supplierBotWithBigFee = tt.CreateBot(ctx, t, true, tt.supplierPartnerPlugin,
+		bot.WithServices([]bot.CMService{{Name: botGenerated.PingServiceV2, Fee: 18014398509481984}}), // 2^54 > 2^53-1
+	)
 }
 
-func testBotSanitySendCommonRequest(ctx context.Context, t *testing.T, pingMessage string, distributorBot *bot.Bot, supplierBot *bot.Bot) string {
+func (tt *TestBotSanity) testManyMessages(ctx context.Context, t *testing.T) {
+	for range manyMessagesTestIterations {
+		tt.pingMessage(ctx, t, tt.supplierBot)
+	}
+}
+
+func (tt *TestBotSanity) pingMessage(ctx context.Context, t *testing.T, supplierBot *bot.Bot) {
+	req := &pingv2.PingRequest{
+		Header:    &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
+		Message:   common.PingMessage,
+		Timestamp: timestamppb.Now(),
+	}
+	resp, err := tt.distributorBot.PingServiceV2.Ping(
+		requestContext(ctx, supplierBot.CMAccountAddress()),
+		req,
+	)
+	require.NoError(t, err)
+	require.True(t, resp.HasSuccessResponse())
+	tt.DebugPrintRequestResponse(req, resp)
+}
+
+func (tt *TestBotSanity) sendPingRequestAndGetErrorMessage(ctx context.Context, t *testing.T, pingMessage string, supplierBot *bot.Bot) string {
 	req := &pingv2.PingRequest{
 		Header:    &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 		Message:   pingMessage,
 		Timestamp: timestamppb.Now(),
 	}
-	resp, err := distributorBot.PingServiceV2.Ping(
+	resp, err := tt.distributorBot.PingServiceV2.Ping(
 		requestContext(ctx, supplierBot.CMAccountAddress()),
 		req,
 	)
