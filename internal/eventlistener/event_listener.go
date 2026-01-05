@@ -6,6 +6,7 @@ package eventlistener
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -85,14 +86,12 @@ func New(
 ) (EventListener, error) {
 	blockNumber, err := ethClient.BlockNumber(ctx)
 	if err != nil {
-		logger.Errorf("failed to get latest block number: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get latest block number: %w", err)
 	}
 
 	subscriber, err := subscriber.New(ethClient, logger, bookingTokenAddress, cmAccounts, blockNumber)
 	if err != nil {
-		logger.Errorf("failed to create subscriber: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create subscriber: %w", err)
 	}
 
 	return &eventListener{
@@ -108,12 +107,14 @@ func New(
 
 func (l *eventListener) Start(ctx context.Context) (<-chan error, error) {
 	if err := l.startTokenBoughtSubscriptions(ctx); err != nil {
-		l.logger.Errorf("failed to start token bought subscriptions: %v", err)
+		err = fmt.Errorf("failed to start token bought subscriptions: %w", err)
+		l.logger.Error(err)
 		return nil, err
 	}
 
 	if err := l.startCancellationSubscriptions(ctx); err != nil {
-		l.logger.Errorf("failed to start cancellation subscriptions: %v", err)
+		err = fmt.Errorf("failed to start cancellation subscriptions: %w", err)
+		l.logger.Error(err)
 		return nil, err
 	}
 

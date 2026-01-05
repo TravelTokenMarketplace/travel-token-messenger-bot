@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -56,21 +55,18 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 	// c-chain evm client && chain id
 	evmClient, err := ethclient.Dial(cfg.ChainRPCURL)
 	if err != nil {
-		logger.Errorf("Failed to connect to the Ethereum client: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to Ethereum client: %w", err)
 	}
 
 	chainID, err := evmClient.NetworkID(ctx)
 	if err != nil {
-		logger.Errorf("Failed to fetch chain id: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch chain id: %w", err)
 	}
 
 	// partner-plugin rpc client
 	rpcClient, err := client.NewClient(cfg.PartnerPlugin, logger)
 	if err != nil {
-		logger.Errorf("Failed to create rpc client: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create rpc client: %w", err)
 	}
 
 	// register supported services, check if they actually supported by bot
@@ -81,8 +77,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		rpcClient,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create service registry: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create service registry: %w", err)
 	}
 
 	// partner plugin to handle partner-plugin related logic and communication
@@ -106,15 +101,13 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		evmClient,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create cm accounts service: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create cm accounts service: %w", err)
 	}
 
 	// TODO: @VjeraTurk Ensure multiple versions compatibility
 	cmAccountUpToDate, err := cmAccounts.IsCMAccountImplementationUpToDate(ctx, cfg.CMAccountAddress)
 	if err != nil {
-		logger.Errorf("Failed to compare implementations: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to compare CMAccount implementations: %w", err)
 	}
 
 	if !cmAccountUpToDate {
@@ -125,7 +118,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 
 	erc20, err := erc20.NewERC20Service(evmClient, erc20CacheSize)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create erc20 service: %w", err)
 	}
 
 	bookingService, err := booking.NewService(
@@ -138,8 +131,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cmAccounts,
 	)
 	if err != nil {
-		log.Printf("%v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create booking service: %w", err)
 	}
 
 	priceHandler := price.NewPriceHandler(erc20)
@@ -148,8 +140,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 
 	eventListenerStorage, err := eventlistener_storage.New(ctx, logger, cfg.DB.EventListener.DBPath)
 	if err != nil {
-		logger.Errorf("Failed to create event listener storage: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create event listener storage: %w", err)
 	}
 
 	eventListener, err := eventlistener.New(
@@ -164,8 +155,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.RecordExpiration,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create event listener: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create event listener: %w", err)
 	}
 
 	// messaging components
@@ -179,8 +169,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.E2ETestMode,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create response handler: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create response handler: %w", err)
 	}
 
 	chequeHandlerStorage, err := chequeHandlerStorage.New(
@@ -189,8 +178,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.DB.ChequeHandler.DBPath,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create cheque handler storage: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create cheque handler storage: %w", err)
 	}
 
 	chequeHandler, err := chequehandler.NewChequeHandler(
@@ -207,8 +195,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cashInTxIssueTimeout,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create cheque handler: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create cheque handler: %w", err)
 	}
 
 	// get matrix hostname without schema
@@ -236,8 +223,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		botUserID,
 	)
 	if err != nil {
-		logger.Errorf("failed to create matrix client: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create matrix client: %w", err)
 	}
 
 	messagesEncoderDecoderStorage, err := messagesEncoderDecoderStorage.New(
@@ -246,8 +232,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.DB.MessagesEncoderDecoder.DBPath,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create messages encoder/decoder storage: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create messages encoder/decoder storage: %w", err)
 	}
 
 	messagesEncoderDecoder, err := encoding.NewEncoderDecoder(
@@ -257,8 +242,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.BotKey,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create messages encoder/decoder: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create messages encoder/decoder: %w", err)
 	}
 
 	matrixMessenger, err := messenger.NewMessenger(
@@ -268,8 +252,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		botUserID,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create matrix messenger: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create matrix messenger: %w", err)
 	}
 
 	messageProcessor := messaging.NewMessageProcessor(
@@ -316,16 +299,14 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.DeveloperMode,
 	)
 	if err != nil {
-		logger.Errorf("Failed to create rpc server: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create rpc server: %w", err)
 	}
 
 	// scheduler for periodic tasks (e.g. cheques cash-in)
 
 	storage, err := scheduler_storage.New(ctx, logger, cfg.DB.Scheduler.DBPath)
 	if err != nil {
-		logger.Errorf("Failed to create storage: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create scheduler storage: %w", err)
 	}
 
 	scheduler := scheduler.New(logger, storage, clockwork.NewRealClock())
@@ -388,7 +369,8 @@ func (a *App) Run(ctx context.Context) error {
 		close(eventListenerStarted)
 
 		if err := <-errChan; err != nil && !errors.Is(err, context.Canceled) {
-			a.logger.Errorf("Event listener failed with error: %v", err)
+			err = fmt.Errorf("event listener failed with error: %w", err)
+			a.logger.Error(err)
 			return err
 		}
 		return nil
@@ -449,7 +431,8 @@ func (a *App) Run(ctx context.Context) error {
 		close(messengerStarted)
 
 		if err := <-errChan; err != nil && !errors.Is(err, context.Canceled) {
-			a.logger.Errorf("Matrix messenger exited with error: %v", err)
+			err = fmt.Errorf("matrix messenger failed with error: %w", err)
+			a.logger.Error(err)
 			return err
 		}
 		return nil
@@ -470,7 +453,8 @@ func (a *App) Run(ctx context.Context) error {
 			a.logger.Info("gRPC server started.")
 
 			if err := <-errChan; err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, grpc.ErrServerStopped) {
-				a.logger.Errorf("gRPC server stopped with error: %v", err)
+				err = fmt.Errorf("gRPC server failed with error: %w", err)
+				a.logger.Error(err)
 				return err
 			}
 			return nil
@@ -486,7 +470,8 @@ func (a *App) Run(ctx context.Context) error {
 			<-ctx.Done()
 			a.logger.Info("Stopping gRPC client...")
 			if err := a.rpcClient.Shutdown(); err != nil && !errors.Is(err, context.Canceled) {
-				a.logger.Errorf("Failed to stop gRPC client: %v", err)
+				err = fmt.Errorf("failed to stop gRPC client: %w", err)
+				a.logger.Error(err)
 				return err
 			}
 			a.logger.Info("gRPC client stopped.")
@@ -508,7 +493,8 @@ func (a *App) Run(ctx context.Context) error {
 		<-ctx.Done()
 		a.logger.Info("Stopping matrix messenger...")
 		if err := a.messenger.Stop(); err != nil && !errors.Is(err, context.Canceled) {
-			a.logger.Errorf("Failed to stop matrix messenger: %v", err)
+			err = fmt.Errorf("failed to stop matrix messenger: %w", err)
+			a.logger.Error(err)
 			return err
 		}
 		a.logger.Info("Matrix messenger stopped.")
