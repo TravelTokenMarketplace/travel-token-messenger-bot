@@ -1,0 +1,120 @@
+[
+    {
+        "code": "XMAS_GALA",
+        "availabilityType": "SERVICE_AVAILABILITY_TYPE_INCLUDED",
+        "quantity": 1
+    },
+    {
+        "code": "RESORT_FEE",
+        "priceDetail": {
+            "price": {
+                "value": "1000",
+                "decimals": 2,
+                "currency": {
+                    "isoCurrency": "ISO_CURRENCY_USD"
+                }
+            },
+            "chargeType": "CHARGE_TYPE_PER_PERSON"
+        },
+        "availabilityType": "SERVICE_AVAILABILITY_TYPE_COMPULSORY",
+        "quantity": 1
+    },
+    {
+        "code": "TOURIST_TAX",
+        "priceDetail": {
+            "price": {
+                "value": "100",
+                "decimals": 2,
+                "currency": {
+                    "isoCurrency": "ISO_CURRENCY_USD"
+                }
+            },
+            "chargeType": "CHARGE_TYPE_PER_PERSON_PER_DAY",
+            "locallyPayable": true
+        },
+        "availabilityType": "SERVICE_AVAILABILITY_TYPE_COMPULSORY",
+        "quantity": 1
+    },
+    {
+        "code": "CHAMPAGNE_COOLER",
+        "priceDetail": {
+            "price": {
+                "value": "5000",
+                "decimals": 2,
+                "currency": {
+                    "isoCurrency": "ISO_CURRENCY_USD"
+                }
+            },
+            "chargeType": "CHARGE_TYPE_ONCE"
+        },
+        "availabilityType": "SERVICE_AVAILABILITY_TYPE_OPTIONAL",
+        "quantity": 1
+    },
+    {
+        "code": "SPA_DAY",
+        "availabilityType": "SERVICE_AVAILABILITY_TYPE_OPTIONAL",
+        "quantity": 1,
+        "details": [
+            {
+                "code": "TURKISH_BATH",
+                "priceDetail": {
+                    "price": {
+                        "value": "3000",
+                        "decimals": 2,
+                        "currency": {
+                            "isoCurrency": "ISO_CURRENCY_USD"
+                        }
+                    },
+                    "chargeType": "CHARGE_TYPE_PER_PERSON"
+                },
+                "availabilityType": "SERVICE_AVAILABILITY_TYPE_INCLUDED",
+                "quantity": 1
+            },
+            {
+                "code": "MANICURE",
+                "priceDetail": {
+                    "price": {
+                        "value": "4000",
+                        "decimals": 2,
+                        "currency": {
+                            "isoCurrency": "ISO_CURRENCY_USD"
+                        }
+                    },
+                    "chargeType": "CHARGE_TYPE_PER_PERSON"
+                },
+                "availabilityType": "SERVICE_AVAILABILITY_TYPE_INCLUDED",
+                "quantity": 1
+            },
+            {
+                "code": "MASSAGE",
+                "priceDetail": {
+                    "price": {
+                        "value": "4000",
+                        "decimals": 2,
+                        "currency": {
+                            "isoCurrency": "ISO_CURRENCY_USD"
+                        }
+                    },
+                    "chargeType": "CHARGE_TYPE_PER_PERSON"
+                },
+                "availabilityType": "SERVICE_AVAILABILITY_TYPE_INCLUDED",
+                "quantity": 1
+            },
+            {
+                "code": "DISCOUNT",
+                "priceDetail": {
+                    "price": {
+                        "value": "-1000",
+                        "decimals": 2,
+                        "currency": {
+                            "isoCurrency": "ISO_CURRENCY_USD"
+                        }
+                    },
+                    "chargeType": "CHARGE_TYPE_PER_PERSON"
+                },
+                "availabilityType": "SERVICE_AVAILABILITY_TYPE_INCLUDED",
+                "quantity": 1
+            }
+        ]
+    }
+]
