@@ -10,6 +10,12 @@ Camino-Messenger-Bot is designed to facilitate communication through various mes
 
    Currently, the only concrete implementation is the `matrix-messenger`, which utilizes the [Mautrix Golang SDK](https://github.com/mautrix/go) for the Matrix client. Note that the `mautrix` dependency requires the `olm` C library during both build time and runtime.
 
+   To update camino-matrix-go submodule run:
+
+   ```bash
+   git submodule update --init --recursive
+   ```
+
 2. **Message Processor**
 
    - The Message Processor utilizes the Messenger to receive and process messages.
@@ -106,7 +112,7 @@ yarn hardhat account role:grant --role WITHDRAWER_ROLE --cm-account <0xCMAccount
 yarn hardhat account service:add --cm-account <0xCMAccount-address> --private-key <0xstatic-private-key-of-the-cm-account-wallet>  --service-name cmp.services.ping.v1.PingService --fee 1 --network columbus
 ```
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > **After adding or removing the service(s)** it is necessary to **restart the bot**.
 
 
@@ -137,10 +143,14 @@ The repository includes examples demonstrating the setup of gRPC servers and cli
 > If docker-compose.yml is used, please check volumes. The configuration filepath should be `cmb-config/config.yaml`. An example can be copied over from examples/config/ and modified.
 
 ## Getting Started
-
+### Operating systems Support
+> [!Note]
+> - Linux - Supported on **Ubuntu/Debian Linux** systems
+> - macOS - Only on **Apple Silicon** chip, on Intel chip it is not supported
+> - Windows - Not supported
 ### Install required `olm` library
 
-Below are instructions for installing the `olm` library for Linux (Debian and Ubuntu) and macOS:
+Below are instructions for installing the `olm` library for Linux (Debian and Ubuntu) and macOS (Apple Silicon):
 
 #### Linux (Debian/Ubuntu)
 
@@ -155,7 +165,7 @@ Below are instructions for installing the `olm` library for Linux (Debian and Ub
    sudo apt install -y libolm-dev
    ```
 
-#### macOS
+#### macOS (Apple Silicon)
 
 1. **Update Homebrew:**
 
@@ -171,14 +181,37 @@ Below are instructions for installing the `olm` library for Linux (Debian and Ub
    ```bash
    brew install libolm
    ```
+3. **Install GNU grep**
+
+   MacOS ships with BSD `grep`, which does not support the `-P` flag required by the build scripts. Install GNU grep and add it to your PATH:
+   ```bash
+   brew install grep
+   export PATH="$(brew --prefix)/opt/grep/libexec/gnubin:$PATH"
+   ```
+   Add the `export` line to your `~/.bashrc` (and put `source ~/.bashrc` in your `.bash_profile`) or `~/.zshrc` to make it permanent.
 
 ## Build
 
 Use the provided build script to build the application. This will create a binary in the `./build` directory.
-Minimum required go version is 1.24
+Minimum required go version is written in [go.mod](go.mod)
 
+We recommend not using global go installation but rather installing [gvm](https://github.com/moovweb/gvm) for easier go version management. After installing go, run the following command
+
+#### Linux (Debian/Ubuntu)
 ```bash
 ./scripts/build.sh
+```
+
+#### macOS (Apple Silicon)
+
+```bash
+export CGO_CFLAGS="-I/opt/homebrew/include"
+export CGO_LDFLAGS="-L/opt/homebrew/lib"
+./scripts/build.sh
+```
+or run
+```bash
+set -a && source homebrew.env && set +a && ./scripts/build.sh
 ```
 
 ## Run
