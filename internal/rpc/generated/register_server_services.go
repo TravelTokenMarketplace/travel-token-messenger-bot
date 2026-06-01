@@ -3,7 +3,7 @@
 package generated
 
 import (
-	"github.com/chain4travel/camino-messenger-bot/v12/internal/rpc"
+	"github.com/chain4travel/camino-messenger-bot/v13/internal/rpc"
 	"google.golang.org/grpc"
 )
 
@@ -19,8 +19,6 @@ func RegisterServerServices(grpcServer *grpc.Server, reqHandler rpc.RequestHandl
 	registerAccommodationProductListServiceV5Server(grpcServer, reqHandler)
 	registerAccommodationSearchServiceV5Server(grpcServer, reqHandler)
 	registerAccommodationProductShortListServiceV5Server(grpcServer, reqHandler)
-	registerActivityProductInfoServiceV2Server(grpcServer, reqHandler)
-	registerActivityProductListServiceV2Server(grpcServer, reqHandler)
 	registerActivityProductInfoServiceV3Server(grpcServer, reqHandler)
 	registerActivityProductListServiceV3Server(grpcServer, reqHandler)
 	registerActivitySearchServiceV3Server(grpcServer, reqHandler)
@@ -28,7 +26,10 @@ func RegisterServerServices(grpcServer *grpc.Server, reqHandler rpc.RequestHandl
 	registerActivityProductListServiceV4Server(grpcServer, reqHandler)
 	registerActivitySearchServiceV4Server(grpcServer, reqHandler)
 	registerActivityProductShortListServiceV4Server(grpcServer, reqHandler)
+	registerActivityProductInfoServiceV5Server(grpcServer, reqHandler)
+	registerActivityProductListServiceV5Server(grpcServer, reqHandler)
 	registerActivitySearchServiceV5Server(grpcServer, reqHandler)
+	registerActivityProductShortListServiceV5Server(grpcServer, reqHandler)
 	registerMintServiceV3Server(grpcServer, reqHandler)
 	registerValidationServiceV3Server(grpcServer, reqHandler)
 	registerMintServiceV4Server(grpcServer, reqHandler)
