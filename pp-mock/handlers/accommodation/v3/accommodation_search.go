@@ -13,6 +13,7 @@ import (
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
 	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
+	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/config"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v13/pp-mock/services/data"
 	"github.com/google/uuid"
@@ -144,16 +145,21 @@ func (s *accommodationSearchV3Server) AccommodationSearch(_ context.Context, req
 				Decimals: common.DefaultPricePerNightDecimals,
 				Currency: common.CloneProto(req.SearchParametersGeneric.Currency),
 			}
-			searchResults = append(searchResults, &accommodationv3.AccommodationSearchResult{
+			searchResult := &accommodationv3.AccommodationSearchResult{
 				ResultId: resultIDnum,
 				QueryId:  query.QueryId,
 				TotalPriceDetail: &typesv3.PriceDetail{
 					Price: searchPrice,
 				},
 				Units: units,
-			})
+			}
+			searchResults = append(searchResults, searchResult)
 
 			validationPrice := state.PriceV3ToUnifiedPrice(searchPrice)
+			if config.RealisticPriceEnabled {
+				validationPrice.NormalizeRealistic()
+				searchResult.TotalPriceDetail.Price = validationPrice.ToPriceV3()
+			}
 			validationPrices = append(validationPrices, validationPrice)
 
 			resultIDnum++

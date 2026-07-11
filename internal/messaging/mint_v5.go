@@ -42,6 +42,9 @@ func (h *evmResponseHandler) prepareMintResponseV5(
 		return mintErrResponseV5(typesv4.ErrorCode_ERROR_CODE_INTERNAL, errMsg)
 	}
 
+	h.logger.Debugf("Mint price resolved: proto=%s -> onchain=%s paymentToken=%s isoCurrency=%s",
+		priceStringV5(successResp.Price), price.String(), paymentToken.Hex(), isoCurrency.String())
+
 	receipt, tokenID, err := h.bookingService.MintBookingToken(
 		ctx,
 		common.HexToAddress(request.BuyerAddress.Address),
@@ -88,8 +91,9 @@ func (h *evmResponseHandler) processMintResponseV5(
 	}
 
 	if !proto.Equal(request.ExpectedPrice, successResp.Price) {
-		h.logger.Debug(errUnexpectedMintResponsePrice)
-		return mintErrResponseV5(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, errUnexpectedMintResponsePrice.Error())
+		msg := formatMintPriceMismatchV5(request.ExpectedPrice, successResp.Price)
+		h.logger.Debug(msg)
+		return mintErrResponseV5(typesv4.ErrorCode_ERROR_CODE_BUSINESS_PROCESS_ERROR, msg)
 	}
 
 	tokenID := new(big.Int).SetUint64(successResp.BookingTokenId)
@@ -99,6 +103,9 @@ func (h *evmResponseHandler) processMintResponseV5(
 		h.logger.Error(errMsg)
 		return mintErrResponseV5(typesv4.ErrorCode_ERROR_CODE_INTERNAL, errMsg)
 	}
+
+	h.logger.Debugf("Buy price resolved (tokenID %s): proto=%s -> onchain=%s paymentToken=%s",
+		tokenID.String(), priceStringV5(successResp.Price), price.String(), paymentToken.Hex())
 
 	receipt, err := h.bookingService.BuyBookingToken(ctx, tokenID, price, paymentToken)
 	if err != nil {

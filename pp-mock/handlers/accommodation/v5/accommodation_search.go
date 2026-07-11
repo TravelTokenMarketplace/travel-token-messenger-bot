@@ -6,6 +6,7 @@ package v5
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v5/accommodationv5grpc"
@@ -13,6 +14,7 @@ import (
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
+	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/config"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v13/pp-mock/services/data"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -137,6 +139,32 @@ func (s *accommodationSearchV5Server) AccommodationSearch(_ context.Context, req
 				SupplierCode:   prop.Property.SupplierCode,
 			}
 
+			// Normalize the price before building cancel penalties and the result,
+			// so the penalties, total price, and stored validation price all agree.
+			// In realistic mode this replaces the unit price with the tiny base-unit
+			// amount; penaltyBaseValue then drives the percentage penalties.
+			validationPrice := state.PriceV5ToUnifiedPrice(unit.PriceDetail.Price)
+			penaltyBaseValue := big.NewInt(unitPriceValue)
+			if config.RealisticPriceEnabled {
+				validationPrice.NormalizeRealistic()
+				unit.PriceDetail.Price = validationPrice.ToPriceV5()
+				// Keep service prices in the same representation as the unit price,
+				// otherwise a result mixes tiny base units with whole-currency amounts.
+				for _, service := range unit.Services {
+					if service.GetPriceDetail().GetPrice() == nil {
+						continue
+					}
+					servicePrice := state.PriceV5ToUnifiedPrice(service.PriceDetail.Price)
+					servicePrice.NormalizeRealistic()
+					service.PriceDetail.Price = servicePrice.ToPriceV5()
+				}
+				// The normalized base-unit amount is configurable and may exceed int64,
+				// so parse it as an arbitrary-precision integer.
+				if v, ok := new(big.Int).SetString(unit.PriceDetail.Price.Value, 10); ok {
+					penaltyBaseValue = v
+				}
+			}
+
 			cancelPenalties := []*typesv5.CancelPenalty{}
 			if startDateTime.After(now.Add(common.FreeCancellationDuration)) {
 				cancelPenalties = append(cancelPenalties, &typesv5.CancelPenalty{
@@ -162,7 +190,7 @@ func (s *accommodationSearchV5Server) AccommodationSearch(_ context.Context, req
 						End:   timestamppb.New(startDateTime),
 					},
 					Value: &typesv5.Price{
-						Value:    fmt.Sprintf("%d", unitPriceValue/10), // 10% penalty
+						Value:    new(big.Int).Quo(penaltyBaseValue, big.NewInt(10)).String(), // 10% penalty
 						Decimals: unit.PriceDetail.Price.Decimals,
 						Currency: unit.PriceDetail.Price.Currency,
 					},
@@ -196,7 +224,6 @@ func (s *accommodationSearchV5Server) AccommodationSearch(_ context.Context, req
 				},
 			})
 
-			validationPrice := state.PriceV5ToUnifiedPrice(unit.PriceDetail.Price)
 			validationPrices = append(validationPrices, validationPrice)
 
 			resultIDnum++

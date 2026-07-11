@@ -15,6 +15,7 @@ import (
 	"github.com/chain4travel/camino-messenger-bot/v13/pkg/conversion"
 	"github.com/chain4travel/camino-messenger-bot/v13/pkg/price"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
+	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/config"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/handlers/state"
 	mockdata "github.com/chain4travel/camino-messenger-bot/v13/pp-mock/services/data"
 	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/services/data/transport"
@@ -111,7 +112,7 @@ func (s *transportSearchV5Server) TransportSearch(_ context.Context, req *transp
 			Currency: common.CloneProto(req.SearchParameters.Currency),
 		}
 
-		searchResults = append(searchResults, &transportv5.TransportSearchResult{
+		searchResult := &transportv5.TransportSearchResult{
 			ResultId:        resultID,
 			QueryId:         query.QueryId,
 			TravellerIds:    common.GetTravellerIDsV4(query.Travellers),
@@ -122,10 +123,15 @@ func (s *transportSearchV5Server) TransportSearch(_ context.Context, req *transp
 			Bookability: &typesv4.Bookability{
 				Type: typesv4.BookabilityType_BOOKABILITY_TYPE_AVAILABLE,
 			},
-		})
+		}
+		searchResults = append(searchResults, searchResult)
 		resultID++
 
 		validationPrice := state.PriceV5ToUnifiedPrice(searchPrice)
+		if config.RealisticPriceEnabled {
+			validationPrice.NormalizeRealistic()
+			searchResult.TotalPrice.Value = validationPrice.ToPriceV5()
+		}
 		validationPrices = append(validationPrices, validationPrice)
 	}
 

@@ -304,13 +304,25 @@ open an issue in the repository.
 
 ### Running partner plugin (pp-mock) example
 
-Run the partner plugin, setting the `CMB_PARTNER_PLUGIN_MOCK_PORT` env as
-defined in your supplier bot configuration file's `partner_plugin_port` field,
-e.g.:
+Run the partner plugin. The listening port is read **only** from the
+`CMB_PARTNER_PLUGIN_MOCK_PORT` env var (pp-mock parses no CLI flags) and
+defaults to `50051` when unset. Set it to match your supplier bot configuration
+file's `partner_plugin_port` field, e.g.:
 
 ```bash
-CMB_PARTNER_PLUGIN_MOCK_PORT=50051 go run pp-mock/server.go
+CMB_PARTNER_PLUGIN_MOCK_PORT=50051 go run ./pp-mock
 ```
+
+Optional environment variables:
+
+- `CMB_PARTNER_PLUGIN_MOCK_REALISTIC_PRICE=true` — make mint return the validated price
+  (price-consistent search → validate → mint), instead of the default fixed `1` native
+  coin. Fiat stays off-chain at a realistic value; native/ERC20 use a tiny base-unit
+  amount for cheap testnet buys.
+- `CMB_PARTNER_PLUGIN_MOCK_TOKEN_DECIMALS="0xToken:6,..."` — per-ERC20 decimals used by
+  realistic pricing (default 18). Only needed for non-18-decimal test tokens.
+- `CMB_PARTNER_PLUGIN_MOCK_BASE_UNITS=<value>` — overrides the tiny native/ERC20 base-unit
+  amount used by realistic pricing (default `10533`).
 
 See [README.MD](pp-mock/docs/README.md) for more information about partner
 plugin.

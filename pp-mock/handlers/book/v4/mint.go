@@ -5,6 +5,7 @@ package v4
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v4/bookv4grpc"
@@ -26,8 +27,11 @@ func NewMintServiceServer() bookv4grpc.MintServiceServer {
 }
 
 func (s *mintServiceV4Server) Mint(_ context.Context, req *bookv4.MintRequest) (*bookv4.MintResponse, error) {
+	log.Printf("[book.v4.Mint] request validationId=%s realisticPrice=%t", req.ValidationId.Value, config.RealisticPriceEnabled)
+
 	storedValidateData, ok := state.GetStore().GetValidationResult(req.ValidationId.Value)
 	if !ok {
+		log.Printf("[book.v4.Mint] rejected: validationId=%s not found in state", req.ValidationId.Value)
 		return &bookv4.MintResponse{
 			Response: &bookv4.MintResponse_ErrorResponse{
 				ErrorResponse: &bookv4.MintErrorResponse{
@@ -36,6 +40,13 @@ func (s *mintServiceV4Server) Mint(_ context.Context, req *bookv4.MintRequest) (
 			},
 		}, nil
 	}
+
+	mintPrice := common.BookingTokenPriceV4
+	if config.RealisticPriceEnabled {
+		mintPrice = storedValidateData.Data.VerifiedPrice.ToPriceV4()
+	}
+	log.Printf("[book.v4.Mint] validationId=%s verifiedPrice=%s -> mintPrice={value=%s decimals=%d} (realistic=%t)",
+		req.ValidationId.Value, storedValidateData.Data.VerifiedPrice, mintPrice.Value, mintPrice.Decimals, config.RealisticPriceEnabled)
 
 	response := bookv4.MintResponse{
 		Response: &bookv4.MintResponse_SuccessResponse{
@@ -46,17 +57,20 @@ func (s *mintServiceV4Server) Mint(_ context.Context, req *bookv4.MintRequest) (
 					Seconds: time.Now().Add(config.BuyableUntilDefault).Unix(),
 				},
 				ValidationId:    req.ValidationId,
-				Price:           common.BookingTokenPriceV4,
+				Price:           mintPrice,
 				Cancellable:     true,
 				BookingTokenUri: "https://example.com/",
 			},
 		},
 	}
 
-	mintResponseInfoMessage := "Please note that the price given in this mint response does not reflect the verified total price of the product of '" + storedValidateData.Data.VerifiedPrice.Price + "'. The price is just a minimum value to be able to mint the product."
-	common.AddHeaderAlertV4(response.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_INFORMATIONAL, mintResponseInfoMessage)
+	if !config.RealisticPriceEnabled {
+		mintResponseInfoMessage := "Please note that the price given in this mint response does not reflect the verified total price of the product of '" + storedValidateData.Data.VerifiedPrice.Price + "'. The price is just a minimum value to be able to mint the product."
+		common.AddHeaderAlertV4(response.GetSuccessResponse().Header, typesv4.AlertCode_ALERT_CODE_INFORMATIONAL, mintResponseInfoMessage)
+	}
 
 	state.GetStore().AddMintResult(response.GetSuccessResponse().MintId.Value, storedValidateData.Data.InitialSearchData.SeatMapID)
+	log.Printf("[book.v4.Mint] issued mintId=%s seatMapId=%s", response.GetSuccessResponse().MintId.Value, storedValidateData.Data.InitialSearchData.SeatMapID)
 
 	return &response, nil
 }

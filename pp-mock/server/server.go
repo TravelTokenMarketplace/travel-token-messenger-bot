@@ -71,22 +71,37 @@ import (
 )
 
 const (
-	EnvKeyEventsEnabled = "CMB_PARTNER_PLUGIN_MOCK_EVENTS"
-	EnvKeyPort          = "CMB_PARTNER_PLUGIN_MOCK_PORT"
-	EnvE2ETestMode      = "CMB_PARTNER_PLUGIN_MOCK_TEST_MODE"
-	DefaultPort         = 50051
+	EnvKeyEventsEnabled  = "CMB_PARTNER_PLUGIN_MOCK_EVENTS"
+	EnvKeyPort           = "CMB_PARTNER_PLUGIN_MOCK_PORT"
+	EnvE2ETestMode       = "CMB_PARTNER_PLUGIN_MOCK_TEST_MODE"
+	EnvKeyRealisticPrice = "CMB_PARTNER_PLUGIN_MOCK_REALISTIC_PRICE"
+	EnvKeyTokenDecimals  = "CMB_PARTNER_PLUGIN_MOCK_TOKEN_DECIMALS" //nolint:gosec // G101: env var name, not a credential
+	EnvKeyBaseUnits      = "CMB_PARTNER_PLUGIN_MOCK_BASE_UNITS"
+	DefaultPort          = 50051
+	envValueTrue         = "true"
 )
 
 func Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	log.SetOutput(os.Stdout)
+
 	config.SetDefaults()
+
+	realisticPrice := os.Getenv(EnvKeyRealisticPrice) == envValueTrue
+	tokenDecimals, err := config.ParseTokenDecimals(os.Getenv(EnvKeyTokenDecimals))
+	if err != nil {
+		log.Printf("failed to parse %s: %v", EnvKeyTokenDecimals, err)
+		return err
+	}
+	config.SetRealisticPrice(realisticPrice, os.Getenv(EnvKeyBaseUnits), tokenDecimals)
 
 	eventSender := events.NewDummySender()
 
+	eventsEnabled := os.Getenv(EnvKeyEventsEnabled) == envValueTrue
 	var eventServer events.Server
-	if os.Getenv(EnvKeyEventsEnabled) == "true" {
+	if eventsEnabled {
 		eventServer, eventSender = events.NewServer()
 		eventServer.Start(ctx)
 	}
@@ -177,35 +192,49 @@ func Run() error {
 	reflection.Register(grpcServer)
 
 	port := DefaultPort
-	var err error
+	portSource := "default"
 	p, found := os.LookupEnv(EnvKeyPort)
 	if found {
 		port, err = strconv.Atoi(p)
 		if err != nil {
-			log.Printf("failed to parse port: %v", err)
+			log.Printf("failed to parse port from %s=%q: %v", EnvKeyPort, p, err)
 			return err
 		}
+		portSource = EnvKeyPort
 	}
 
-	if os.Getenv(EnvE2ETestMode) == "true" {
+	e2eTestMode := os.Getenv(EnvE2ETestMode) == envValueTrue
+	if e2eTestMode {
 		config.SetE2EDefaults()
 	}
 
-	log.SetOutput(os.Stdout)
-	log.Printf("Starting server on port: %d", port)
+	services := len(grpcServer.GetServiceInfo())
+
+	log.Printf("Starting pp-mock (partner plugin mock)")
+	log.Printf("  port:            %d (from %s)", port, portSource)
+	log.Printf("  events enabled:  %t (%s)", eventsEnabled, EnvKeyEventsEnabled)
+	log.Printf("  e2e test mode:   %t (%s)", e2eTestMode, EnvE2ETestMode)
+	log.Printf("  realistic price: %t (%s)", realisticPrice, EnvKeyRealisticPrice)
+	log.Printf("  base units:      %s (%s)", config.RealisticNativeBaseUnits, EnvKeyBaseUnits)
+	log.Printf("  token decimals:  %d entries (%s)", len(tokenDecimals), EnvKeyTokenDecimals)
+	log.Printf("  gRPC services:   %d registered", services)
+	log.Printf("  (set %s to change the port, default %d)", EnvKeyPort, DefaultPort)
+
 	listenCfg := net.ListenConfig{}
 	lis, err := listenCfg.Listen(ctx, "tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Printf("failed to listen: %v", err)
+		log.Printf("failed to listen on port %d: %v", port, err)
+		log.Printf("if the port is already in use, set %s to a free port (default %d)", EnvKeyPort, DefaultPort)
 		return err
 	}
 
 	go func() {
 		<-ctx.Done()
-		log.Printf("Shutting down server")
+		log.Printf("Shutting down pp-mock server")
 		grpcServer.Stop()
 	}()
 
+	log.Printf("pp-mock listening on %s, ready to accept connections", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Printf("grpc server stopped serving: %v", err)
 	}
