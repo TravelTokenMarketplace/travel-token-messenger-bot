@@ -11,7 +11,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/tests/e2e/resources"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/resources"
 
 	"go.uber.org/zap"
 )

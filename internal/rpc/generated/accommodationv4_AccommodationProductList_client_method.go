@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/messaging/message"
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/rpc"
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/version"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
 	accommodationv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v4"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"

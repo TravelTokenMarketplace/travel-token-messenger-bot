@@ -9,7 +9,7 @@ import (
 	accommodationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/accommodation/v3"
 	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
 	typesv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v2"
-	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"google.golang.org/protobuf/proto"
 )
 

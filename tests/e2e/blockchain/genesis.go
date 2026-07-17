@@ -22,8 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/pkg/conversion"
-	e2eCommon "github.com/chain4travel/camino-messenger-bot/v13/tests/e2e/common"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
+	e2eCommon "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
 )
 
 var evmAdminFunds = big.NewInt(0).Mul(big.NewInt(1_000_000), e2eCommon.CAM)

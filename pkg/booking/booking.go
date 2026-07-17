@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	cmaccounts "github.com/chain4travel/camino-messenger-bot/v13/pkg/cm_accounts"
+	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

@@ -3,7 +3,7 @@
 
 package state
 
-import "github.com/chain4travel/camino-messenger-bot/v13/pp-mock/config"
+import "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/config"
 
 // NormalizeRealistic rewrites the price for realistic-pricing mode.
 //

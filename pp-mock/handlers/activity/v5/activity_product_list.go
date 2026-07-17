@@ -6,8 +6,8 @@ package v5
 import (
 	"context"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
-	mockdata "github.com/chain4travel/camino-messenger-bot/v13/pp-mock/services/data"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
+	mockdata "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/services/data"
 
 	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v5/activityv5grpc"
 	activityv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v5"

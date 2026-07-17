@@ -5,8 +5,8 @@ package generated
 
 import (
 	"{{GRPC_INC}}"
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/rpc"
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/messaging/message"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 
 	"google.golang.org/grpc"
 )

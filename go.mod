@@ -1,4 +1,4 @@
-module github.com/chain4travel/camino-messenger-bot/v13
+module github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13
 
 go 1.25.10
 
