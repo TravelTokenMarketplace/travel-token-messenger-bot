@@ -10,7 +10,7 @@
             <env name="CGO_LDFLAGS" value="-L/opt/homebrew/lib" />
         </envs>
         <kind value="FILE" />
-        <package value="github.com/chain4travel/camino-messenger-bot/v12/tests/e2e" />
+        <package value="github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e" />
         <directory value="$PROJECT_DIR$" />
         <filePath value="$PROJECT_DIR$/tests/e2e/e2e_test.go" />
         <framework value="gotest" />
