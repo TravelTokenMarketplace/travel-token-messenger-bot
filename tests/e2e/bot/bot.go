@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/internal/rpc/server"
-	"github.com/chain4travel/camino-messenger-bot/v13/proto/pb/readiness"
-	"github.com/chain4travel/camino-messenger-bot/v13/tests/e2e/bot/generated"
-	"github.com/chain4travel/camino-messenger-bot/v13/tests/e2e/process"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/server"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/proto/pb/readiness"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot/generated"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/process"
 
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"

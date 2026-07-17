@@ -10,8 +10,8 @@ import (
 	cancellationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v3"
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
-	"github.com/chain4travel/camino-messenger-bot/v13/pkg/price"
-	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

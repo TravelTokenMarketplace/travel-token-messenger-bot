@@ -12,9 +12,9 @@ import (
 	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
 	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/pkg/conversion"
-	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/common"
-	"github.com/chain4travel/camino-messenger-bot/v13/pp-mock/handlers/state"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/handlers/state"
 )
 
 var _ bookv5grpc.ValidationServiceServer = (*validationV5Server)(nil)

@@ -6,7 +6,7 @@ package main
 import (
 	"os"
 
-	"github.com/chain4travel/camino-messenger-bot/v13/cmd"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/cmd"
 )
 
 func main() {
