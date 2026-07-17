@@ -7,7 +7,7 @@
 
 if [ $# -eq 0 ]; then
 	echo "Usage: $0 <buf-dependency-path>"
-	echo "Example: $0 buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go"
+	echo "Example: $0 buf.build/gen/go/ttm/messenger-protocol/grpc/go"
 	exit 0
 fi
 
@@ -35,8 +35,8 @@ label=$(curl -s -f --max-time 10 -X POST "https://buf.build/buf.registry.module.
 		"pageSize": 25,
 		"resourceRef": {
 			"name": {
-				"owner": "chain4travel",
-				"module": "camino-messenger-protocol"
+				"owner": "ttm",
+				"module": "messenger-protocol"
 			}
 		},
 		"order": "ORDER_UPDATE_TIME_DESC",

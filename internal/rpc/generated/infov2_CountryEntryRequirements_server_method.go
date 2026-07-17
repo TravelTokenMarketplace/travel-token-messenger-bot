@@ -10,8 +10,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
-	infov2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/info/v2"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	infov2 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/info/v2"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 )
 
 func (s *infov2CountryEntryRequirementsServer) CountryEntryRequirements(ctx context.Context, request *infov2.CountryEntryRequirementsRequest) (*infov2.CountryEntryRequirementsResponse, error) {

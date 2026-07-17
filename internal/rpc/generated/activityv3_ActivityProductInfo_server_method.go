@@ -10,8 +10,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
-	activityv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v3"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	activityv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/activity/v3"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 )
 
 func (s *activityv3ActivityProductInfoServer) ActivityProductInfo(ctx context.Context, request *activityv3.ActivityProductInfoRequest) (*activityv3.ActivityProductInfoResponse, error) {

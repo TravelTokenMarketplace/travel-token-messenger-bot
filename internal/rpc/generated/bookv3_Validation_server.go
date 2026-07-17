@@ -4,7 +4,7 @@
 package generated
 
 import (
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v3/bookv3grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/book/v3/bookv3grpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
 	"google.golang.org/grpc"

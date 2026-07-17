@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	{{TYPE_PACKAGE}} "{{PROTO_INC}}"
-	typesv{{COMMON_TYPES_VERSION}} "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v{{COMMON_TYPES_VERSION}}"
+	typesv{{COMMON_TYPES_VERSION}} "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v{{COMMON_TYPES_VERSION}}"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"

@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	bookv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v3"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	bookv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v3"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"

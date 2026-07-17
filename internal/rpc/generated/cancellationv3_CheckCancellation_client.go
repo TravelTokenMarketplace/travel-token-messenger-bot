@@ -7,13 +7,13 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v3/cancellationv3grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v3/cancellationv3grpc"
 
 	"google.golang.org/grpc"
 )
 
 const (
-	CheckCancellationServiceV3                      = "cmp.services.cancellation.v3.CheckCancellationService"
+	CheckCancellationServiceV3                      = "ttm.services.cancellation.v3.CheckCancellationService"
 	CheckCancellationServiceV3Request  message.Type = message.Type(CheckCancellationServiceV3 + ".Request")
 	CheckCancellationServiceV3Response message.Type = message.Type(CheckCancellationServiceV3 + ".Response")
 )

@@ -7,9 +7,9 @@ import (
 	"context"
 	"math/big"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/transport/v4/transportv4grpc"
-	transportv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v4"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/transport/v4/transportv4grpc"
+	transportv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/transport/v4"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"

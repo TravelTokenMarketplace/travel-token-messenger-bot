@@ -4,7 +4,7 @@
 package generated
 
 import (
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/ping/v1/pingv1grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/ping/v1/pingv1grpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	PingServiceV1                      = "cmp.services.ping.v1.PingService"
+	PingServiceV1                      = "ttm.services.ping.v1.PingService"
 	PingServiceV1Request  message.Type = message.Type(PingServiceV1 + ".Request")
 	PingServiceV1Response message.Type = message.Type(PingServiceV1 + ".Response")
 )

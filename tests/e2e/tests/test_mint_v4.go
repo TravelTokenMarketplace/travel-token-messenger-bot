@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"testing"
 
-	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
-	notificationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v3"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	bookv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v4"
+	notificationv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/notification/v3"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"buf.build/go/protovalidate"
 	botGenerated "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"

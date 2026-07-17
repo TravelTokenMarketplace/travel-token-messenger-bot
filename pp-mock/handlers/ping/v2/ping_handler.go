@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/ping/v2/pingv2grpc"
-	pingv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v2"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/ping/v2/pingv2grpc"
+	pingv2 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/ping/v2"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"

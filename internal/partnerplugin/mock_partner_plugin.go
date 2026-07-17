@@ -14,7 +14,7 @@ import (
 	big "math/big"
 	reflect "reflect"
 
-	notificationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v3"
+	notificationv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/notification/v3"
 	message "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	rpc "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	common "github.com/ethereum/go-ethereum/common"

@@ -4,7 +4,7 @@
 package generated
 
 import (
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v3/activityv3grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/activity/v3/activityv3grpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	ActivitySearchServiceV3                      = "cmp.services.activity.v3.ActivitySearchService"
+	ActivitySearchServiceV3                      = "ttm.services.activity.v3.ActivitySearchService"
 	ActivitySearchServiceV3Request  message.Type = message.Type(ActivitySearchServiceV3 + ".Request")
 	ActivitySearchServiceV3Response message.Type = message.Type(ActivitySearchServiceV3 + ".Response")
 )

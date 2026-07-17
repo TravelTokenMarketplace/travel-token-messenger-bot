@@ -19,9 +19,9 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/proto/pb/readiness"
 	"github.com/google/uuid"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v2/cancellationv2grpc"
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v3/cancellationv3grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v1/cancellationv1grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v2/cancellationv2grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v3/cancellationv3grpc"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"

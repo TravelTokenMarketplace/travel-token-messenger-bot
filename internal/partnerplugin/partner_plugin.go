@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"time"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/notification/v3/notificationv3grpc"
-	notificationv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/notification/v3"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/notification/v3/notificationv3grpc"
+	notificationv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/notification/v3"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	grpc_metadata "google.golang.org/grpc/metadata"

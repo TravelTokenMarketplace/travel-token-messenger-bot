@@ -7,13 +7,13 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/accommodation/v5/accommodationv5grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/accommodation/v5/accommodationv5grpc"
 
 	"google.golang.org/grpc"
 )
 
 const (
-	AccommodationProductInfoServiceV5                      = "cmp.services.accommodation.v5.AccommodationProductInfoService"
+	AccommodationProductInfoServiceV5                      = "ttm.services.accommodation.v5.AccommodationProductInfoService"
 	AccommodationProductInfoServiceV5Request  message.Type = message.Type(AccommodationProductInfoServiceV5 + ".Request")
 	AccommodationProductInfoServiceV5Response message.Type = message.Type(AccommodationProductInfoServiceV5 + ".Response")
 )

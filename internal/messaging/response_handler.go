@@ -7,11 +7,11 @@ import (
 	"context"
 	"time"
 
-	bookv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v3"
-	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
-	bookv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v5"
-	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	bookv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v3"
+	bookv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v4"
+	bookv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v5"
+	typesv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v3"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 

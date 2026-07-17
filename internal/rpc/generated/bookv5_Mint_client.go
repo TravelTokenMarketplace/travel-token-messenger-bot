@@ -7,13 +7,13 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v5/bookv5grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/book/v5/bookv5grpc"
 
 	"google.golang.org/grpc"
 )
 
 const (
-	MintServiceV5                      = "cmp.services.book.v5.MintService"
+	MintServiceV5                      = "ttm.services.book.v5.MintService"
 	MintServiceV5Request  message.Type = message.Type(MintServiceV5 + ".Request")
 	MintServiceV5Response message.Type = message.Type(MintServiceV5 + ".Response")
 )

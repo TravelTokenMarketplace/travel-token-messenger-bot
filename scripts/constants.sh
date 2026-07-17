@@ -28,8 +28,8 @@ else
 fi
 
 # get protocol releases from buf.build
-grpc_release=$("${SCRIPT_DIR}"/resolve_protocol_release.sh buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go)
-protocolbuffers_release=$("${SCRIPT_DIR}"/resolve_protocol_release.sh buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go)
+grpc_release=$("${SCRIPT_DIR}"/resolve_protocol_release.sh buf.build/gen/go/ttm/messenger-protocol/grpc/go)
+protocolbuffers_release=$("${SCRIPT_DIR}"/resolve_protocol_release.sh buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go)
 
 export current_branch
 export git_commit

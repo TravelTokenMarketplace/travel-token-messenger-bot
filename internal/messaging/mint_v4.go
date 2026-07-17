@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"time"
 
-	bookv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v4"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	bookv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v4"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"

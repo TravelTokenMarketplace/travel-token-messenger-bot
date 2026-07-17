@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	seat_mapv2 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v2"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	seat_mapv2 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/seat_map/v2"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"

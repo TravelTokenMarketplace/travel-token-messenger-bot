@@ -4,7 +4,7 @@
 package generated
 
 import (
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v1/cancellationv1grpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	CheckCancellationServiceV1                      = "cmp.services.cancellation.v1.CheckCancellationService"
+	CheckCancellationServiceV1                      = "ttm.services.cancellation.v1.CheckCancellationService"
 	CheckCancellationServiceV1Request  message.Type = message.Type(CheckCancellationServiceV1 + ".Request")
 	CheckCancellationServiceV1Response message.Type = message.Type(CheckCancellationServiceV1 + ".Response")
 )

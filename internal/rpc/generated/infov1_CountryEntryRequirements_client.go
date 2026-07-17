@@ -4,7 +4,7 @@
 package generated
 
 import (
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/info/v1/infov1grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/info/v1/infov1grpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	CountryEntryRequirementsServiceV1                      = "cmp.services.info.v1.CountryEntryRequirementsService"
+	CountryEntryRequirementsServiceV1                      = "ttm.services.info.v1.CountryEntryRequirementsService"
 	CountryEntryRequirementsServiceV1Request  message.Type = message.Type(CountryEntryRequirementsServiceV1 + ".Request")
 	CountryEntryRequirementsServiceV1Response message.Type = message.Type(CountryEntryRequirementsServiceV1 + ".Response")
 )
