@@ -188,10 +188,10 @@ func StartNewNetwork(
 		return n, nil, fmt.Errorf("failed to prepare EVM admin: %w", err)
 	}
 
-	logger.Debug("Preparing CMB contracts...")
+	logger.Debug("Preparing TTMB contracts...")
 
-	if err := n.Client.prepareCMBContracts(ctx); err != nil {
-		return n, nil, fmt.Errorf("failed to prepare CMB contracts: %w", err)
+	if err := n.Client.prepareTTMBContracts(ctx); err != nil {
+		return n, nil, fmt.Errorf("failed to prepare TTMB contracts: %w", err)
 	}
 
 	logger.Debug("Blockchain network started")
@@ -223,10 +223,10 @@ func UseExistingNetwork(
 		return n, fmt.Errorf("failed to prepare EVM admin: %w", err)
 	}
 
-	logger.Info("Preparing CMB contracts...")
+	logger.Info("Preparing TTMB contracts...")
 
-	if err := n.Client.prepareCMBContracts(ctx); err != nil {
-		return n, fmt.Errorf("failed to prepare CMB contracts: %w", err)
+	if err := n.Client.prepareTTMBContracts(ctx); err != nil {
+		return n, fmt.Errorf("failed to prepare TTMB contracts: %w", err)
 	}
 
 	logger.Info("Blockchain network started")

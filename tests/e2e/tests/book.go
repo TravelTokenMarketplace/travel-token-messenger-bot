@@ -117,7 +117,7 @@ func testValidateV4(
 		},
 	}
 	resp, err := distributorBot.ValidationServiceV4.Validation(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func testValidateV3(
 		},
 	}
 	resp, err := distributorBot.ValidationServiceV3.Validation(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -213,7 +213,7 @@ func testMintV4(
 		}},
 	}
 	resp, err := distributorBot.MintServiceV4.Mint(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -246,7 +246,7 @@ func testMintV3(
 		ValidationId: &typesv1.UUID{Value: validationID},
 	}
 	resp, err := distributorBot.MintServiceV3.Mint(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -316,7 +316,7 @@ func verifyBookingTokenStateBought(
 
 	ownerAddr, err := e.CaminoNetwork.Client.BookingToken.OwnerOf(callOpts, bigTokenID)
 	require.NoError(t, err)
-	require.Equal(t, distributorBot.CMAccountAddress(), ownerAddr)
+	require.Equal(t, distributorBot.TTMAccountAddress(), ownerAddr)
 
 	tokenStatus, err := e.CaminoNetwork.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
 	require.NoError(t, err)
@@ -379,7 +379,7 @@ func testValidateV5(
 		},
 	}
 	resp, err := distributorBot.ValidationServiceV5.Validation(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -422,7 +422,7 @@ func testMintV5(
 		}},
 	}
 	resp, err := distributorBot.MintServiceV5.Mint(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

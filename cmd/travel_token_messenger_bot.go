@@ -19,10 +19,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "camino-messenger-bot",
-	Short:        "starts camino messenger bot",
+	Use:          "travel-token-messenger-bot",
+	Short:        "starts travel token messenger bot",
 	Version:      version.FullVersion,
-	SuggestFor:   []string{"camino-messenger", "camino-messenger-bot", "camino-bot", "cmb"},
+	SuggestFor:   []string{"travel-token-messenger", "travel-token-messenger-bot", "ttm-bot", "ttmb"},
 	RunE:         rootFunc,
 	SilenceUsage: true,
 }

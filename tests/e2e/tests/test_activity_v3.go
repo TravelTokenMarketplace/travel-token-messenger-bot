@@ -118,7 +118,7 @@ func (tt *TestActivityV3) testActivityV3ProductListService(ctx context.Context, 
 	}
 
 	resp, err := tt.distributorBot.ActivityProductListServiceV3.ActivityProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func (tt *TestActivityV3) testActivityV3ProductListServiceWithFilter(ctx context
 		ModifiedAfter: &timestamppb.Timestamp{Seconds: modifiedAfterSecs},
 	}
 	resp, err := tt.distributorBot.ActivityProductListServiceV3.ActivityProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -179,7 +179,7 @@ func (tt *TestActivityV3) testActivityV3ProductInfoService(ctx context.Context, 
 	}
 
 	resp, err := tt.distributorBot.ActivityProductInfoServiceV3.ActivityProductInfo(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func (tt *TestActivityV3) testActivityV3ProductInfoService(ctx context.Context, 
 		SupplierCodes: []*typesv2.SupplierProductCode{expectedSupplierCode},
 	}
 	resp, err = tt.distributorBot.ActivityProductInfoServiceV3.ActivityProductInfo(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -232,7 +232,7 @@ func (tt *TestActivityV3) testActivityV3SearchServiceWithoutCurrency(ctx context
 	}
 
 	resp, err := tt.distributorBot.ActivitySearchServiceV3.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 
@@ -256,7 +256,7 @@ func (tt *TestActivityV3) testActivityV3SearchServiceWithoutTravelPeriod(ctx con
 		},
 	}
 	resp, err := tt.distributorBot.ActivitySearchServiceV3.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -289,7 +289,7 @@ func (tt *TestActivityV3) testActivityV3SearchServiceTravelPeriodOutOfBounds(ctx
 		},
 	}
 	resp, err := tt.distributorBot.ActivitySearchServiceV3.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -320,7 +320,7 @@ func (tt *TestActivityV3) testActivityV3SearchServiceTravelPeriodReversed(ctx co
 		},
 	}
 	resp, err := tt.distributorBot.ActivitySearchServiceV3.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -375,7 +375,7 @@ func testActivityV3SearchServiceWithTravelPeriod(
 	}
 
 	resp, err := distributorBot.ActivitySearchServiceV3.ActivitySearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

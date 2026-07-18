@@ -168,7 +168,7 @@ func (e *Environment) protoMessageToJSON(message proto.Message) string {
 
 func (e *Environment) Balance(ctx context.Context, t *testing.T, bot *bot.Bot) *big.Int {
 	t.Helper()
-	balance, err := e.CaminoNetwork.Client.BalanceOf(ctx, bot.CMAccountAddress())
+	balance, err := e.CaminoNetwork.Client.BalanceOf(ctx, bot.TTMAccountAddress())
 	require.NoError(t, err)
 	return balance
 }

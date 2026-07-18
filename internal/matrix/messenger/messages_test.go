@@ -37,15 +37,15 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 	messageID := "message-id"
 	messageSignature := []byte("signature")
 
-	senderCMAccount := common.Address{1}
+	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
 	otherMessageID := "other-message-id"
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
-			chunksCount:   4,
-			signature:     []byte("other-signature"),
-			fromCMAccount: common.Address{2},
+			chunksCount:    4,
+			signature:      []byte("other-signature"),
+			fromTTMAccount: common.Address{2},
 			chunks: []messageChunk{
 				{index: 0, data: []byte("other-chunk0")},
 				{index: 1, data: []byte("other-chunk1")},
@@ -66,16 +66,16 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					MessageID: messageID,
 					Data:      []byte("single chunk data"),
 				},
-				ChunksCount:            1,
-				SenderCMAccountAddress: senderCMAccount,
-				Signature:              messageSignature,
+				ChunksCount:             1,
+				SenderTTMAccountAddress: senderTTMAccount,
+				Signature:               messageSignature,
 			},
 			expectedMessage: messaging.EncodedSignedMessageWithSender{
 				Message: messaging.EncodedSignedMessage{
 					ChunkedEncodedMessage: [][]byte{[]byte("single chunk data")},
 					Signature:             messageSignature,
 				},
-				SenderCMAccountAddress: senderCMAccount,
+				SenderTTMAccountAddress: senderTTMAccount,
 			},
 			expectedComplete: true,
 		},
@@ -85,15 +85,15 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					MessageID: messageID,
 					Data:      []byte("chunk0"),
 				},
-				ChunksCount:            3,
-				SenderCMAccountAddress: senderCMAccount,
-				Signature:              messageSignature,
+				ChunksCount:             3,
+				SenderTTMAccountAddress: senderTTMAccount,
+				Signature:               messageSignature,
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunksCount:   3,
-					signature:     messageSignature,
-					fromCMAccount: senderCMAccount,
+					chunksCount:    3,
+					signature:      messageSignature,
+					fromTTMAccount: senderTTMAccount,
 					chunks: []messageChunk{
 						{index: 0, data: []byte("chunk0")},
 					},
@@ -106,9 +106,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					MessageID: messageID,
 					Data:      []byte("chunk0"),
 				},
-				ChunksCount:            3,
-				SenderCMAccountAddress: senderCMAccount,
-				Signature:              messageSignature,
+				ChunksCount:             3,
+				SenderTTMAccountAddress: senderTTMAccount,
+				Signature:               messageSignature,
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
@@ -119,9 +119,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunksCount:   3,
-					signature:     messageSignature,
-					fromCMAccount: senderCMAccount,
+					chunksCount:    3,
+					signature:      messageSignature,
+					fromTTMAccount: senderTTMAccount,
 					chunks: []messageChunk{
 						{index: 1, data: []byte("chunk1")},
 						{index: 0, data: []byte("chunk0")},
@@ -135,9 +135,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					MessageID: messageID,
 					Data:      []byte("chunk0"),
 				},
-				ChunksCount:            3,
-				SenderCMAccountAddress: senderCMAccount,
-				Signature:              messageSignature,
+				ChunksCount:             3,
+				SenderTTMAccountAddress: senderTTMAccount,
+				Signature:               messageSignature,
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
@@ -152,7 +152,7 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
 					Signature:             messageSignature,
 				},
-				SenderCMAccountAddress: senderCMAccount,
+				SenderTTMAccountAddress: senderTTMAccount,
 			},
 			expectedComplete: true,
 		},
@@ -201,15 +201,15 @@ func TestTryCompleteMessage(t *testing.T) {
 
 	messageID := "message-id"
 	messageSignature := []byte("signature")
-	senderCMAccount := common.Address{1}
+	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
 	otherMessageID := "other-message-id"
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
-			chunksCount:   4,
-			signature:     []byte("other-signature"),
-			fromCMAccount: common.Address{2},
+			chunksCount:    4,
+			signature:      []byte("other-signature"),
+			fromTTMAccount: common.Address{2},
 			chunks: []messageChunk{
 				{index: 0, data: []byte("other-chunk0")},
 				{index: 1, data: []byte("other-chunk1")},
@@ -274,9 +274,9 @@ func TestTryCompleteMessage(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunksCount:   3,
-					signature:     messageSignature,
-					fromCMAccount: senderCMAccount,
+					chunksCount:    3,
+					signature:      messageSignature,
+					fromTTMAccount: senderTTMAccount,
 					chunks: []messageChunk{
 						{index: 2, data: []byte("chunk2")},
 						{index: 0, data: []byte("chunk0")},
@@ -288,7 +288,7 @@ func TestTryCompleteMessage(t *testing.T) {
 					ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
 					Signature:             messageSignature,
 				},
-				SenderCMAccountAddress: senderCMAccount,
+				SenderTTMAccountAddress: senderTTMAccount,
 			},
 			expectedComplete: true,
 		},

@@ -14,8 +14,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/eventlistener/subscriber"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/partnerplugin"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
-	cmbcommon "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cmbcommon"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttmcommon"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
@@ -26,7 +26,7 @@ const timeCheckBlockchainDelay = 2 * time.Second
 var (
 	_ EventListener = (*eventListener)(nil)
 
-	maxTime = time.Unix(int64(1<<63-cmbcommon.TimePkgOffset), 0)
+	maxTime = time.Unix(int64(1<<63-ttmcommon.TimePkgOffset), 0)
 
 	ErrNotFound = errors.New("not found")
 )
@@ -81,7 +81,7 @@ func New(
 	bookingTokenAddress common.Address,
 	partnerPlugin partnerplugin.PartnerPlugin,
 	bookingService booking.Service,
-	cmAccounts cmaccounts.Service,
+	ttmAccounts ttmaccounts.Service,
 	recordExpiration bool,
 ) (EventListener, error) {
 	blockNumber, err := ethClient.BlockNumber(ctx)
@@ -89,7 +89,7 @@ func New(
 		return nil, fmt.Errorf("failed to get latest block number: %w", err)
 	}
 
-	subscriber, err := subscriber.New(ethClient, logger, bookingTokenAddress, cmAccounts, blockNumber)
+	subscriber, err := subscriber.New(ethClient, logger, bookingTokenAddress, ttmAccounts, blockNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscriber: %w", err)
 	}

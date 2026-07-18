@@ -20,8 +20,8 @@ type Config struct {
 	DeveloperMode bool
 	E2ETestMode   bool
 
-	BotKey           *ecdsa.PrivateKey
-	CMAccountAddress common.Address
+	BotKey            *ecdsa.PrivateKey
+	TTMAccountAddress common.Address
 
 	ChainRPCURL         string
 	BookingTokenAddress common.Address
@@ -80,8 +80,8 @@ type UnparsedConfig struct {
 	DeveloperMode bool `mapstructure:"developer_mode"`
 	E2ETestMode   bool `mapstructure:"e2e_test_mode"`
 
-	BotKey           string `mapstructure:"bot_key"`
-	CMAccountAddress string `mapstructure:"cm_account_address"`
+	BotKey            string `mapstructure:"bot_key"`
+	TTMAccountAddress string `mapstructure:"cm_account_address"`
 
 	ChainRPCURL         string `mapstructure:"chain_rpc_url"`
 	BookingTokenAddress string `mapstructure:"booking_token_address"`
@@ -121,7 +121,7 @@ func (cfg *Config) unparse() *UnparsedConfig {
 		DeveloperMode:       cfg.DeveloperMode,
 		E2ETestMode:         cfg.E2ETestMode,
 		BotKey:              hex.EncodeToString(crypto.FromECDSA(cfg.BotKey)),
-		CMAccountAddress:    cfg.CMAccountAddress.Hex(),
+		TTMAccountAddress:   cfg.TTMAccountAddress.Hex(),
 		ChainRPCURL:         cfg.ChainRPCURL,
 		BookingTokenAddress: cfg.BookingTokenAddress.Hex(),
 		BotAuthCacheTimeout: int64(cfg.BotAuthCacheTimeout / time.Second),

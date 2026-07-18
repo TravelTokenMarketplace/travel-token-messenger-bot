@@ -46,7 +46,7 @@ type ResponseHandler interface {
 
 func NewResponseHandler(
 	logger *zap.SugaredLogger,
-	cmAccountAddress ethCommon.Address,
+	ttmAccountAddress ethCommon.Address,
 	eventListener eventlistener.EventListener,
 	bookingService booking.Service,
 	priceHandler price.Handler,
@@ -64,22 +64,22 @@ func NewResponseHandler(
 	}
 
 	return &evmResponseHandler{
-		logger:              logger,
-		priceHandler:        priceHandler,
-		cmAccountAddressStr: cmAccountAddress.Hex(),
-		bookingService:      bookingService,
-		eventListener:       eventListener,
-		tokenBuyableUntil:   tokenBuyableUntil,
+		logger:               logger,
+		priceHandler:         priceHandler,
+		ttmAccountAddressStr: ttmAccountAddress.Hex(),
+		bookingService:       bookingService,
+		eventListener:        eventListener,
+		tokenBuyableUntil:    tokenBuyableUntil,
 	}, nil
 }
 
 type evmResponseHandler struct {
-	logger              *zap.SugaredLogger
-	priceHandler        price.Handler
-	cmAccountAddressStr string
-	bookingService      booking.Service
-	eventListener       eventlistener.EventListener
-	tokenBuyableUntil   tokenBuyableUntil
+	logger               *zap.SugaredLogger
+	priceHandler         price.Handler
+	ttmAccountAddressStr string
+	bookingService       booking.Service
+	eventListener        eventlistener.EventListener
+	tokenBuyableUntil    tokenBuyableUntil
 }
 
 // Processes incoming response
@@ -121,10 +121,10 @@ func (h *evmResponseHandler) PrepareResponseMessage(
 func (h *evmResponseHandler) PrepareRequest(request protoreflect.ProtoMessage) {
 	switch request := request.(type) {
 	case *bookv3.MintRequest:
-		request.BuyerAddress = &typesv3.EVMAddress{Address: h.cmAccountAddressStr}
+		request.BuyerAddress = &typesv3.EVMAddress{Address: h.ttmAccountAddressStr}
 	case *bookv4.MintRequest:
-		request.BuyerAddress = &typesv4.EVMAddress{Address: h.cmAccountAddressStr}
+		request.BuyerAddress = &typesv4.EVMAddress{Address: h.ttmAccountAddressStr}
 	case *bookv5.MintRequest:
-		request.BuyerAddress = &typesv4.EVMAddress{Address: h.cmAccountAddressStr}
+		request.BuyerAddress = &typesv4.EVMAddress{Address: h.ttmAccountAddressStr}
 	}
 }

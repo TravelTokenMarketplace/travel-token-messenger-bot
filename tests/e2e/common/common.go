@@ -18,9 +18,9 @@ const (
 )
 
 var (
-	X2CRateBig                 = big.NewInt(1_000_000_000)
-	CAM                        = big.NewInt(0).Mul(big.NewInt(0).SetUint64(units.Avax), X2CRateBig)
-	DefaultCMAccountOwnerFunds = big.NewInt(0).Mul(CAM, big.NewInt(100))
+	X2CRateBig                  = big.NewInt(1_000_000_000)
+	CAM                         = big.NewInt(0).Mul(big.NewInt(0).SetUint64(units.Avax), X2CRateBig)
+	DefaultTTMAccountOwnerFunds = big.NewInt(0).Mul(CAM, big.NewInt(100))
 )
 
 func AwaitError(t *testing.T, errChan chan error, errContent string, timeout time.Duration) {

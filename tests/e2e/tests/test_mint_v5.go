@@ -237,7 +237,7 @@ func (tt *TestMintV5) testMintV5MintV5ExpectedError(
 		}},
 	}
 	resp, err := distributorBot.MintServiceV5.Mint(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

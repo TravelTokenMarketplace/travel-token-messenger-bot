@@ -95,7 +95,7 @@ func (tt *TestTransportV5) testTransportV5ProductListService(ctx context.Context
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 	}
 	resp, err := tt.distributorBot.TransportProductListServiceV5.TransportProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -127,7 +127,7 @@ func (tt *TestTransportV5) testTransportV5ProductListServiceWithFilter(ctx conte
 		ModifiedAfter: timestamppb.New(modifiedAfter),
 	}
 	resp, err := tt.distributorBot.TransportProductListServiceV5.TransportProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -191,7 +191,7 @@ func (tt *TestTransportV5) testTransportV5SearchServiceTravelDatesWrong(ctx cont
 		},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV5.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ func testTransportV5SearchService(
 		}},
 	}
 	resp, err := distributorBot.TransportSearchServiceV5.TransportSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

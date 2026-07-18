@@ -28,7 +28,7 @@ const requestTickerInterval = 500 * time.Millisecond
 
 func newBot(
 	logger *zap.SugaredLogger,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	binPath string,
 	configPath string,
 	logPath string,
@@ -36,7 +36,7 @@ func newBot(
 ) *Bot {
 	return &Bot{
 		logger:              logger,
-		cmAccountAddress:    cmAccountAddress,
+		ttmAccountAddress:   ttmAccountAddress,
 		binPath:             binPath,
 		configPath:          configPath,
 		logPath:             logPath,
@@ -48,7 +48,7 @@ type Bot struct {
 	logger *zap.SugaredLogger
 	mutex  sync.Mutex
 
-	cmAccountAddress    common.Address
+	ttmAccountAddress   common.Address
 	binPath             string
 	configPath          string
 	logPath             string
@@ -211,8 +211,8 @@ func (b *Bot) Restart(ctx context.Context) (chan error, error) {
 	return errChan, nil
 }
 
-func (b *Bot) CMAccountAddress() common.Address {
-	return b.cmAccountAddress
+func (b *Bot) TTMAccountAddress() common.Address {
+	return b.ttmAccountAddress
 }
 
 func (b *Bot) awaitReady(ctx context.Context) error {

@@ -10,8 +10,8 @@ import (
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/price"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 
 	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v1/cancellationv1grpc"
 	cancellationv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/cancellation/v1"
@@ -34,25 +34,25 @@ var _ cancellationv1grpc.CancellationServiceServer = (*cancellationV1Service)(ni
 func NewService(
 	logger *zap.SugaredLogger,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddr ethCommon.Address,
-	cmAccounts cmaccounts.Service,
+	ttmAccountAddr ethCommon.Address,
+	ttmAccounts ttmaccounts.Service,
 	priceHandler price.Handler,
 ) cancellationv1grpc.CancellationServiceServer {
 	return &cancellationV1Service{
-		botKey:        botKey,
-		cmAccountAddr: cmAccountAddr,
-		logger:        logger,
-		priceHandler:  priceHandler,
-		cmAccounts:    cmAccounts,
+		botKey:         botKey,
+		ttmAccountAddr: ttmAccountAddr,
+		logger:         logger,
+		priceHandler:   priceHandler,
+		ttmAccounts:    ttmAccounts,
 	}
 }
 
 type cancellationV1Service struct {
-	botKey        *ecdsa.PrivateKey
-	cmAccountAddr ethCommon.Address
-	logger        *zap.SugaredLogger
-	priceHandler  price.Handler
-	cmAccounts    cmaccounts.Service
+	botKey         *ecdsa.PrivateKey
+	ttmAccountAddr ethCommon.Address
+	logger         *zap.SugaredLogger
+	priceHandler   price.Handler
+	ttmAccounts    ttmaccounts.Service
 }
 
 func (s *cancellationV1Service) InitiateCancellation(
@@ -75,7 +75,7 @@ func (s *cancellationV1Service) InitiateCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.InitiateCancellationProposal(ctx, s.botKey, s.cmAccountAddr, tokenID, refundAmount, reasonValue, cancellationReasonVersion)
+	receipt, err := s.ttmAccounts.InitiateCancellationProposal(ctx, s.botKey, s.ttmAccountAddr, tokenID, refundAmount, reasonValue, cancellationReasonVersion)
 	if err != nil {
 		errMsg := fmt.Sprintf("error initiating cancellation proposal: %v", err)
 		s.logger.Error(errMsg)
@@ -115,7 +115,7 @@ func (s *cancellationV1Service) CounterCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.CounterCancellation(ctx, s.botKey, s.cmAccountAddr, tokenID, refundAmount, reasonValue, counterReasonVersion)
+	receipt, err := s.ttmAccounts.CounterCancellation(ctx, s.botKey, s.ttmAccountAddr, tokenID, refundAmount, reasonValue, counterReasonVersion)
 	if err != nil {
 		errMsg := fmt.Sprintf("error countering cancellation proposal: %v", err)
 		s.logger.Error(errMsg)
@@ -148,7 +148,7 @@ func (s *cancellationV1Service) AcceptCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.AcceptCancellationProposal(ctx, s.botKey, s.cmAccountAddr, tokenID, refundAmount)
+	receipt, err := s.ttmAccounts.AcceptCancellationProposal(ctx, s.botKey, s.ttmAccountAddr, tokenID, refundAmount)
 	if err != nil {
 		errMsg := fmt.Sprintf("error accepting cancellation proposal: %v", err)
 		s.logger.Error(errMsg)
@@ -181,7 +181,7 @@ func (s *cancellationV1Service) RejectCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.RejectCancellationProposal(ctx, s.botKey, s.cmAccountAddr, tokenID, reasonValue, rejectReasonVersion)
+	receipt, err := s.ttmAccounts.RejectCancellationProposal(ctx, s.botKey, s.ttmAccountAddr, tokenID, reasonValue, rejectReasonVersion)
 	if err != nil {
 		errMsg := fmt.Sprintf("error rejecting cancellation proposal: %v", err)
 		s.logger.Error(errMsg)
@@ -214,7 +214,7 @@ func (s *cancellationV1Service) WithdrawCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.WithdrawCancellation(ctx, s.botKey, s.cmAccountAddr, tokenID, reasonValue, withdrawReasonVersion)
+	receipt, err := s.ttmAccounts.WithdrawCancellation(ctx, s.botKey, s.ttmAccountAddr, tokenID, reasonValue, withdrawReasonVersion)
 	if err != nil {
 		errMsg := fmt.Sprintf("error withdrawing cancellation proposal: %v", err)
 		s.logger.Error(errMsg)
@@ -247,7 +247,7 @@ func (s *cancellationV1Service) FinalizeCancellation(
 
 	tokenID := new(big.Int).SetUint64(request.TokenId)
 
-	receipt, err := s.cmAccounts.FinalizeCancellation(ctx, s.botKey, s.cmAccountAddr, tokenID, refundAmount)
+	receipt, err := s.ttmAccounts.FinalizeCancellation(ctx, s.botKey, s.ttmAccountAddr, tokenID, refundAmount)
 	if err != nil {
 		errMsg := fmt.Sprintf("error finalizing cancellation proposal: %v", err)
 		s.logger.Error(errMsg)

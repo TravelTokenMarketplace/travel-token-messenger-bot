@@ -42,9 +42,9 @@ func (e *MessageChunkEventContent) Verify() error {
 type SignedMessageEventContent struct {
 	ChunkData
 
-	ChunksCount            uint32
-	Signature              []byte
-	SenderCMAccountAddress common.Address
+	ChunksCount             uint32
+	Signature               []byte
+	SenderTTMAccountAddress common.Address
 }
 
 func (e *SignedMessageEventContent) Verify() error {

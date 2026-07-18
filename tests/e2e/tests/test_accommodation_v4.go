@@ -112,7 +112,7 @@ func (tt *TestAccommodationV4) testAccommodationV4ProductShortListService(ctx co
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 	}
 	resp, err := tt.distributorBot.AccommodationProductShortListServiceV4.AccommodationProductShortList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func (tt *TestAccommodationV4) testAccommodationV4ProductShortListServiceWithFil
 		ModifiedAfter: timestamppb.New(modifiedAfter),
 	}
 	resp, err := tt.distributorBot.AccommodationProductShortListServiceV4.AccommodationProductShortList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -181,7 +181,7 @@ func (tt *TestAccommodationV4) testAccommodationV4ProductListService(ctx context
 		},
 	}
 	resp, err := tt.distributorBot.AccommodationProductListServiceV4.AccommodationProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func (tt *TestAccommodationV4) testAccommodationV4ProductInfoService(ctx context
 		Languages: []typesv1.Language{language},
 	}
 	resp, err := tt.distributorBot.AccommodationProductInfoServiceV4.AccommodationProductInfo(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -269,7 +269,7 @@ func (tt *TestAccommodationV4) testAccommodationV4SearchServiceTravelPeriodOutOf
 		PropertyType: accommodationv4.PropertyType_PROPERTY_TYPE_HOTEL,
 	}
 	resp, err := tt.distributorBot.AccommodationSearchServiceV4.AccommodationSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -318,7 +318,7 @@ func testAccommodationV4SearchService(
 		PropertyType: accommodationv4.PropertyType_PROPERTY_TYPE_HOTEL,
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV4.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

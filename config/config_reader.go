@@ -17,14 +17,14 @@ import (
 	"go.uber.org/zap"
 )
 
-const envPrefix = "CMB"
+const envPrefix = "TTMB"
 
 var (
 	_ Reader = (*reader)(nil)
 
 	errInvalidRawConfig           = errors.New("invalid raw config")
 	errEmptyConfigPath            = errors.New("config path is empty")
-	errInvalidCMAccountAddress    = errors.New("invalid CM account address")
+	errInvalidTTMAccountAddress   = errors.New("invalid CM account address")
 	errInvalidBookingTokenAddress = errors.New("invalid booking token address")
 
 	errNonPositiveTokenVisibleAttempts = errors.New("token_visible_max_attempts must be >= 1")
@@ -104,8 +104,8 @@ func (cr *reader) parseConfig(cfg *UnparsedConfig) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse bot key: %w", err)
 	}
 
-	if !common.IsHexAddress(cfg.CMAccountAddress) {
-		return nil, errInvalidCMAccountAddress
+	if !common.IsHexAddress(cfg.TTMAccountAddress) {
+		return nil, errInvalidTTMAccountAddress
 	}
 
 	if !common.IsHexAddress(cfg.BookingTokenAddress) {
@@ -142,7 +142,7 @@ func (cr *reader) parseConfig(cfg *UnparsedConfig) (*Config, error) {
 		DeveloperMode:       cfg.DeveloperMode,
 		E2ETestMode:         cfg.E2ETestMode,
 		BotKey:              botKey,
-		CMAccountAddress:    common.HexToAddress(cfg.CMAccountAddress),
+		TTMAccountAddress:   common.HexToAddress(cfg.TTMAccountAddress),
 		ChainRPCURL:         cfg.ChainRPCURL,
 		BookingTokenAddress: common.HexToAddress(cfg.BookingTokenAddress),
 		BotAuthCacheTimeout: time.Duration(cfg.BotAuthCacheTimeout) * time.Second,

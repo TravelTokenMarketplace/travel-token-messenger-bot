@@ -32,8 +32,8 @@ import (
 const bookingTokenOperatorLibName = "12bd2f62b73a470fe0f6e02c33045f3191" //nolint:gosec // this is not credentials.
 
 var (
-	kycAdminRole                = big.NewInt(0b100)
-	cmAccountNativeTokenPrefund = big.NewInt(0).Mul(e2eCommon.CAM, big.NewInt(100))
+	kycAdminRole                 = big.NewInt(0b100)
+	ttmAccountNativeTokenPrefund = big.NewInt(0).Mul(e2eCommon.CAM, big.NewInt(100))
 
 	ErrorAddServiceTxFailed = errors.New("failed to issue AddService tx")
 )
@@ -83,8 +83,8 @@ type Client struct {
 	ethClient                   *ethclient.Client
 	ethChainID                  *big.Int
 	bookingTokenContractAddress common.Address
-	cmAccountManager            *ttmaccountmanager.Ttmaccountmanager
-	cmAccountManagerAddress     common.Address
+	ttmAccountManager           *ttmaccountmanager.Ttmaccountmanager
+	ttmAccountManagerAddress    common.Address
 	adminContract               *contracts.CaminoAdmin
 
 	nonces      map[common.Address]uint64
@@ -107,60 +107,60 @@ func (c *Client) BookingTokenContractAddress() common.Address {
 	return c.bookingTokenContractAddress
 }
 
-func (c *Client) CreateCMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (common.Address, *ttmaccount.Ttmaccount, error) {
-	transactor, err := c.transactor(ctx, c.adminKey, cmAccountNativeTokenPrefund)
+func (c *Client) CreateTTMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (common.Address, *ttmaccount.Ttmaccount, error) {
+	transactor, err := c.transactor(ctx, c.adminKey, ttmAccountNativeTokenPrefund)
 	if err != nil {
 		return common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
 	ownerAddr := crypto.PubkeyToAddress(owner.PublicKey)
 
-	tx, err := c.cmAccountManager.CreateTTMAccount(
+	tx, err := c.ttmAccountManager.CreateTTMAccount(
 		transactor,
 		ownerAddr,
 		ownerAddr,
 	)
 	if err != nil {
-		return common.Address{}, nil, fmt.Errorf("failed to issue cmAccountManager.CreateTTMAccount tx: %w", err)
+		return common.Address{}, nil, fmt.Errorf("failed to issue ttmAccountManager.CreateTTMAccount tx: %w", err)
 	}
 
 	receipt, err := c.waitTxSucceed(ctx, tx)
 	if err != nil {
-		return common.Address{}, nil, fmt.Errorf("failed to wait for cmAccountManager.CreateTTMAccount tx to succeed: %w", err)
+		return common.Address{}, nil, fmt.Errorf("failed to wait for ttmAccountManager.CreateTTMAccount tx to succeed: %w", err)
 	}
 
 	for _, log := range receipt.Logs {
-		event, err := c.cmAccountManager.ParseTTMAccountCreated(*log)
+		event, err := c.ttmAccountManager.ParseTTMAccountCreated(*log)
 		if err == nil {
-			cmAccount, err := ttmaccount.NewTtmaccount(event.Account, c.ethClient)
+			ttmAccount, err := ttmaccount.NewTtmaccount(event.Account, c.ethClient)
 			if err != nil {
 				return common.Address{}, nil, fmt.Errorf("failed to create cm account binding: %w", err)
 			}
 
-			return event.Account, cmAccount, nil
+			return event.Account, ttmAccount, nil
 		}
 	}
 
 	return common.Address{}, nil, fmt.Errorf("failed to parse TTMAccountCreated event from receipt logs")
 }
 
-func (c *Client) AddBotToCMAccount(
+func (c *Client) AddBotToTTMAccount(
 	ctx context.Context,
-	cmAccountAddress common.Address,
-	cmAccountOwnerKey *ecdsa.PrivateKey,
+	ttmAccountAddress common.Address,
+	ttmAccountOwnerKey *ecdsa.PrivateKey,
 	botAddr common.Address,
 ) error {
-	transactor, err := c.transactor(ctx, cmAccountOwnerKey, nil)
+	transactor, err := c.transactor(ctx, ttmAccountOwnerKey, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	cmAccount, err := c.CMAccount(cmAccountAddress)
+	ttmAccount, err := c.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return fmt.Errorf("failed to get cm account binding: %w", err)
 	}
 
-	tx, err := cmAccount.AddMessengerBot(transactor, botAddr, common.Big0)
+	tx, err := ttmAccount.AddMessengerBot(transactor, botAddr, common.Big0)
 	if err != nil {
 		return fmt.Errorf("failed to issue AddMessengerBot tx: %w", err)
 	}
@@ -174,21 +174,21 @@ func (c *Client) AddBotToCMAccount(
 
 func (c *Client) AddCMService(
 	ctx context.Context,
-	cmAccountAddress common.Address,
-	cmAccountOwnerKey *ecdsa.PrivateKey,
+	ttmAccountAddress common.Address,
+	ttmAccountOwnerKey *ecdsa.PrivateKey,
 	serviceName string,
 ) error {
-	transactor, err := c.transactor(ctx, cmAccountOwnerKey, nil)
+	transactor, err := c.transactor(ctx, ttmAccountOwnerKey, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	cmAccount, err := c.CMAccount(cmAccountAddress)
+	ttmAccount, err := c.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return fmt.Errorf("failed to get cm account binding: %w", err)
 	}
 
-	tx, err := cmAccount.AddService(
+	tx, err := ttmAccount.AddService(
 		transactor,
 		serviceName,
 		false,
@@ -214,7 +214,7 @@ func (c *Client) RegisterCMService(
 		return fmt.Errorf("failed to create admin transactor: %w", err)
 	}
 
-	tx, err := c.cmAccountManager.RegisterService(transactor, serviceName)
+	tx, err := c.ttmAccountManager.RegisterService(transactor, serviceName)
 	if err != nil {
 		return fmt.Errorf("failed to issue RegisterService tx: %w", err)
 	}
@@ -289,7 +289,7 @@ func (c *Client) BalanceNullUSDOf(ctx context.Context, addr common.Address) (*bi
 	return balance, nil
 }
 
-func (c *Client) CMAccount(addr common.Address) (*ttmaccount.Ttmaccount, error) {
+func (c *Client) TTMAccount(addr common.Address) (*ttmaccount.Ttmaccount, error) {
 	return ttmaccount.NewTtmaccount(addr, c.ethClient)
 }
 
@@ -361,7 +361,7 @@ func (c *Client) prepareAdmin(ctx context.Context) error {
 }
 
 // TODO @evlekht we can use some kind of snapshotting to skip the process of deploying SCs if we'll use persistent network
-func (c *Client) prepareCMBContracts(ctx context.Context) error {
+func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 	c.noncesMutex.Lock()
 	defer c.noncesMutex.Unlock()
 
@@ -377,11 +377,11 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// prepare CM Account Manager proxy initialization data
 
-	cmAccountManagerABI, err := abi.JSON(strings.NewReader(ttmaccountmanager.TtmaccountmanagerABI))
+	ttmAccountManagerABI, err := abi.JSON(strings.NewReader(ttmaccountmanager.TtmaccountmanagerABI))
 	if err != nil {
-		return fmt.Errorf("failed to parse cmAccountManager ABI: %w", err)
+		return fmt.Errorf("failed to parse ttmAccountManager ABI: %w", err)
 	}
-	cmAccountManagerInitializeData, err := cmAccountManagerABI.Pack(
+	ttmAccountManagerInitializeData, err := ttmAccountManagerABI.Pack(
 		"initialize",
 		adminAddress, // admin
 		adminAddress, // pauser
@@ -389,7 +389,7 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 		adminAddress, // versioner
 	)
 	if err != nil {
-		return fmt.Errorf("failed to pack cmAccountManager.initialize data: %w", err)
+		return fmt.Errorf("failed to pack ttmAccountManager.initialize data: %w", err)
 	}
 
 	// block 1 (deploy BookingToken impl, CM Account Manager impl, BookingTokenOperator, nullUSD)
@@ -398,9 +398,9 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to deploy bookingToken implementation contract: %w", err)
 	}
-	cmAccountManagerImplAddress, cmAccountManagerImplTx, _, err := ttmaccountmanager.DeployTtmaccountmanager(transactor, c.ethClient)
+	ttmAccountManagerImplAddress, ttmAccountManagerImplTx, _, err := ttmaccountmanager.DeployTtmaccountmanager(transactor, c.ethClient)
 	if err != nil {
-		return fmt.Errorf("failed to deploy cmAccountManager implementation contract: %w", err)
+		return fmt.Errorf("failed to deploy ttmAccountManager implementation contract: %w", err)
 	}
 	bookingTokenOperatorAddress, bookingTokenOperatorTx, _, err := bookingtokenoperator.DeployBookingtokenoperator(transactor, c.ethClient)
 	if err != nil {
@@ -414,8 +414,8 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	if _, err := c.waitTxSucceed(ctx, bookingTokenImplTx); err != nil {
 		return fmt.Errorf("failed to wait for bookingToken implementation deployment tx to succeed: %w", err)
 	}
-	if _, err := c.waitTxSucceed(ctx, cmAccountManagerImplTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccountManager implementation deployment tx to succeed: %w", err)
+	if _, err := c.waitTxSucceed(ctx, ttmAccountManagerImplTx); err != nil {
+		return fmt.Errorf("failed to wait for ttmAccountManager implementation deployment tx to succeed: %w", err)
 	}
 	if _, err := c.waitTxSucceed(ctx, bookingTokenOperatorTx); err != nil {
 		return fmt.Errorf("failed to wait for bookingTokenOperator deployment tx to succeed: %w", err)
@@ -424,15 +424,15 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to wait for nullUSD deployment tx to succeed: %w", err)
 	}
 
-	// prepare cmAccount implementation bytecode with linked Booking Token Operator contract
+	// prepare ttmAccount implementation bytecode with linked Booking Token Operator contract
 
-	cmAccountABI, err := abi.JSON(strings.NewReader(ttmaccount.TtmaccountABI))
+	ttmAccountABI, err := abi.JSON(strings.NewReader(ttmaccount.TtmaccountABI))
 	if err != nil {
-		return fmt.Errorf("failed to parse cmAccount ABI: %w", err)
+		return fmt.Errorf("failed to parse ttmAccount ABI: %w", err)
 	}
 
 	bookingTokenOperatorLinkingRegExp := regexp.MustCompile("__\\$" + bookingTokenOperatorLibName + "\\$__")
-	cmAccountImplBytecode := bookingTokenOperatorLinkingRegExp.ReplaceAllString(
+	ttmAccountImplBytecode := bookingTokenOperatorLinkingRegExp.ReplaceAllString(
 		ttmaccount.TtmaccountBin,
 		strings.ToLower(bookingTokenOperatorAddress.String()[2:]),
 	)
@@ -446,62 +446,62 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// block 2 (deploy CM Account Manager proxy, CM Account implementation)
 
-	cmAccountManagerProxyAddress, cmAccountManagerProxyTx, _, err := erc1967proxy.DeployErc1967proxy(
+	ttmAccountManagerProxyAddress, ttmAccountManagerProxyTx, _, err := erc1967proxy.DeployErc1967proxy(
 		transactor,
 		c.ethClient,
-		cmAccountManagerImplAddress,
-		cmAccountManagerInitializeData,
+		ttmAccountManagerImplAddress,
+		ttmAccountManagerInitializeData,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to deploy cmAccountManager proxy contract: %w", err)
+		return fmt.Errorf("failed to deploy ttmAccountManager proxy contract: %w", err)
 	}
 
-	cmAccountImplAddress, cmAccountImplTx, _, err := bind.DeployContract(transactor, cmAccountABI, common.FromHex(cmAccountImplBytecode), c.ethClient)
+	ttmAccountImplAddress, ttmAccountImplTx, _, err := bind.DeployContract(transactor, ttmAccountABI, common.FromHex(ttmAccountImplBytecode), c.ethClient)
 	if err != nil {
-		return fmt.Errorf("failed to deploy cmAccount implementation contract: %w", err)
+		return fmt.Errorf("failed to deploy ttmAccount implementation contract: %w", err)
 	}
 
-	if _, err := c.waitTxSucceed(ctx, cmAccountManagerProxyTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccountManager proxy deployment tx to succeed: %w", err)
+	if _, err := c.waitTxSucceed(ctx, ttmAccountManagerProxyTx); err != nil {
+		return fmt.Errorf("failed to wait for ttmAccountManager proxy deployment tx to succeed: %w", err)
 	}
-	if _, err := c.waitTxSucceed(ctx, cmAccountImplTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccount implementation deployment tx to succeed: %w", err)
+	if _, err := c.waitTxSucceed(ctx, ttmAccountImplTx); err != nil {
+		return fmt.Errorf("failed to wait for ttmAccount implementation deployment tx to succeed: %w", err)
 	}
 
-	// create cmAccountManager binding
+	// create ttmAccountManager binding
 
-	c.cmAccountManager, err = ttmaccountmanager.NewTtmaccountmanager(cmAccountManagerProxyAddress, c.ethClient)
+	c.ttmAccountManager, err = ttmaccountmanager.NewTtmaccountmanager(ttmAccountManagerProxyAddress, c.ethClient)
 	if err != nil {
-		return fmt.Errorf("failed to create cmAccountManager binding: %w", err)
+		return fmt.Errorf("failed to create ttmAccountManager binding: %w", err)
 	}
-	c.cmAccountManagerAddress = cmAccountManagerProxyAddress
+	c.ttmAccountManagerAddress = ttmAccountManagerProxyAddress
 
 	// prepare Booking Token proxy initialization data
 
 	bookingTokenABI, err := abi.JSON(strings.NewReader(bookingtoken.BookingtokenABI))
 	if err != nil {
-		return fmt.Errorf("failed to parse cmAccountManager ABI: %w", err)
+		return fmt.Errorf("failed to parse ttmAccountManager ABI: %w", err)
 	}
 	bookingTokenInitializeData, err := bookingTokenABI.Pack(
 		"initialize",
-		cmAccountManagerProxyAddress, // CM Account Manager address
-		adminAddress,                 // defaultAdmin
-		adminAddress,                 // upgrader
+		ttmAccountManagerProxyAddress, // CM Account Manager address
+		adminAddress,                  // defaultAdmin
+		adminAddress,                  // upgrader
 	)
 	if err != nil {
 		return fmt.Errorf("failed to pack bookingToken.initialize data: %w", err)
 	}
 
-	// block 3 (deploy Booking Token proxy, grant cmAccountManager role for registering services)
+	// block 3 (deploy Booking Token proxy, grant ttmAccountManager role for registering services)
 
-	serviceRegistryAdminRole, err := c.cmAccountManager.SERVICEREGISTRYADMINROLE(&bind.CallOpts{Context: ctx})
+	serviceRegistryAdminRole, err := c.ttmAccountManager.SERVICEREGISTRYADMINROLE(&bind.CallOpts{Context: ctx})
 	if err != nil {
 		return fmt.Errorf("failed to get role: %w", err)
 	}
 
-	grantServiceRegistryAdminRoleTx, err := c.cmAccountManager.GrantRole(transactor, serviceRegistryAdminRole, adminAddress)
+	grantServiceRegistryAdminRoleTx, err := c.ttmAccountManager.GrantRole(transactor, serviceRegistryAdminRole, adminAddress)
 	if err != nil {
-		return fmt.Errorf("failed to issue cmAccountManager.GrantRole (serviceRegistryAdminRole): %w", err)
+		return fmt.Errorf("failed to issue ttmAccountManager.GrantRole (serviceRegistryAdminRole): %w", err)
 	}
 
 	bookingTokenProxyAddress, bookingTokenProxyTx, _, err := erc1967proxy.DeployErc1967proxy(
@@ -515,7 +515,7 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	}
 
 	if _, err := c.waitTxSucceed(ctx, grantServiceRegistryAdminRoleTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccountManager.GrantRole (serviceRegistryAdminRole) tx to succeed: %w", err)
+		return fmt.Errorf("failed to wait for ttmAccountManager.GrantRole (serviceRegistryAdminRole) tx to succeed: %w", err)
 	}
 
 	if _, err := c.waitTxSucceed(ctx, bookingTokenProxyTx); err != nil {
@@ -531,20 +531,20 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// block 4 (ReinitializeV2 Booking Token, link contracts)
 
-	setBookingTokenAddressTx, err := c.cmAccountManager.SetBookingTokenAddress(
+	setBookingTokenAddressTx, err := c.ttmAccountManager.SetBookingTokenAddress(
 		transactor,
 		bookingTokenProxyAddress,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to issue cmAccountManager.SetBookingTokenAddress tx: %w", err)
+		return fmt.Errorf("failed to issue ttmAccountManager.SetBookingTokenAddress tx: %w", err)
 	}
 
-	setAccountImplementationTx, err := c.cmAccountManager.SetAccountImplementation(
+	setAccountImplementationTx, err := c.ttmAccountManager.SetAccountImplementation(
 		transactor,
-		cmAccountImplAddress,
+		ttmAccountImplAddress,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to issue cmAccountManager.SetAccountImplementation tx: %w", err)
+		return fmt.Errorf("failed to issue ttmAccountManager.SetAccountImplementation tx: %w", err)
 	}
 
 	reinitializeV2Tx, err := c.BookingToken.ReinitializeV2(transactor, "BookingToken", "BToken")
@@ -572,10 +572,10 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	}
 
 	if _, err := c.waitTxSucceed(ctx, setBookingTokenAddressTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccountManager.SetBookingTokenAddress tx to succeed: %w", err)
+		return fmt.Errorf("failed to wait for ttmAccountManager.SetBookingTokenAddress tx to succeed: %w", err)
 	}
 	if _, err := c.waitTxSucceed(ctx, setAccountImplementationTx); err != nil {
-		return fmt.Errorf("failed to wait for cmAccountManager.SetAccountImplementation tx to succeed: %w", err)
+		return fmt.Errorf("failed to wait for ttmAccountManager.SetAccountImplementation tx to succeed: %w", err)
 	}
 	if _, err := c.waitTxSucceed(ctx, reinitializeV2Tx); err != nil {
 		return fmt.Errorf("failed to wait for bookingToken.ReinitializeV2 tx to succeed: %w", err)

@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	KeyRequestID          = "request_id"
-	KeyRecipientCMAccount = "recipient_cm_account"
-	KeySenderCMAccount    = "sender_cm_account"
-	KeyTimestamps         = "timestamps"
+	KeyRequestID           = "request_id"
+	KeyRecipientTTMAccount = "recipient_cm_account"
+	KeySenderTTMAccount    = "sender_cm_account"
+	KeyTimestamps          = "timestamps"
 )
 
 type Metadata struct {
-	RequestID          string
-	RecipientCMAccount common.Address
-	SenderCMAccount    common.Address
-	Timestamps         Timestamps // can be nil
+	RequestID           string
+	RecipientTTMAccount common.Address
+	SenderTTMAccount    common.Address
+	Timestamps          Timestamps // can be nil
 }
 
 func FromGRPCContext(ctx context.Context) *Metadata {
@@ -36,12 +36,12 @@ func FromGRPCContext(ctx context.Context) *Metadata {
 		md.RequestID = requestID[0]
 	}
 
-	if recipientCMAccount := mdPairs["recipient_cm_account"]; len(recipientCMAccount) == 1 {
-		md.RecipientCMAccount = common.HexToAddress(recipientCMAccount[0])
+	if recipientTTMAccount := mdPairs["recipient_cm_account"]; len(recipientTTMAccount) == 1 {
+		md.RecipientTTMAccount = common.HexToAddress(recipientTTMAccount[0])
 	}
 
-	if senderCMAccount := mdPairs["sender_cm_account"]; len(senderCMAccount) == 1 {
-		md.SenderCMAccount = common.HexToAddress(senderCMAccount[0])
+	if senderTTMAccount := mdPairs["sender_cm_account"]; len(senderTTMAccount) == 1 {
+		md.SenderTTMAccount = common.HexToAddress(senderTTMAccount[0])
 	}
 
 	if timestampsStr := mdPairs["timestamps"]; len(timestampsStr) == 1 {

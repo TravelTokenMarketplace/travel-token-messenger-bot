@@ -16,8 +16,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/partnerplugin"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/resolver"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/metadata"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 )
@@ -36,7 +36,7 @@ type MessageProcessor interface {
 	SendRequestMessage(
 		ctx context.Context,
 		message *message.Message,
-		recipientCMAccount ethCommon.Address,
+		recipientTTMAccount ethCommon.Address,
 	) (*message.Message, error)
 }
 
@@ -46,7 +46,7 @@ type EncoderDecoder interface {
 		msg *message.Message,
 		toBot ethCommon.Address,
 		sharedKey encryption.Key,
-		senderCMAccount ethCommon.Address,
+		senderTTMAccount ethCommon.Address,
 	) (*EncodedSignedMessage, error)
 
 	DecodeAndVerifyMessage(
@@ -56,7 +56,7 @@ type EncoderDecoder interface {
 	) (
 		msg *message.Message,
 		sharedKey encryption.Key,
-		senderCMAccount ethCommon.Address,
+		senderTTMAccount ethCommon.Address,
 		err error,
 	)
 }
@@ -66,34 +66,34 @@ func NewMessageProcessor(
 	logger *zap.SugaredLogger,
 	responseTimeout time.Duration,
 	botAddress ethCommon.Address,
-	cmAccountAddress ethCommon.Address,
+	ttmAccountAddress ethCommon.Address,
 	registry ServiceRegistry,
 	responseHandler ResponseHandler,
 	partnerPlugin partnerplugin.PartnerPlugin,
-	cmAccounts cmaccounts.Service,
+	ttmAccounts ttmaccounts.Service,
 	messageEncoder EncoderDecoder,
 	resolver resolver.Resolver,
 ) MessageProcessor {
 	return &messageProcessor{
-		messenger:        messenger,
-		logger:           logger,
-		responseTimeout:  responseTimeout, // for now applies to all request types
-		responseChannels: make(map[string]chan *message.Message),
-		serviceRegistry:  registry,
-		responseHandler:  responseHandler,
-		partnerPlugin:    partnerPlugin,
-		cmAccounts:       cmAccounts,
-		botAddress:       botAddress,
-		cmAccountAddress: cmAccountAddress,
-		encoderDecoder:   messageEncoder,
-		resolver:         resolver,
+		messenger:         messenger,
+		logger:            logger,
+		responseTimeout:   responseTimeout, // for now applies to all request types
+		responseChannels:  make(map[string]chan *message.Message),
+		serviceRegistry:   registry,
+		responseHandler:   responseHandler,
+		partnerPlugin:     partnerPlugin,
+		ttmAccounts:       ttmAccounts,
+		botAddress:        botAddress,
+		ttmAccountAddress: ttmAccountAddress,
+		encoderDecoder:    messageEncoder,
+		resolver:          resolver,
 	}
 }
 
 type messageProcessor struct {
-	responseTimeout  time.Duration // timeout after which a request is considered failed
-	botAddress       ethCommon.Address
-	cmAccountAddress ethCommon.Address
+	responseTimeout   time.Duration // timeout after which a request is considered failed
+	botAddress        ethCommon.Address
+	ttmAccountAddress ethCommon.Address
 
 	messenger            Messenger
 	logger               *zap.SugaredLogger
@@ -102,7 +102,7 @@ type messageProcessor struct {
 	serviceRegistry      ServiceRegistry
 	responseHandler      ResponseHandler
 	partnerPlugin        partnerplugin.PartnerPlugin
-	cmAccounts           cmaccounts.Service
+	ttmAccounts          ttmaccounts.Service
 	encoderDecoder       EncoderDecoder
 	resolver             resolver.Resolver
 }
@@ -126,26 +126,26 @@ func (p *messageProcessor) Start(ctx context.Context) {
 						return
 					}
 
-					if encodedMessage.SenderCMAccountAddress == p.cmAccountAddress {
+					if encodedMessage.SenderTTMAccountAddress == p.ttmAccountAddress {
 						// should never happen, if messenger server and p.messenger are configured and working correctly
-						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.cmAccountAddress.Hex())
+						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.ttmAccountAddress.Hex())
 						return
 					}
 
-					msg, sharedKey, senderCMAccountAddress, err := p.encoderDecoder.DecodeAndVerifyMessage(ctx, &encodedMessage.Message, encodedMessage.SenderBotAddress)
+					msg, sharedKey, senderTTMAccountAddress, err := p.encoderDecoder.DecodeAndVerifyMessage(ctx, &encodedMessage.Message, encodedMessage.SenderBotAddress)
 					if err != nil {
 						p.logger.Debugf("Failed to decode and verify message: %v", err)
 						return
 					}
 
-					if senderCMAccountAddress == p.cmAccountAddress {
+					if senderTTMAccountAddress == p.ttmAccountAddress {
 						// should never happen, if messenger server and p.messenger are configured and working correctly
-						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.cmAccountAddress.Hex())
+						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.ttmAccountAddress.Hex())
 						return
 					}
 					p.logger.Debugf("Decoded message (%s, %s), processing", msg.Type, msg.RequestID)
 
-					if err := p.processIncomingMessage(ctx, msg, encodedMessage.SenderBotAddress, senderCMAccountAddress, sharedKey); err != nil {
+					if err := p.processIncomingMessage(ctx, msg, encodedMessage.SenderBotAddress, senderTTMAccountAddress, sharedKey); err != nil {
 						p.logger.Warnf("Could not process message: %v", err)
 						return
 					}
@@ -164,15 +164,15 @@ func (p *messageProcessor) processIncomingMessage(
 	ctx context.Context,
 	msg *message.Message,
 	senderBotAddress ethCommon.Address,
-	senderCMAccountAddress ethCommon.Address,
+	senderTTMAccountAddress ethCommon.Address,
 	sharedKey encryption.Key,
 ) error {
-	allowed, err := p.cmAccounts.IsBotAllowed(ctx, senderCMAccountAddress, senderBotAddress)
+	allowed, err := p.ttmAccounts.IsBotAllowed(ctx, senderTTMAccountAddress, senderBotAddress)
 	if err != nil {
-		return fmt.Errorf("failed to verify bot authorization for CM account %s and bot %s: %w", senderCMAccountAddress.Hex(), senderBotAddress.Hex(), err)
+		return fmt.Errorf("failed to verify bot authorization for CM account %s and bot %s: %w", senderTTMAccountAddress.Hex(), senderBotAddress.Hex(), err)
 	}
 	if !allowed {
-		return fmt.Errorf("bot %s is not authorized for CM account %s", senderBotAddress.Hex(), senderCMAccountAddress.Hex())
+		return fmt.Errorf("bot %s is not authorized for CM account %s", senderBotAddress.Hex(), senderTTMAccountAddress.Hex())
 	}
 
 	msgCategory := msg.Type.Category()
@@ -180,7 +180,7 @@ func (p *messageProcessor) processIncomingMessage(
 	switch msgCategory {
 	case message.Request:
 		msg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageReceivedFromServer)
-		if err := p.respond(ctx, msg, senderBotAddress, senderCMAccountAddress, sharedKey); err != nil {
+		if err := p.respond(ctx, msg, senderBotAddress, senderTTMAccountAddress, sharedKey); err != nil {
 			return fmt.Errorf("failed to respond to request message %s (id %s): %w", msg.Type, msg.RequestID, err)
 		}
 	case message.Response:
@@ -197,9 +197,9 @@ func (p *messageProcessor) processIncomingMessage(
 func (p *messageProcessor) SendRequestMessage(
 	ctx context.Context,
 	requestMsg *message.Message,
-	recipientCMAccount ethCommon.Address,
+	recipientTTMAccount ethCommon.Address,
 ) (*message.Message, error) {
-	p.logger.Debugf("Sending request message %s (id %s) to CMAccount %s", requestMsg.Type, requestMsg.RequestID, recipientCMAccount.Hex())
+	p.logger.Debugf("Sending request message %s (id %s) to TTMAccount %s", requestMsg.Type, requestMsg.RequestID, recipientTTMAccount.Hex())
 
 	responseChan := make(chan *message.Message)
 	p.setResponseChannel(requestMsg.RequestID, responseChan)
@@ -208,19 +208,19 @@ func (p *messageProcessor) SendRequestMessage(
 	ctx, cancel := context.WithTimeout(ctx, p.responseTimeout)
 	defer cancel()
 
-	recipientBotAddr, err := p.resolver.GetBotAddress(ctx, recipientCMAccount)
+	recipientBotAddr, err := p.resolver.GetBotAddress(ctx, recipientTTMAccount)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to resolve bot address for CM account %s: %w", rpc.ErrBusinessProcess, recipientCMAccount.Hex(), err)
+		return nil, fmt.Errorf("%w: failed to resolve bot address for CM account %s: %w", rpc.ErrBusinessProcess, recipientTTMAccount.Hex(), err)
 	}
 
-	supported, err := p.cmAccounts.IsServiceSupported(ctx, recipientCMAccount, requestMsg.Type.ToServiceName())
+	supported, err := p.ttmAccounts.IsServiceSupported(ctx, recipientTTMAccount, requestMsg.Type.ToServiceName())
 	if err != nil {
 		err = fmt.Errorf("failed to check service support for service %s: %w", requestMsg.Type.ToServiceName(), err)
 		p.logger.Error(err)
 		return nil, fmt.Errorf("%w: %w", rpc.ErrBlockchain, err)
 	}
 	if !supported {
-		err = fmt.Errorf("service %s not supported by CMAccount %s: %w", requestMsg.Type.ToServiceName(), recipientCMAccount.Hex(), cmaccounts.ErrServiceNotSupported)
+		err = fmt.Errorf("service %s not supported by TTMAccount %s: %w", requestMsg.Type.ToServiceName(), recipientTTMAccount.Hex(), ttmaccounts.ErrServiceNotSupported)
 		p.logger.Debug(err)
 		return nil, fmt.Errorf("%w: %w", rpc.ErrBusinessProcess, err)
 	}
@@ -236,20 +236,20 @@ func (p *messageProcessor) SendRequestMessage(
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToServer)
 
-	encodedRequestMessage, err := p.encoderDecoder.EncodeMessage(ctx, requestMsg, recipientBotAddr, sharedKey, p.cmAccountAddress)
+	encodedRequestMessage, err := p.encoderDecoder.EncodeMessage(ctx, requestMsg, recipientBotAddr, sharedKey, p.ttmAccountAddress)
 	if err != nil {
 		err = fmt.Errorf("failed to encode request message: %w", err)
 		p.logger.Error(err)
 		return nil, err
 	}
 
-	p.logger.Infof("Distributor: Bot %s is contacting bot %s of the CMaccount %s", p.botAddress, recipientBotAddr, recipientCMAccount.Hex())
+	p.logger.Infof("Distributor: Bot %s is contacting bot %s of the CMaccount %s", p.botAddress, recipientBotAddr, recipientTTMAccount.Hex())
 
 	if err := p.messenger.SendMessage(
 		ctx,
 		encodedRequestMessage,
 		recipientBotAddr,
-		p.cmAccountAddress,
+		p.ttmAccountAddress,
 	); err != nil {
 		err = fmt.Errorf("failed to send request message: %w", err)
 		p.logger.Error(err)
@@ -280,7 +280,7 @@ func (p *messageProcessor) respond(
 	ctx context.Context,
 	requestMsg *message.Message,
 	senderBotAddress ethCommon.Address,
-	senderCMAccountAddress ethCommon.Address,
+	senderTTMAccountAddress ethCommon.Address,
 	sharedKey encryption.Key,
 ) error {
 	p.logger.Debugf("Responding to request message %s (id %s) from bot %s", requestMsg.Type, requestMsg.RequestID, senderBotAddress.Hex())
@@ -294,30 +294,30 @@ func (p *messageProcessor) respond(
 		ctx,
 		requestMsg,
 		service,
-		senderCMAccountAddress,
-		p.cmAccountAddress,
+		senderTTMAccountAddress,
+		p.ttmAccountAddress,
 	)
 
 	p.logger.Infof("Supplier: Bot %s responding to BOT %s", p.botAddress, senderBotAddress)
 
 	responseMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageSentToServer)
 
-	encodedResponseMessage, err := p.encoderDecoder.EncodeMessage(ctx, responseMsg, senderBotAddress, sharedKey, p.cmAccountAddress)
+	encodedResponseMessage, err := p.encoderDecoder.EncodeMessage(ctx, responseMsg, senderBotAddress, sharedKey, p.ttmAccountAddress)
 	if err != nil {
 		err = fmt.Errorf("failed to encode response message: %w", err)
 		p.logger.Error(err)
 		return err
 	}
 
-	return p.messenger.SendMessage(ctx, encodedResponseMessage, senderBotAddress, p.cmAccountAddress)
+	return p.messenger.SendMessage(ctx, encodedResponseMessage, senderBotAddress, p.ttmAccountAddress)
 }
 
 func (p *messageProcessor) validateAndRespond(
 	ctx context.Context,
 	requestMsg *message.Message,
 	serviceClient rpc.Client,
-	fromCMAccount ethCommon.Address,
-	toCMAccount ethCommon.Address,
+	fromTTMAccount ethCommon.Address,
+	toTTMAccount ethCommon.Address,
 ) *message.Message {
 	responseMsg := &message.Message{
 		RequestID:  requestMsg.RequestID,
@@ -331,7 +331,7 @@ func (p *messageProcessor) validateAndRespond(
 		return responseMsg
 	}
 
-	p.logger.Infof("CMAccount %s is calling partner-plugin of the CMAccount %s", fromCMAccount, toCMAccount)
+	p.logger.Infof("TTMAccount %s is calling partner-plugin of the TTMAccount %s", fromTTMAccount, toTTMAccount)
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PRequestMessageSentToPP)
 
@@ -339,8 +339,8 @@ func (p *messageProcessor) validateAndRespond(
 		ctx,
 		requestMsg,
 		serviceClient,
-		fromCMAccount,
-		toCMAccount,
+		fromTTMAccount,
+		toTTMAccount,
 	)
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointP2PResponseMessageReceivedFromPP)

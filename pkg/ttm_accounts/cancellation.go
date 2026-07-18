@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2026, Travel Token Marketplace. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package cmaccounts
+package ttmaccounts
 
 import (
 	"context"
@@ -18,7 +18,7 @@ type Cancellation interface {
 	InitiateCancellationProposal(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		refundAmount *big.Int,
 		reason uint16,
@@ -28,7 +28,7 @@ type Cancellation interface {
 	CounterCancellation(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		refundAmount *big.Int,
 		reason uint16,
@@ -38,7 +38,7 @@ type Cancellation interface {
 	AcceptCancellationProposal(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		refundAmount *big.Int,
 	) (*types.Receipt, error)
@@ -46,7 +46,7 @@ type Cancellation interface {
 	RejectCancellationProposal(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		reason uint16,
 		reasonVersion uint16,
@@ -55,7 +55,7 @@ type Cancellation interface {
 	WithdrawCancellation(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		reason uint16,
 		reasonVersion uint16,
@@ -64,7 +64,7 @@ type Cancellation interface {
 	FinalizeCancellation(
 		ctx context.Context,
 		botKey *ecdsa.PrivateKey,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 		refundAmount *big.Int,
 	) (*types.Receipt, error)
@@ -73,15 +73,15 @@ type Cancellation interface {
 func (s *service) InitiateCancellationProposal(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	refundAmount *big.Int,
 	reason uint16,
 	reasonVersion uint16,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -89,7 +89,7 @@ func (s *service) InitiateCancellationProposal(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.InitiateCancellation(
+	tx, err := ttmAccount.InitiateCancellation(
 		transactor,
 		tokenID,
 		refundAmount,
@@ -115,15 +115,15 @@ func (s *service) InitiateCancellationProposal(
 func (s *service) CounterCancellation(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	refundAmount *big.Int,
 	reason uint16,
 	reasonVersion uint16,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -131,7 +131,7 @@ func (s *service) CounterCancellation(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.CounterCancellation(
+	tx, err := ttmAccount.CounterCancellation(
 		transactor,
 		tokenID,
 		refundAmount,
@@ -157,13 +157,13 @@ func (s *service) CounterCancellation(
 func (s *service) AcceptCancellationProposal(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	refundAmount *big.Int,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -171,7 +171,7 @@ func (s *service) AcceptCancellationProposal(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.AcceptCancellation(
+	tx, err := ttmAccount.AcceptCancellation(
 		transactor,
 		tokenID,
 		refundAmount,
@@ -195,14 +195,14 @@ func (s *service) AcceptCancellationProposal(
 func (s *service) RejectCancellationProposal(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	reason uint16,
 	reasonVersion uint16,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -210,7 +210,7 @@ func (s *service) RejectCancellationProposal(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.RejectCancellation(
+	tx, err := ttmAccount.RejectCancellation(
 		transactor,
 		tokenID,
 		reason,
@@ -235,14 +235,14 @@ func (s *service) RejectCancellationProposal(
 func (s *service) WithdrawCancellation(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	reason uint16,
 	reasonVersion uint16,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -250,7 +250,7 @@ func (s *service) WithdrawCancellation(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.WithdrawCancellation(
+	tx, err := ttmAccount.WithdrawCancellation(
 		transactor,
 		tokenID,
 		reason,
@@ -275,13 +275,13 @@ func (s *service) WithdrawCancellation(
 func (s *service) FinalizeCancellation(
 	ctx context.Context,
 	botKey *ecdsa.PrivateKey,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	refundAmount *big.Int,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cmAccount contract instance: %w", err)
+		return nil, fmt.Errorf("failed to get ttmAccount contract instance: %w", err)
 	}
 
 	transactor, err := bind.NewKeyedTransactorWithChainID(botKey, s.chainID)
@@ -289,7 +289,7 @@ func (s *service) FinalizeCancellation(
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := cmAccount.FinalizeCancellation(
+	tx, err := ttmAccount.FinalizeCancellation(
 		transactor,
 		tokenID,
 		refundAmount,

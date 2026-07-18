@@ -128,7 +128,7 @@ func (tt *TestTransportV3) testTransportV3ProductListServiceWithFilter(ctx conte
 		},
 	}
 	resp, err := tt.distributorBot.TransportProductListServiceV3.TransportProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -161,7 +161,7 @@ func (tt *TestTransportV3) testTransportV3SearchServiceWithoutQuery(ctx context.
 		Queries: []*transportv3.TransportSearchQuery{},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ func (tt *TestTransportV3) testTransportV3SearchServiceTravelDatesReversed(ctx c
 		},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -318,7 +318,7 @@ func (tt *TestTransportV3) testTransportV3SearchServiceTravelDatesWrong(ctx cont
 		},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -404,7 +404,7 @@ func (tt *TestTransportV3) testTransportV3SearchServiceTravelWithoutArrivalDate(
 	}
 
 	resp, err := tt.distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -501,7 +501,7 @@ func (tt *TestTransportV3) testTransportV3SearchServiceWithoutArrivalLocation(
 		},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -537,7 +537,7 @@ func testTransportV3ProductListService(
 		Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 	}
 	resp, err := distributorBot.TransportProductListServiceV3.TransportProductList(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -656,7 +656,7 @@ func testTransportV3SearchServiceWithFilters(
 		},
 	}
 	resp, err := distributorBot.TransportSearchServiceV3.TransportSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
