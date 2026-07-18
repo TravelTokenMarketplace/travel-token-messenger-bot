@@ -43,12 +43,12 @@ fi
 TTMBOT_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)
 cd "$TTMBOT_PATH" || exit
 
-CMB_PROTO_PATH="$TTMBOT_PATH/proto"
+TTMB_PROTO_PATH="$TTMBOT_PATH/proto"
 PP_MOCK_PROTO_PATH="$TTMBOT_PATH/pp-mock/proto"
 
-echo "Re-generating protobuf for cmb api..."
+echo "Re-generating protobuf for ttmb api..."
 
-cd "$CMB_PROTO_PATH" || exit
+cd "$TTMB_PROTO_PATH" || exit
 
 echo "Running protobuf fmt..."
 buf format -w
