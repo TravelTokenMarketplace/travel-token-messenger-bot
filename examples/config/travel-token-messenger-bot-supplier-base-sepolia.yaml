@@ -44,8 +44,8 @@ record_expiration: true
 # address needs to have some funds to pay for transaction fees on-chain.
 bot_key: YOUR_PRIVATE_KEY_HEX
 
-# Address of the CM Account that the bot belongs to
-ttm_account_address: 0xYOUR_CM_ACCOUNT_ADDRESS
+# Address of the TTM Account that the bot belongs to
+ttm_account_address: 0xYOUR_TTM_ACCOUNT_ADDRESS
 
 
 
@@ -70,7 +70,7 @@ matrix:
 
 ### Partner Plugin
 partner_plugin:
-    # Enable or disable the partner plugin rpc client. It must be enabled if bot's cm account supports at least one service.
+    # Enable or disable the partner plugin rpc client. It must be enabled if bot's ttm account supports at least one service.
     enabled: true
 
     # Partner Plugin hostname and port, should be reachable from this machine.

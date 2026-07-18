@@ -352,7 +352,7 @@ See [README.MD](tests/e2e/README.MD) for running e2e tests.
 
 ## License
 
-The Camino Messenger Bot is licensed under the terms of the [Camino Messenger License](LICENSE.md).
+The Travel Token Messenger Bot is licensed under the terms of the [Camino Messenger License](LICENSE.md).
 
 ## Data Protection
 
