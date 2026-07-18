@@ -1,7 +1,7 @@
 version: "3"
 services:
   bot:
-    image: c4tplatform/camino-messenger-bot
+    image: travel-token-messenger-bot
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,7 +11,7 @@ services:
       - "9090:9090"
     command: ["--config", "/cmb-config/config.yaml"]
   provider-plugin:
-    image: c4tplatform/camino-messenger-bot-plugin
+    image: travel-token-messenger-bot-plugin
     build:
       context: .
       dockerfile: Dockerfile.plugin

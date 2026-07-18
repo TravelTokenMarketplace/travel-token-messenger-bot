@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [c4t, dev]
+    branches: [dev]
   workflow_dispatch:
 
 # Cancel ongoing workflow runs if a new one is started
@@ -116,7 +116,7 @@ jobs:
           context: .
           push: false
           tags: |
-            c4tplatform/camino-messenger-bot:temp
+            travel-token-messenger-bot:temp
 
   e2e:
     name: E2E Tests

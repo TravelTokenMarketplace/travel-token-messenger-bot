@@ -202,13 +202,13 @@ go test -tags=e2e -c -o ../../$E2E_BIN_OUT e2e_test.go
 cd "$ORIG_DIR"
 
 PARTNER_PLUGIN_BIN_PATH=build/pp-mock
-CMB_BIN_PATH=build/camino-messenger-bot
+TTMB_BIN_PATH=build/travel-token-messenger-bot
 
 CAMINOGO_BIN_PATH="$(realpath "${CAMINOGO_BIN_PATH}")"
 MATRIX_BIN_PATH="$(realpath "${MATRIX_BIN_PATH}")"
 ASB_BIN_PATH="$(realpath "${ASB_BIN_PATH}")"
 PARTNER_PLUGIN_BIN_PATH="$(realpath "${PARTNER_PLUGIN_BIN_PATH}")"
-CMB_BIN_PATH="$(realpath "${CMB_BIN_PATH}")"
+TTMB_BIN_PATH="$(realpath "${TTMB_BIN_PATH}")"
 
 echo "Running e2e tests..."
 
@@ -227,5 +227,5 @@ fi
 	-matrix="${MATRIX_BIN_PATH}" \
 	-asb="${ASB_BIN_PATH}" \
 	-partner-plugin="${PARTNER_PLUGIN_BIN_PATH}" \
-	-cmb="${CMB_BIN_PATH}" \
+	-ttmb="${TTMB_BIN_PATH}" \
 	"${ADD_PARAM[@]}"

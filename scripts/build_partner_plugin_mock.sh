@@ -26,15 +26,15 @@ done
 
 echo "Starting build process..."
 
-if [ -z "${CAMINOBOT_PATH}" ]; then
-	# camino-messenger-bot root folder
-	CAMINOBOT_PATH=$(
+if [ -z "${TTMBOT_PATH}" ]; then
+	# travel-token-messenger-bot root folder
+	TTMBOT_PATH=$(
 		cd "$(dirname "${BASH_SOURCE[0]}")" || exit
 		cd .. && pwd
 	)
 fi
-echo "cd $CAMINOBOT_PATH"
-cd "$CAMINOBOT_PATH" || exit
+echo "cd $TTMBOT_PATH"
+cd "$TTMBOT_PATH" || exit
 
 # Build the Go application
 echo "Building partner-plugin mock..."
@@ -49,7 +49,7 @@ echo "$BUILD_CMD"
 
 if eval "$BUILD_CMD"
 then
-	echo "Output binary: ${CAMINOBOT_PATH}/${OUTPUT_BINARY}"
+	echo "Output binary: ${TTMBOT_PATH}/${OUTPUT_BINARY}"
 	echo "Build successful!"
 else
 	echo "Build failed."

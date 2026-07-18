@@ -40,11 +40,11 @@ if [[ $(protoc-gen-go-grpc --version | cut -f2 -d' ') != "${PROTOC_GEN_GO_GRPC_V
 	exit 255
 fi
 
-CAMINOBOT_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)
-cd "$CAMINOBOT_PATH" || exit
+TTMBOT_PATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)
+cd "$TTMBOT_PATH" || exit
 
-CMB_PROTO_PATH="$CAMINOBOT_PATH/proto"
-PP_MOCK_PROTO_PATH="$CAMINOBOT_PATH/pp-mock/proto"
+CMB_PROTO_PATH="$TTMBOT_PATH/proto"
+PP_MOCK_PROTO_PATH="$TTMBOT_PATH/pp-mock/proto"
 
 echo "Re-generating protobuf for cmb api..."
 

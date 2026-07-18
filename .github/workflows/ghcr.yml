@@ -61,5 +61,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
-            CAMINO_BOT_COMMIT=${{ github.sha }}
-            CAMINO_BOT_TAG=${{ github.ref_name }}
+            TTM_BOT_COMMIT=${{ github.sha }}
+            TTM_BOT_TAG=${{ github.ref_name }}

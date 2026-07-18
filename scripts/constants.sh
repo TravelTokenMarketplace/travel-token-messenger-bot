@@ -18,13 +18,13 @@ fi
 # replace / with - to be a docker tag compatible
 current_branch=${current_branch_temp////-}
 
-# camino-messenger-bot git tag and sha
+# travel-token-messenger-bot git tag and sha
 if [ "$is_git" = true ]; then
-	git_commit=${CAMINO_BOT_COMMIT:-$(git rev-parse --short HEAD)}
-	git_tag=${CAMINO_BOT_TAG:-$(git describe --tags --always --dirty || echo unknown)}
+	git_commit=${TTM_BOT_COMMIT:-$(git rev-parse --short HEAD)}
+	git_tag=${TTM_BOT_TAG:-$(git describe --tags --always --dirty || echo unknown)}
 else
-	git_commit=${CAMINO_BOT_COMMIT:-unknown}
-	git_tag=${CAMINO_BOT_TAG:-unknown}
+	git_commit=${TTM_BOT_COMMIT:-unknown}
+	git_tag=${TTM_BOT_TAG:-unknown}
 fi
 
 # get protocol releases from buf.build

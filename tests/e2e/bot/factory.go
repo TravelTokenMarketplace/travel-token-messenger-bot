@@ -42,7 +42,7 @@ func NewFactory(
 	return &Factory{
 		logger:                 logger,
 		resourceManagerSession: resourceManagerSession,
-		dir:                    path.Join(e2eTmpDir, "cmb"),
+		dir:                    path.Join(e2eTmpDir, "ttmb"),
 		binPath:                binPath,
 		networkClient:          networkClient,
 		matrix:                 matrix,
