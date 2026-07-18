@@ -18,7 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var errUnsupportedService = errors.New("cm account support service, which bot doesn't support")
+var errUnsupportedService = errors.New("ttm account support service, which bot doesn't support")
 
 type ServiceRegistry interface {
 	GetService(messageType message.Type) (rpc.Service, bool)
@@ -32,7 +32,7 @@ func NewServiceRegistry(
 ) (ServiceRegistry, error) {
 	ttmAccount, err := ttmaccount.NewTtmaccount(ttmAccountAddress, evmClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch CM account: %w", err)
+		return nil, fmt.Errorf("failed to fetch TTM account: %w", err)
 	}
 
 	supportedServices, err := ttmAccount.GetSupportedServices(&bind.CallOpts{})

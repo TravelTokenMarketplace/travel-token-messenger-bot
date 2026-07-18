@@ -44,11 +44,11 @@ const (
 	StatusCancelled
 )
 
-// Service provides minting and buying methods to interact with the CM Account contract.
+// Service provides minting and buying methods to interact with the TTM Account contract.
 type Service interface {
 	// MintBookingToken mints a new booking token.
 	// Parameters:
-	// - reservedFor: The CM Account to reserve the token for.
+	// - reservedFor: The TTM Account to reserve the token for.
 	// - uri: The URI of the token.
 	// - expirationTimestamp: Expiration timestamp for the token to be bought.
 	// - price: Price of the token.

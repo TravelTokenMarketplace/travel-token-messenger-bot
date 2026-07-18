@@ -81,7 +81,7 @@ type UnparsedConfig struct {
 	E2ETestMode   bool `mapstructure:"e2e_test_mode"`
 
 	BotKey            string `mapstructure:"bot_key"`
-	TTMAccountAddress string `mapstructure:"cm_account_address"`
+	TTMAccountAddress string `mapstructure:"ttm_account_address"`
 
 	ChainRPCURL         string `mapstructure:"chain_rpc_url"`
 	BookingTokenAddress string `mapstructure:"booking_token_address"`

@@ -100,7 +100,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.BotAuthCacheTimeout,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cm accounts service: %w", err)
+		return nil, fmt.Errorf("failed to create ttm accounts service: %w", err)
 	}
 
 	// TODO: @VjeraTurk Ensure multiple versions compatibility

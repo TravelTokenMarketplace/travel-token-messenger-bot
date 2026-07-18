@@ -54,7 +54,7 @@ func init() {
 	flag.StringVar(&flagASBBinPath, flagKeyASBBinPath, "", "Path to ASB binary.")
 	flag.StringVar(&flagPartnerPluginBinPath, flagKeyPartnerPluginBinPath, "", "Path to partner plugin binary.")
 	flag.StringVar(&flagTTMBBinPath, flagKeyTTMBBinPath, "", "Path to TTMB binary.")
-	flag.StringVar(&flagTestsDataDir, "tests-data-dir", "/tmp/cmb-e2e", "Path to dir with temp tests data.")
+	flag.StringVar(&flagTestsDataDir, "tests-data-dir", "/tmp/ttm-e2e", "Path to dir with temp tests data.")
 	flag.StringVar(&flagFilter, flagKeyFilter, "", "Filter for (comma separated) top level test names e.g. PingV1,AccommodationV3.")
 	flag.BoolVar(&flagDebug, flagKeyDebug, false, "Debug mode")
 }

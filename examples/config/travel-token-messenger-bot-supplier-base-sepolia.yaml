@@ -11,10 +11,14 @@ developer_mode: true
 response_timeout: 10000
 
 # Booking Token contract address. This address will be used for minting, buying of Booking Tokens
-booking_token_address: 0xe2b8c92B6519d1A2020dA0A5fBbA99a43A2c0922
+booking_token_address: 0x459EEdD4bE13bD7D1Af27DA5DdA6d69407118C83
 
-# C-Chain RPC URL
-chain_rpc_url: wss://api.camino.network/ext/bc/C/ws
+# Blockchain RPC URL. The public endpoint (e.g. wss://base-sepolia.drpc.org) is subject to rate limiting.
+# For production or high-volume usage, users should use their own private endpoints from third-party RPC providers (such as QuickNode, Ankr, Infura, etc.).
+chain_rpc_url: wss://base-sepolia.drpc.org
+
+### Record Expiration - whether to record booking token expiration on chain
+record_expiration: true
 
 
 
@@ -22,8 +26,8 @@ chain_rpc_url: wss://api.camino.network/ext/bc/C/ws
 
 # Before buying a minted Booking Token, the bot polls getReservationPrice until the
 # reservation becomes visible on its RPC node. This guards against split-brain reads on
-# load-balanced RPC endpoints, where the node serving the buy may not have synced the
-# mint block yet. The values below are the defaults.
+# load-balanced RPC endpoints (e.g. wss://base-sepolia.drpc.org), where the node serving
+# the buy may not have synced the mint block yet. The values below are the defaults.
 
 # Max poll attempts before giving up on the buy (must be >= 1).
 # token_visible_max_attempts: 16
@@ -36,12 +40,12 @@ chain_rpc_url: wss://api.camino.network/ext/bc/C/ws
 ### Bot identity
 
 # Private key of the bot in hex format without the 0x prefix.
-# Used for signing transactions on the c-chain, also used to log in into Matrix. This
-# address needs to have some funds to pay for transaction fees on the C-Chain.
+# Used for signing transactions on the blockchain, also used to log in into Matrix. This
+# address needs to have some funds to pay for transaction fees on-chain.
 bot_key: YOUR_PRIVATE_KEY_HEX
 
 # Address of the CM Account that the bot belongs to
-cm_account_address: 0xYOUR_CM_ACCOUNT_ADDRESS
+ttm_account_address: 0xYOUR_CM_ACCOUNT_ADDRESS
 
 
 
@@ -55,9 +59,7 @@ bot_auth_cache_timeout: 300
 ### Database
 db:
     # Path to database dir.
-    path: distributor-bot-db
-
-
+    path: supplier-bot-db
 
 ### Matrix
 matrix:
@@ -68,9 +70,7 @@ matrix:
 
 ### Partner Plugin
 partner_plugin:
-    # Enable or disable the partner plugin rpc client.
-    # It must be enabled if bot's cm account supports at least one service or
-    # if partner plugin supports booking token cancellation. 
+    # Enable or disable the partner plugin rpc client. It must be enabled if bot's cm account supports at least one service.
     enabled: true
 
     # Partner Plugin hostname and port, should be reachable from this machine.
@@ -86,11 +86,13 @@ partner_plugin:
 
 
 
-### RPC server
+## RPC server
 rpc_server:
-    # Enable or disable RPC server. It must be enabled if bot is expecting to receive RPC requests (e.g. its distributor bot).
-    enabled: true
-    
+    # Enable or disable RPC server.
+    # It must be enabled if bot is expecting to receive RPC requests.
+    # E.g. if its distributor bot or supplier supporting booking token cancellation.
+    enabled: false
+
     # Listen on this port for incoming RPC requests
     port: 9090
 

@@ -79,7 +79,7 @@ func rootFunc(cmd *cobra.Command, _ []string) error {
 	logger.Infof("App version: %s (git: %s)", version.AppVersion, version.AppGitCommit)
 	logger.Infof("buf.build protocolbuffers version: %s (CMP %s)", version.BufBuildPBCommit, version.BufBuildPBCMPRelease)
 	logger.Infof("buf.build grpc version: %s (CMP %s)", version.BufBuildGRPCCommit, version.BufBuildGRPCCMPRelease)
-	logger.Infof("camino-messenger-contracts version: %s", version.ContractsGitCommit)
+	logger.Infof("travel-token-messenger-contracts version: %s", version.ContractsGitCommit)
 
 	app, err := app.NewApp(ctx, cfg, logger)
 	if err != nil {

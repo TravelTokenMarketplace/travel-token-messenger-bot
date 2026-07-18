@@ -24,7 +24,7 @@ var (
 
 	errInvalidRawConfig           = errors.New("invalid raw config")
 	errEmptyConfigPath            = errors.New("config path is empty")
-	errInvalidTTMAccountAddress   = errors.New("invalid CM account address")
+	errInvalidTTMAccountAddress   = errors.New("invalid TTM account address")
 	errInvalidBookingTokenAddress = errors.New("invalid booking token address")
 
 	errNonPositiveTokenVisibleAttempts = errors.New("token_visible_max_attempts must be >= 1")

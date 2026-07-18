@@ -134,7 +134,7 @@ func (c *Client) CreateTTMAccount(ctx context.Context, owner *ecdsa.PrivateKey) 
 		if err == nil {
 			ttmAccount, err := ttmaccount.NewTtmaccount(event.Account, c.ethClient)
 			if err != nil {
-				return common.Address{}, nil, fmt.Errorf("failed to create cm account binding: %w", err)
+				return common.Address{}, nil, fmt.Errorf("failed to create ttm account binding: %w", err)
 			}
 
 			return event.Account, ttmAccount, nil
@@ -157,7 +157,7 @@ func (c *Client) AddBotToTTMAccount(
 
 	ttmAccount, err := c.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return fmt.Errorf("failed to get cm account binding: %w", err)
+		return fmt.Errorf("failed to get ttm account binding: %w", err)
 	}
 
 	tx, err := ttmAccount.AddMessengerBot(transactor, botAddr, common.Big0)
@@ -185,7 +185,7 @@ func (c *Client) AddCMService(
 
 	ttmAccount, err := c.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		return fmt.Errorf("failed to get cm account binding: %w", err)
+		return fmt.Errorf("failed to get ttm account binding: %w", err)
 	}
 
 	tx, err := ttmAccount.AddService(
@@ -375,7 +375,7 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 	}
 	transactor.Context = ctx
 
-	// prepare CM Account Manager proxy initialization data
+	// prepare TTM Account Manager proxy initialization data
 
 	ttmAccountManagerABI, err := abi.JSON(strings.NewReader(ttmaccountmanager.TtmaccountmanagerABI))
 	if err != nil {
@@ -392,7 +392,7 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to pack ttmAccountManager.initialize data: %w", err)
 	}
 
-	// block 1 (deploy BookingToken impl, CM Account Manager impl, BookingTokenOperator, nullUSD)
+	// block 1 (deploy BookingToken impl, TTM Account Manager impl, BookingTokenOperator, nullUSD)
 
 	bookingTokenImplAddress, bookingTokenImplTx, _, err := bookingtoken.DeployBookingtoken(transactor, c.ethClient)
 	if err != nil {
@@ -444,7 +444,7 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to create nullUSD binding: %w", err)
 	}
 
-	// block 2 (deploy CM Account Manager proxy, CM Account implementation)
+	// block 2 (deploy TTM Account Manager proxy, TTM Account implementation)
 
 	ttmAccountManagerProxyAddress, ttmAccountManagerProxyTx, _, err := erc1967proxy.DeployErc1967proxy(
 		transactor,
@@ -484,7 +484,7 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 	}
 	bookingTokenInitializeData, err := bookingTokenABI.Pack(
 		"initialize",
-		ttmAccountManagerProxyAddress, // CM Account Manager address
+		ttmAccountManagerProxyAddress, // TTM Account Manager address
 		adminAddress,                  // defaultAdmin
 		adminAddress,                  // upgrader
 	)

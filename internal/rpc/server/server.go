@@ -149,7 +149,7 @@ func (s *server) Stop() {
 func (s *server) HandleMessageRequest(ctx context.Context, requestType message.Type, request protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
 	recipientTTMAccountAddress, err := s.getRecipientAddress(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get recipient cm account address from request context: %w", err)
+		return nil, fmt.Errorf("failed to get recipient ttm account address from request context: %w", err)
 	}
 
 	requestMsg := &message.Message{
@@ -199,7 +199,7 @@ func (s *server) unaryRecoverInterceptor(ctx context.Context, req any, info *grp
 			var recipientTTMAccountAddress ethCommon.Address
 			recipientTTMAccountAddress, err = s.getRecipientAddress(ctx)
 			if err != nil {
-				s.logger.Errorf("failed to get recipient cm account address from request context: %v", err)
+				s.logger.Errorf("failed to get recipient ttm account address from request context: %v", err)
 			}
 			err = fmt.Errorf("gRPC %s (recipient %s) handler panicked: %v", info.FullMethod, recipientTTMAccountAddress.Hex(), r) // we return this error to the client
 			s.logger.Errorf("recovered from panic: %v", err)
