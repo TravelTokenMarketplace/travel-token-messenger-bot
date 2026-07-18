@@ -92,7 +92,7 @@ type publicMetadata struct {
 	RequestID          string `json:"request_id"`
 	EncryptedSharedKey []byte `json:"encrypted_shared_key,omitempty"`
 	ExpiresAt          uint64 `json:"expires_at"` // Unix timestamp in seconds, when the message is no longer valid
-	SenderTTMAccount   string `json:"sender_cm_account,omitempty"`
+	SenderTTMAccount   string `json:"sender_ttm_account,omitempty"`
 }
 
 func (m *publicMetadata) ExpiresAtTime() time.Time {
