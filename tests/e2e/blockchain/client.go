@@ -14,12 +14,12 @@ import (
 	"sync"
 
 	e2eCommon "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtokenoperator"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccountmanager"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/erc1967proxy"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/nullusd"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtokenoperator"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/erc1967proxy"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/nullusd"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccountmanager"
 	"github.com/chain4travel/caminogoeth-compat/caminoethvm/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -83,7 +83,7 @@ type Client struct {
 	ethClient                   *ethclient.Client
 	ethChainID                  *big.Int
 	bookingTokenContractAddress common.Address
-	cmAccountManager            *cmaccountmanager.Cmaccountmanager
+	cmAccountManager            *ttmaccountmanager.Ttmaccountmanager
 	cmAccountManagerAddress     common.Address
 	adminContract               *contracts.CaminoAdmin
 
@@ -107,7 +107,7 @@ func (c *Client) BookingTokenContractAddress() common.Address {
 	return c.bookingTokenContractAddress
 }
 
-func (c *Client) CreateCMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (common.Address, *cmaccount.Cmaccount, error) {
+func (c *Client) CreateCMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (common.Address, *ttmaccount.Ttmaccount, error) {
 	transactor, err := c.transactor(ctx, c.adminKey, cmAccountNativeTokenPrefund)
 	if err != nil {
 		return common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
@@ -115,24 +115,24 @@ func (c *Client) CreateCMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (
 
 	ownerAddr := crypto.PubkeyToAddress(owner.PublicKey)
 
-	tx, err := c.cmAccountManager.CreateCMAccount(
+	tx, err := c.cmAccountManager.CreateTTMAccount(
 		transactor,
 		ownerAddr,
 		ownerAddr,
 	)
 	if err != nil {
-		return common.Address{}, nil, fmt.Errorf("failed to issue cmAccountManager.CreateCMAccount tx: %w", err)
+		return common.Address{}, nil, fmt.Errorf("failed to issue cmAccountManager.CreateTTMAccount tx: %w", err)
 	}
 
 	receipt, err := c.waitTxSucceed(ctx, tx)
 	if err != nil {
-		return common.Address{}, nil, fmt.Errorf("failed to wait for cmAccountManager.CreateCMAccount tx to succeed: %w", err)
+		return common.Address{}, nil, fmt.Errorf("failed to wait for cmAccountManager.CreateTTMAccount tx to succeed: %w", err)
 	}
 
 	for _, log := range receipt.Logs {
-		event, err := c.cmAccountManager.ParseCMAccountCreated(*log)
+		event, err := c.cmAccountManager.ParseTTMAccountCreated(*log)
 		if err == nil {
-			cmAccount, err := cmaccount.NewCmaccount(event.Account, c.ethClient)
+			cmAccount, err := ttmaccount.NewTtmaccount(event.Account, c.ethClient)
 			if err != nil {
 				return common.Address{}, nil, fmt.Errorf("failed to create cm account binding: %w", err)
 			}
@@ -141,7 +141,7 @@ func (c *Client) CreateCMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (
 		}
 	}
 
-	return common.Address{}, nil, fmt.Errorf("failed to parse CMAccountCreated event from receipt logs")
+	return common.Address{}, nil, fmt.Errorf("failed to parse TTMAccountCreated event from receipt logs")
 }
 
 func (c *Client) AddBotToCMAccount(
@@ -289,8 +289,8 @@ func (c *Client) BalanceNullUSDOf(ctx context.Context, addr common.Address) (*bi
 	return balance, nil
 }
 
-func (c *Client) CMAccount(addr common.Address) (*cmaccount.Cmaccount, error) {
-	return cmaccount.NewCmaccount(addr, c.ethClient)
+func (c *Client) CMAccount(addr common.Address) (*ttmaccount.Ttmaccount, error) {
+	return ttmaccount.NewTtmaccount(addr, c.ethClient)
 }
 
 func (c *Client) SetKYC(ctx context.Context, account common.Address, isKYCVerified bool) error {
@@ -377,7 +377,7 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// prepare CM Account Manager proxy initialization data
 
-	cmAccountManagerABI, err := abi.JSON(strings.NewReader(cmaccountmanager.CmaccountmanagerABI))
+	cmAccountManagerABI, err := abi.JSON(strings.NewReader(ttmaccountmanager.TtmaccountmanagerABI))
 	if err != nil {
 		return fmt.Errorf("failed to parse cmAccountManager ABI: %w", err)
 	}
@@ -398,7 +398,7 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to deploy bookingToken implementation contract: %w", err)
 	}
-	cmAccountManagerImplAddress, cmAccountManagerImplTx, _, err := cmaccountmanager.DeployCmaccountmanager(transactor, c.ethClient)
+	cmAccountManagerImplAddress, cmAccountManagerImplTx, _, err := ttmaccountmanager.DeployTtmaccountmanager(transactor, c.ethClient)
 	if err != nil {
 		return fmt.Errorf("failed to deploy cmAccountManager implementation contract: %w", err)
 	}
@@ -426,14 +426,14 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// prepare cmAccount implementation bytecode with linked Booking Token Operator contract
 
-	cmAccountABI, err := abi.JSON(strings.NewReader(cmaccount.CmaccountABI))
+	cmAccountABI, err := abi.JSON(strings.NewReader(ttmaccount.TtmaccountABI))
 	if err != nil {
 		return fmt.Errorf("failed to parse cmAccount ABI: %w", err)
 	}
 
 	bookingTokenOperatorLinkingRegExp := regexp.MustCompile("__\\$" + bookingTokenOperatorLibName + "\\$__")
 	cmAccountImplBytecode := bookingTokenOperatorLinkingRegExp.ReplaceAllString(
-		cmaccount.CmaccountBin,
+		ttmaccount.TtmaccountBin,
 		strings.ToLower(bookingTokenOperatorAddress.String()[2:]),
 	)
 
@@ -470,7 +470,7 @@ func (c *Client) prepareCMBContracts(ctx context.Context) error {
 
 	// create cmAccountManager binding
 
-	c.cmAccountManager, err = cmaccountmanager.NewCmaccountmanager(cmAccountManagerProxyAddress, c.ethClient)
+	c.cmAccountManager, err = ttmaccountmanager.NewTtmaccountmanager(cmAccountManagerProxyAddress, c.ethClient)
 	if err != nil {
 		return fmt.Errorf("failed to create cmAccountManager binding: %w", err)
 	}

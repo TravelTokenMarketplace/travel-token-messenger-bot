@@ -54,7 +54,7 @@ func init() {
 			BufBuildPBCommit = dependency.Version
 		case "buf.build/gen/go/ttm/messenger-protocol/grpc/go":
 			BufBuildGRPCCommit = dependency.Version
-		case "github.com/chain4travel/camino-messenger-contracts/go/contracts":
+		case "github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts":
 			ContractsGitCommit = dependency.Version
 		}
 	}
@@ -68,7 +68,7 @@ func init() {
 		"buf.build grpc            ",
 		BufBuildGRPCCommit,
 		BufBuildGRPCCMPRelease,
-		"camino-messenger-contracts",
+		"travel-token-messenger-contracts",
 		ContractsGitCommit,
 	)
 }

@@ -15,7 +15,7 @@ import (
 	big "math/big"
 	reflect "reflect"
 
-	cmaccount "github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
+	ttmaccount "github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	common "github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
@@ -76,10 +76,10 @@ func (mr *MockServiceMockRecorder) BuyBookingToken(arg0, arg1, arg2, arg3, arg4,
 }
 
 // CMAccount mocks base method.
-func (m *MockService) CMAccount(arg0 common.Address) (*cmaccount.Cmaccount, error) {
+func (m *MockService) CMAccount(arg0 common.Address) (*ttmaccount.Ttmaccount, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CMAccount", arg0)
-	ret0, _ := ret[0].(*cmaccount.Cmaccount)
+	ret0, _ := ret[0].(*ttmaccount.Ttmaccount)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

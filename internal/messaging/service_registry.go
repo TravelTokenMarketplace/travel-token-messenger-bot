@@ -11,7 +11,7 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/client"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -30,7 +30,7 @@ func NewServiceRegistry(
 	logger *zap.SugaredLogger,
 	rpcClient *client.RPCClient,
 ) (ServiceRegistry, error) {
-	cmAccount, err := cmaccount.NewCmaccount(cmAccountAddress, evmClient)
+	cmAccount, err := ttmaccount.NewTtmaccount(cmAccountAddress, evmClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CM account: %w", err)
 	}
