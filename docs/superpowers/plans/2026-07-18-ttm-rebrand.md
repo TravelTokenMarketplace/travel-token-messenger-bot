@@ -473,20 +473,40 @@ gh pr create --base dev --title "Phase 5: infra/CI/docker rebrand" --body "Delet
 ### Task 7: Phase 6 — Docs / config / prose + loose-ends
 
 **Files:**
-- Modify: `README.MD`, `.gitpod.yml:4,9`, `tests/e2e/README.MD`.
+- Modify: `README.MD`, `CLAUDE.md`, `.gitpod.yml:4,9`, `tests/e2e/README.MD`, `docker-compose.yml`, `tests/e2e/e2e_test.go:57`, `tests/e2e/bot/bot.go:81`.
+- Config key (rename together): `config/config.go:84` (`mapstructure` tag), `config/flags.go:25` (cobra flag name), `config/test_config.yaml:5`, and the field in every `examples/config/*.yaml`.
+- Prose sweep (Go comments + error/log strings): `config/config_reader.go:27`, `config/flags.go:24,37`, `internal/resolver/resolver.go:19,81,91,107,110`, `internal/messaging/processor.go:131,143,172,175,213,246`, `internal/messaging/processor_test.go:408`, `internal/messaging/service_registry.go:21,35`, `internal/rpc/server/server.go:152,202`, `internal/app/app.go:103`, `pkg/booking/booking.go:47,51`, `pkg/ttm_accounts/cm_accounts.go` (all `cm account`/`CM Account` strings), `tests/e2e/{blockchain/client.go,bot/factory.go,matrix/app-service.go}`.
+- Rename (git mv): `pkg/ttm_accounts/cm_accounts.go` → `pkg/ttm_accounts/ttm_accounts.go` (file kept the old name after the Phase 4 package move).
 - Delete: `examples/config/camino-messenger-bot-supplier-camino.yaml`, `examples/config/camino-messenger-bot-distributor-camino.yaml`.
 - Rename (git mv): remaining `examples/config/camino-messenger-bot-*.yaml` → `travel-token-messenger-bot-*.yaml`.
 - Create/append: `TODOS.md` in the workspace parent (`../TODOS.md` relative to repo root — the rebrand playbook's TODOS file, next to `REBRANDING.md`), NOT committed into the repo.
 
 **Interfaces:**
 - Consumes: nothing new.
-- Produces: a clean `grep -ri camino` sweep except documented external deps + loose-ends.
+- Produces: a clean `grep -ri` sweep (`camino`, `cm ?account`, `CMaccount`, `\bcmb\b`) except documented external deps + loose-ends.
 
-- [ ] **Step 1: Branch off dev**
+**Do NOT rename (external / intentional — leave verbatim):**
+- `NetworkFeeRecipientCMAccountAddress` and any external contract-binding field names.
+- `camino-license`, `camino-matrix-go` (submodule dir), `camino-matrix-app-service`, `caminogoeth-compat` — external chain4travel deps.
+- `LICENSE.md` / `DATA_PROTECTION.md` filenames and their referenced doc titles (the license files were not renamed).
+
+- [ ] **Step 0: Confirm on the phase branch (controller already created it)**
 
 ```bash
-git checkout dev && git pull && git checkout -b rebrand/phase-6-docs
+git rev-parse --abbrev-ref HEAD   # expect: rebrand/phase-6-docs
 ```
+
+- [ ] **Step 1: Rename the config key (mapstructure tag + flag + all YAML together)**
+
+The viper `mapstructure` tag and the cobra flag name must match, or the CLI flag stops binding. Rename all four sites in one step:
+```bash
+# Go: config/config.go:84 tag, config/flags.go:25 flag name
+sed -i 's/cm_account_address/ttm_account_address/g' config/config.go config/flags.go
+# YAML: test config + every example
+sed -i 's/^cm_account_address:/ttm_account_address:/' config/test_config.yaml examples/config/*.yaml
+grep -rn 'cm_account_address' config/ examples/   # expect: no matches
+```
+Update the flag help string at `config/flags.go:25` ("Sets bot cm account address." → "Sets bot ttm account address.") and `config/flags.go:24,37` ("cm account" → "ttm account") as part of the prose sweep (Step 6).
 
 - [ ] **Step 2: Delete the Camino mainnet example configs**
 
@@ -504,15 +524,35 @@ done
 ls examples/config/
 ```
 
-- [ ] **Step 4: Rewrite README + gitpod prose**
+- [ ] **Step 4: Rewrite README + CLAUDE.md + gitpod prose**
 
-Edit `README.MD`: title `# Camino-Messenger-Bot` → `# Travel-Token-Messenger-Bot`; headers "Camino Messenger Account" → "Travel Token Messenger Account", "Camino Messenger Protocol (CMP)" → "Travel Token Messenger Protocol (TTMP)"; replace `docs.camino.network` / `suite.camino.network` links (leave a bracketed `<!-- TODO: brand docs URL -->` note if no replacement exists yet); `buf.build/chain4travel/camino-messenger-protocol` → `buf.build/ttm/messenger-protocol`. Edit `.gitpod.yml`: docs URL line ~4 (TODO note if unknown) and build path line ~9 `cmd/camino-messenger-bot/main.go` → `main.go` (entry is repo-root `main.go`). Then:
+Edit `README.MD`: title `# Camino-Messenger-Bot` → `# Travel-Token-Messenger-Bot`; headers "Camino Messenger Account" → "Travel Token Messenger Account", "Camino Messenger Protocol (CMP)" → "Travel Token Messenger Protocol (TTMP)"; body "CM Account"/"cm account" → "TTM Account"/"ttm account"; the hardhat example `--cm-account <0xCMAccount-address>` and `cmp.services.ping.v1.PingService` → `--ttm-account <0xTTMAccount-address>` and `ttm.services.ping.v1.PingService` (the `cmp.services`→`ttm.services` repoint landed in Phase 2); the `CMB_PARTNER_PLUGIN_MOCK_*` env vars (L308–324) → `TTMB_PARTNER_PLUGIN_MOCK_*` (renamed in Phase 4); the `cmb-config/config.yaml` filepath (L178) → `ttm-config/config.yaml`; the example-config listing (L263–266) to the renamed `travel-token-messenger-bot-*` files; the `./build/camino-messenger-bot` run commands → `./build/travel-token-messenger-bot`; replace `docs.camino.network` / `suite.camino.network` links (leave a bracketed `<!-- TODO: brand docs URL -->` note if no replacement exists yet); `buf.build/chain4travel/camino-messenger-protocol` → `buf.build/ttm/messenger-protocol`. Leave `LICENSE.md` / `DATA_PROTECTION.md` names and "Camino Messenger License"/"...Data Protection Guidelines" doc titles unchanged (files not renamed). Edit `CLAUDE.md`: overview "Camino-Messenger-Bot" → "Travel-Token-Messenger-Bot", the `camino-messenger-protocol` link text, module path `github.com/chain4travel/camino-messenger-bot/v13` → `github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13`, `./build/camino-messenger-bot` run commands, `CMB_PARTNER_PLUGIN_MOCK_PORT` → `TTMB_...`, "CM Account"/"cm account" prose. Edit `.gitpod.yml`: docs URL line ~4 (TODO note if unknown) and build path line ~9 `cmd/camino-messenger-bot/main.go` → `main.go` (entry is repo-root `main.go`). Then:
 ```bash
-grep -rn 'camino-messenger-bot\|Camino-Messenger' README.MD .gitpod.yml tests/e2e/README.MD
+grep -rniI 'camino-messenger-bot\|Camino-Messenger\|CMB_\|cmp\.services\|cmb-config' README.MD CLAUDE.md .gitpod.yml tests/e2e/README.MD
 ```
-Expected: nothing except intentional historical mentions.
+Expected: nothing except intentional historical mentions (LICENSE/DATA_PROTECTION titles).
 
-- [ ] **Step 5: Record loose-ends in the playbook TODOS (outside the repo)**
+- [ ] **Step 5: Rename cosmetic `cmb` paths (with their doc references)**
+
+```bash
+# docker volume + config dir (README.MD:178 handled in Step 4)
+sed -i 's#cmb-config#ttm-config#g' docker-compose.yml
+# e2e temp data dir default + its README
+sed -i 's#/tmp/cmb-e2e#/tmp/ttm-e2e#g' tests/e2e/e2e_test.go tests/e2e/README.MD
+# default DB dir + e2e bot.go comment
+sed -i 's/"cmb-db"/"ttm-db"/' config/flags.go
+sed -i 's/this is a cmb binary/this is a ttmb binary/' tests/e2e/bot/bot.go
+```
+
+- [ ] **Step 6: Prose sweep — "CM account" / "CMaccount" in Go comments and strings**
+
+Rewrite every "CM account", "CM Account", and the "CMaccount" typo (`processor.go:246`) to "TTM account" / "TTM Account" across the files listed under **Files** above, plus the `config/flags.go` help strings from Step 1. This is comments, error strings, and log messages only — no identifier or wire-key changes (those are Phase 4-done or Phase 7). Also `git mv pkg/ttm_accounts/cm_accounts.go pkg/ttm_accounts/ttm_accounts.go`. Do **not** touch `NetworkFeeRecipientCMAccountAddress` (external binding) or the frozen `SenderCMAccountAddress` wire tag at `pkg/matrix/events.go:51` (that is Phase 7's job). Then:
+```bash
+grep -rniI 'cm ?account\|cmaccount' --include='*.go' . | grep -v camino-matrix-go | grep -vi 'NetworkFeeRecipientCMAccount\|SenderCMAccountAddress\|TTMAccount'
+```
+Expected: no matches.
+
+- [ ] **Step 7: Record loose-ends in the playbook TODOS (outside the repo)**
 
 Append to `../TODOS.md` (the rebrand-playbook TODOS next to `REBRANDING.md`; this file is NOT part of the repo):
 ```
@@ -523,31 +563,93 @@ Append to `../TODOS.md` (the rebrand-playbook TODOS next to `REBRANDING.md`; thi
 - External chain4travel deps intentionally kept: camino-license, camino-matrix-go submodule, camino-matrix-app-service, caminogoeth-compat.
 ```
 
-- [ ] **Step 6: Final sweep — confirm only expected leftovers**
+- [ ] **Step 8: Final sweep — confirm only expected leftovers (broadened patterns)**
 
 Run:
 ```bash
-grep -ri camino --exclude-dir={.git,vendor,build,camino-matrix-go} . | grep -v 'docs/superpowers'
+grep -rniI -e camino -e 'cm ?account' -e CMaccount -e '\bcmb\b' \
+  --exclude-dir={.git,vendor,build,camino-matrix-go} . | grep -v 'docs/superpowers'
 ```
-Expected leftovers ONLY: `chain4travel/camino-license`, `chain4travel/camino-matrix-go`, `chain4travel/camino-matrix-app-service`, `chain4travel/caminogoeth-compat`, the `mint.go` camino.network URLs, `messenger.chain4travel.com` Matrix hosts, and any dated historical design docs. Anything else must be fixed before committing.
+Expected leftovers ONLY: `chain4travel/camino-license`, `chain4travel/camino-matrix-go`, `chain4travel/camino-matrix-app-service`, `chain4travel/caminogoeth-compat`, the `mint.go` camino.network URLs, `messenger.chain4travel.com` Matrix hosts, `NetworkFeeRecipientCMAccountAddress` (external binding), the `LICENSE.md`/`DATA_PROTECTION.md` titles, the frozen `SenderCMAccountAddress` wire tag (Phase 7), and any dated historical design docs. Anything else must be fixed before committing.
 
-- [ ] **Step 7: Build, test, lint**
+- [ ] **Step 9: Build, test, lint**
 
 Run: `scripts/build_test.sh && scripts/lint.sh`
-Expected: PASS.
+Expected: PASS. Also confirm a bot boots with a renamed example config so the `ttm_account_address` key round-trips through viper.
+
+- [ ] **Step 10: Commit, push, PR**
+
+```bash
+git add -A
+git commit -m "docs: rebrand README/CLAUDE/config/prose; rename config key + cmb paths; delete Camino mainnet example configs"
+git push -u origin rebrand/phase-6-docs
+gh pr create --base dev --title "Rebranding Phase 6: docs / config / prose" --body "README + CLAUDE + gitpod prose; cm_account_address->ttm_account_address config key; cmb->ttm cosmetic paths; delete camino mainnet configs; rename example configs; CM account prose sweep; loose-ends recorded in playbook TODOS."
+```
+
+---
+
+### Task 8: Phase 7 — Unfreeze wire / storage / protocol keys
+
+Reverses the Phase 4 wire-key freeze now that Camino→Base is a hard cutover (no
+pre-rebrand bot runs alongside a rebranded bot). See the spec's "Decision
+reversal" note.
+
+**Files:**
+- Modify: `pkg/matrix/events.go` (freeze tag + event-type strings), `internal/messaging/encoding/encoder_decoder.go`, `pkg/metadata/metadata.go`, `internal/resolver/storage/sqlite/bots.go`.
+- Create: an exact-serialization test locking the new wire keys (co-located with `events.go` / the encoder package).
+
+**Interfaces:**
+- Consumes: nothing new.
+- Produces: wire keys `SenderTTMAccountAddress`, `sender_ttm_account`; event types `m.room.ttm-signed-msg` / `m.room.ttm-msg-chunk`; sqlite column `ttm_account`.
+
+- [ ] **Step 1: Unfreeze the Matrix sender-account wire tag**
+
+In `pkg/matrix/events.go:51`, remove the `json:"SenderCMAccountAddress"` tag and its freeze comment so the field serializes under its Go name:
+```go
+	SenderTTMAccountAddress common.Address
+```
+
+- [ ] **Step 2: Rename the Matrix event-type strings**
+
+In `pkg/matrix/events.go`, `EventTypeSignedMessage` `m.room.c4t-signed-msg` → `m.room.ttm-signed-msg` and `EventTypeMessageChunk` `m.room.c4t-msg-chunk` → `m.room.ttm-msg-chunk`. (The matrix-app-service inherits these via the shared `matrix.EventType*` constants when it re-pins during its own rebrand — safe under the hard cutover.)
+
+- [ ] **Step 3: Rename the encoder JSON tag**
+
+In `internal/messaging/encoding/encoder_decoder.go`, `json:"sender_cm_account,omitempty"` → `json:"sender_ttm_account,omitempty"`.
+
+- [ ] **Step 4: Rename the metadata keys and use the constants**
+
+In `pkg/metadata/metadata.go`, `KeyRecipientTTMAccount` value `recipient_cm_account` → `recipient_ttm_account`, `KeySenderTTMAccount` value `sender_cm_account` → `sender_ttm_account`; replace the hardcoded `mdPairs["recipient_cm_account"]` / `mdPairs["sender_cm_account"]` string literals (~L39/43) with the constants.
+
+- [ ] **Step 5: Rename the sqlite column**
+
+In `internal/resolver/storage/sqlite/bots.go` (SQL at L99/110/131) **and** `internal/resolver/storage/sqlite/migrations/1_initial.up.sql` (column + PRIMARY KEY, L2/L5), SQL column `cm_account` → `ttm_account`. Fresh Base deployment ⇒ no data migration needed; existing dev DBs are disposable. (Edit the existing `1_initial.up.sql` in place rather than adding a new migration — no deployed DBs to preserve.)
+
+- [ ] **Step 6: Add exact-serialization tests locking the new wire keys**
+
+Write a test that marshals `SignedMessageEventContent` and asserts the JSON contains `"SenderTTMAccountAddress"` (and NOT `SenderCMAccountAddress`), and a test asserting the encoder envelope contains `"sender_ttm_account"`. These lock the wire format so future edits cannot silently change it.
+
+- [ ] **Step 7: Build, test, lint, clean-tree**
+
+Run: `scripts/build_test.sh && scripts/lint.sh && .github/workflows/check-clean-branch.sh`
+Expected: PASS (including the new serialization tests). Then:
+```bash
+grep -rniI -e 'cm_account' -e 'c4t' --include='*.go' . | grep -v camino-matrix-go | grep -vi 'NetworkFeeRecipientCMAccount'
+```
+Expected: no matches.
 
 - [ ] **Step 8: Commit, push, PR**
 
 ```bash
 git add -A
-git commit -m "docs: rebrand README/config/prose; delete Camino mainnet example configs"
-git push -u origin rebrand/phase-6-docs
-gh pr create --base dev --title "Phase 6: docs/config rebrand" --body "README + gitpod prose; delete camino mainnet configs; rename example configs; loose-ends recorded in playbook TODOS."
+git commit -m "wire: unfreeze cm->ttm serialization keys (Matrix event field+types, metadata, encoder tag, sqlite column)"
+git push -u origin rebrand/phase-7-wire
+gh pr create --base dev --title "Rebranding Phase 7: unfreeze wire / storage / protocol keys" --body "Drop the Phase 4 SenderCMAccountAddress freeze; rename event types c4t->ttm, metadata + encoder keys cm->ttm, sqlite cm_account column; add exact-serialization tests. Safe under hard Camino->Base cutover (no mixed-version bots)."
 ```
 
 ---
 
-### Task 8: End-to-end verification
+### Task 9: End-to-end verification
 
 **Files:** none (verification only).
 

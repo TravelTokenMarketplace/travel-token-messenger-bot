@@ -169,15 +169,56 @@ them.
 - `README.MD`: title, "Camino Messenger Account"/"CMP" headers, links
   (`docs.camino.network`, `suite.camino.network`, `buf.build/chain4travel/...`);
   the protocol/contracts GitHub links already use the TTM org.
-- `.gitpod.yml`: docs URL + build path.
+- `CLAUDE.md`: module-path/overview/protocol-link prose, run commands, env-var
+  name, `/v13` convention line.
+- `.gitpod.yml`: docs URL + build path (stale `cmd/camino-messenger-bot/main.go`).
+- **Config key** `mapstructure:"cm_account_address"` → `"ttm_account_address"`
+  in `config/config.go` **and** the same field in every example YAML — renamed
+  together so config stays runtime-consistent. Safe: hard Camino→Base cutover,
+  fresh configs (see reversal note below).
 - Delete the two `*-camino.yaml` mainnet example configs; rename remaining
   `examples/config/camino-messenger-bot-*.yaml` off the `camino-` prefix.
+- Deferred cosmetic `cmb` paths (rename with their doc refs): `docker-compose.yml`
+  `cmb-config` (+`README.MD`), e2e `/tmp/cmb-e2e` default (+`tests/e2e/README.MD`),
+  `bot.go` "cmb binary" comment.
+- Prose sweep: "CM account"/"CM Account"/"CMaccount" in Go comments and error
+  strings (`config_reader.go`, `resolver.go`, `processor.go`, `pkg/ttm_accounts/`,
+  e2e `blockchain/client.go`, `bot/factory.go`).
 - Leave (record in `TODOS.md`): Base Sepolia contract addresses (pending
   deployment), Matrix host `messenger.chain4travel.com`, `mint.go`
   camino.network NFT metadata URLs.
-- Final sweep: `grep -ri camino --exclude-dir={.git,vendor,build} .` — expected
-  leftovers only the documented loose-ends and external chain4travel deps
-  (`camino-license`, `camino-matrix-go`, `caminogoeth-compat`).
+- Final sweep: `grep -ri` for `camino`, `cm ?account`, `CMaccount`, and `\bcmb\b`
+  (`--exclude-dir={.git,vendor,build,camino-matrix-go}`) — expected leftovers
+  only the documented loose-ends and external chain4travel deps (`camino-license`,
+  `camino-matrix-go`, `caminogoeth-compat`).
+
+### Phase 7 — Unfreeze wire / storage / protocol keys
+
+Reverses the Phase 4 wire-key freeze and renames the remaining `cm`/`c4t`
+serialization keys. Enabled by the hard Camino→Base cutover: no pre-rebrand bot
+ever runs alongside a rebranded bot, so cross-version wire/storage compat is not
+required (see reversal note below).
+
+- `pkg/matrix/events.go`: drop the `json:"SenderCMAccountAddress"` freeze tag
+  (field is already `SenderTTMAccountAddress`) and its freeze comment → wire key
+  becomes `SenderTTMAccountAddress`. Rename the Matrix event-type strings
+  `m.room.c4t-signed-msg` → `m.room.ttm-signed-msg`, `m.room.c4t-msg-chunk` →
+  `m.room.ttm-msg-chunk` (the app-service inherits these via the shared
+  `matrix.EventType*` constants when it re-pins during its own rebrand).
+- `internal/messaging/encoding/encoder_decoder.go`: `json:"sender_cm_account,omitempty"`
+  → `sender_ttm_account`.
+- `pkg/metadata/metadata.go`: `KeyRecipientTTMAccount`/`KeySenderTTMAccount` values
+  `recipient_cm_account`/`sender_cm_account` → `_ttm_account`; replace the hardcoded
+  `mdPairs[...]` string literals with the constants.
+- `internal/resolver/storage/sqlite/bots.go`: SQL column `cm_account` →
+  `ttm_account` (requires fresh SQLite DBs — fine for a fresh Base deployment;
+  check for a schema/migration file too).
+- Add exact-serialization tests locking the new wire keys
+  (`SenderTTMAccountAddress`, `sender_ttm_account`) so future edits cannot
+  silently change them.
+- Verify: `build_test` + `lint` + clean-tree + the new serialization tests; grep
+  shows no `cm_account`/`c4t` wire leftovers except the intentional external
+  `NetworkFeeRecipientCMAccountAddress`.
 
 ## Out of scope / deliberately unchanged
 
@@ -185,6 +226,14 @@ them.
   local replace, `caminogoeth-compat` — external chain4travel repos.
 - `header.yaml` copyright — already updated to "Travel Token Marketplace".
 - Base Sepolia contract addresses / Matrix host / `mint.go` URLs — loose-ends.
+
+**Decision reversal (2026-07-18):** wire/storage/protocol serialization keys are
+**no longer** deliberately unchanged. The original design kept the Matrix
+sender-account field, metadata keys, encoder tag, and the sqlite `cm_account`
+column frozen for pre-rebrand↔rebranded bot interop. Because the Camino→Base
+migration is a hard cutover with no mixed-version bots, that back-compat is
+unnecessary, so these keys are now renamed cleanly (config key in Phase 6, the
+rest in Phase 7).
 
 ## Verification (end-to-end)
 
