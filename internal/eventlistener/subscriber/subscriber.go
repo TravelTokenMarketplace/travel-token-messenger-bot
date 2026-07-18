@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -29,7 +29,7 @@ type Subscriber interface {
 	Stop()
 
 	SubscribeServiceAdded(
-		cmAccountAddr common.Address,
+		ttmAccountAddr common.Address,
 		handler func(*ttmaccount.TtmaccountServiceAdded) uint64,
 	) (unsubscribe func(), err error)
 
@@ -58,7 +58,7 @@ type subscriber struct {
 	client       *ethclient.Client
 	logger       *zap.SugaredLogger
 	bookingToken *bookingtoken.Bookingtoken
-	cmAccounts   cmaccounts.Service
+	ttmAccounts  ttmaccounts.Service
 	blockNumber  *atomic.Uint64
 	errChan      chan error
 	stopChan     chan struct{}
@@ -70,7 +70,7 @@ func New(
 	client *ethclient.Client,
 	logger *zap.SugaredLogger,
 	bookingTokenAddress common.Address,
-	cmAccounts cmaccounts.Service,
+	ttmAccounts ttmaccounts.Service,
 	blockNumber uint64,
 ) (Subscriber, error) {
 	bookingToken, err := bookingtoken.NewBookingtoken(bookingTokenAddress, client)
@@ -85,7 +85,7 @@ func New(
 		client:       client,
 		logger:       logger,
 		bookingToken: bookingToken,
-		cmAccounts:   cmAccounts,
+		ttmAccounts:  ttmAccounts,
 		blockNumber:  blockNumberAtomic,
 		errChan:      make(chan error),
 		stopChan:     make(chan struct{}),
@@ -104,17 +104,17 @@ func (s *subscriber) Stop() {
 //
 // [fromBlockNumber] is the block number from which to start watching for events. If 0, it will start from the latest block.
 //
-// [cmAccountAddr] is the address of the CMAccount contract.
+// [ttmAccountAddr] is the address of the TTMAccount contract.
 //
 // [handler] is the function to call when the event is triggered.
 // It receives the event as arguments and should return successfully processed block number or 0.
 //
 // Returns a function to unsubscribe from the event.
 func (s *subscriber) SubscribeServiceAdded(
-	cmAccountAddr common.Address,
+	ttmAccountAddr common.Address,
 	handler func(*ttmaccount.TtmaccountServiceAdded) uint64,
 ) (unsubscribe func(), err error) {
-	cmAccount, err := s.cmAccounts.CMAccount(cmAccountAddr)
+	ttmAccount, err := s.ttmAccounts.TTMAccount(ttmAccountAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (s *subscriber) SubscribeServiceAdded(
 		handler,
 		func(ctx context.Context, eventChan chan *ttmaccount.TtmaccountServiceAdded) (event.Subscription, error) {
 			blockNumber := s.blockNumber.Load()
-			return cmAccount.WatchServiceAdded(&bind.WatchOpts{Context: ctx, Start: &blockNumber}, eventChan, nil)
+			return ttmAccount.WatchServiceAdded(&bind.WatchOpts{Context: ctx, Start: &blockNumber}, eventChan, nil)
 		},
 	), nil
 }

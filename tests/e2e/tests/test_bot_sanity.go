@@ -13,7 +13,7 @@ import (
 	"buf.build/go/protovalidate"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/resolver"
 	botGenerated "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/blockchain"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
@@ -70,7 +70,7 @@ func (tt *TestBotSanity) Run(t *testing.T) {
 		// CM-Account to use - we check that accordingly with the return value
 		tt.CreateBotAwaitError(ctx, t, false, tt.supplierPartnerPlugin, "exit status 1", 5*time.Second,
 			bot.WithServices([]bot.CMService{{Name: botGenerated.PingServiceV2}}),
-			bot.WithSkips(&bot.Skip{CMAccountCreation: true}),
+			bot.WithSkips(&bot.Skip{TTMAccountCreation: true}),
 		)
 	})
 	t.Run("Supplier bot: unregistered / no services", func(t *testing.T) {
@@ -83,11 +83,11 @@ func (tt *TestBotSanity) Run(t *testing.T) {
 	})
 	t.Run("Supplier bot: registered / no services", func(t *testing.T) {
 		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "registered / no services", tt.supplierBotNoServices)
-		require.Contains(t, alertMessage, cmaccounts.ErrServiceNotSupported.Error())
+		require.Contains(t, alertMessage, ttmaccounts.ErrServiceNotSupported.Error())
 	})
 	t.Run("Supplier bot: registered / different services", func(t *testing.T) {
 		alertMessage := tt.sendPingRequestAndGetErrorMessage(ctx, t, "registered / different services", tt.supplierBotDifferentServices)
-		require.Contains(t, alertMessage, cmaccounts.ErrServiceNotSupported.Error())
+		require.Contains(t, alertMessage, ttmaccounts.ErrServiceNotSupported.Error())
 	})
 	t.Run("Many messages", func(t *testing.T) {
 		tt.testManyMessages(ctx, t)
@@ -159,7 +159,7 @@ func (tt *TestBotSanity) pingMessage(ctx context.Context, t *testing.T, supplier
 		Timestamp: timestamppb.Now(),
 	}
 	resp, err := tt.distributorBot.PingServiceV2.Ping(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -174,7 +174,7 @@ func (tt *TestBotSanity) sendPingRequestAndGetErrorMessage(ctx context.Context, 
 		Timestamp: timestamppb.Now(),
 	}
 	resp, err := tt.distributorBot.PingServiceV2.Ping(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

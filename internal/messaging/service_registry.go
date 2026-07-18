@@ -25,17 +25,17 @@ type ServiceRegistry interface {
 }
 
 func NewServiceRegistry(
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	evmClient *ethclient.Client,
 	logger *zap.SugaredLogger,
 	rpcClient *client.RPCClient,
 ) (ServiceRegistry, error) {
-	cmAccount, err := ttmaccount.NewTtmaccount(cmAccountAddress, evmClient)
+	ttmAccount, err := ttmaccount.NewTtmaccount(ttmAccountAddress, evmClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CM account: %w", err)
 	}
 
-	supportedServices, err := cmAccount.GetSupportedServices(&bind.CallOpts{})
+	supportedServices, err := ttmAccount.GetSupportedServices(&bind.CallOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Registered services: %w", err)
 	}

@@ -290,7 +290,7 @@ func (tt *TestCancellationV1) testCheckCancellationV1(ctx context.Context, t *te
 		Reason:  cancellationv1.CancellationReason_CANCELLATION_REASON_AMENITY_REQUIREMENT_CHANGE,
 	}
 	resp, err := tt.distributorBot.CheckCancellationServiceV1.CheckCancellation(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -389,9 +389,9 @@ func (h *cancellationV1Helper) initiateCancellation(
 	h.require.NoError(err)
 
 	if h.initialProposer.Cmp(ethCommon.Address{}) == 0 {
-		h.initialProposer = initiatorBot.CMAccountAddress()
+		h.initialProposer = initiatorBot.TTMAccountAddress()
 	}
-	h.currentProposer = initiatorBot.CMAccountAddress()
+	h.currentProposer = initiatorBot.TTMAccountAddress()
 	h.cancellationReason = reason
 	h.rejectionReason = cancellationv1.RejectionReason_REJECTION_REASON_UNSPECIFIED
 	h.withdrawalReason = cancellationv1.WithdrawalReason_WITHDRAWAL_REASON_UNSPECIFIED
@@ -428,7 +428,7 @@ func (h *cancellationV1Helper) counterCancellation(
 	})
 	h.require.NoError(err)
 
-	h.currentProposer = countererBot.CMAccountAddress()
+	h.currentProposer = countererBot.TTMAccountAddress()
 	h.counterReason = reason
 	h.timesCountered++
 
@@ -515,9 +515,9 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	refundAmountBig, err := price.ToBigInt(refundAmount.Value, refundAmount.Decimals, price.NativeTokenDecimals)
 	h.require.NoError(err)
 
-	supplierBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
+	supplierBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
 	h.require.NoError(err)
-	distributorBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
+	distributorBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
 	h.require.NoError(err)
 
 	expectedSupplierBalance := big.NewInt(0).Sub(supplierBalance, refundAmountBig)
@@ -537,9 +537,9 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	h.expectCancellationFinalizedNotification(h.supplierPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 	h.expectCancellationFinalizedNotification(h.distributorPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 
-	supplierBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.CMAccountAddress())
+	supplierBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
 	h.require.NoError(err)
-	distributorBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.CMAccountAddress())
+	distributorBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
 	h.require.NoError(err)
 
 	h.require.Truef(

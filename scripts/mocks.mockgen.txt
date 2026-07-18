@@ -6,5 +6,5 @@ github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messag
 github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging=ResponseHandler=internal/messaging/mock_response_handler.go
 github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/encoding=Storage=internal/messaging/encoding/mock_storage.go
 github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/resolver=Resolver=internal/resolver/mock_resolver.go
-github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts=Service=pkg/cm_accounts/mock_cm_accounts.go=cmaccounts
+github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts=Service=pkg/ttm_accounts/mock_ttm_accounts.go=ttmaccounts
 github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/scheduler=Storage=pkg/scheduler/mock_storage.go

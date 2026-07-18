@@ -126,7 +126,7 @@ func (tt *TestAccommodationV3) testAccommodationV3ProductListService(ctx context
 		Header: &typesv1.RequestHeader{BaseHeader: &typesv1.Header{}},
 	}
 	resp, err := tt.distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func (tt *TestAccommodationV3) testAccommodationV3ProductListServiceWithFilter(c
 		},
 	}
 	resp, err := tt.distributorBot.AccommodationProductListServiceV3.AccommodationProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func (tt *TestAccommodationV3) testAccommodationV3ProductInfoService(ctx context
 		},
 	}
 	resp, err := tt.distributorBot.AccommodationProductInfoServiceV3.AccommodationProductInfo(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -236,7 +236,7 @@ func (tt *TestAccommodationV3) testAccommodationV3SearchServiceWithoutCurrency(c
 		}},
 	}
 	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -262,7 +262,7 @@ func (tt *TestAccommodationV3) testAccommodationV3SearchServiceWithoutTravelPeri
 		}},
 	}
 	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func (tt *TestAccommodationV3) testAccommodationV3SearchServiceTravelPeriodOutOf
 		}},
 	}
 	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -329,7 +329,7 @@ func (tt *TestAccommodationV3) testAccommodationV3SearchServiceTravelPeriodRever
 		}},
 	}
 	resp, err := tt.distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -372,7 +372,7 @@ func testAccommodationV3SearchServiceWithTravelPeriod(
 		}},
 	}
 	resp, err := distributorBot.AccommodationSearchServiceV3.AccommodationSearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

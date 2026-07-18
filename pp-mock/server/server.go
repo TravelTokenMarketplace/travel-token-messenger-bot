@@ -71,12 +71,12 @@ import (
 )
 
 const (
-	EnvKeyEventsEnabled  = "CMB_PARTNER_PLUGIN_MOCK_EVENTS"
-	EnvKeyPort           = "CMB_PARTNER_PLUGIN_MOCK_PORT"
-	EnvE2ETestMode       = "CMB_PARTNER_PLUGIN_MOCK_TEST_MODE"
-	EnvKeyRealisticPrice = "CMB_PARTNER_PLUGIN_MOCK_REALISTIC_PRICE"
-	EnvKeyTokenDecimals  = "CMB_PARTNER_PLUGIN_MOCK_TOKEN_DECIMALS" //nolint:gosec // G101: env var name, not a credential
-	EnvKeyBaseUnits      = "CMB_PARTNER_PLUGIN_MOCK_BASE_UNITS"
+	EnvKeyEventsEnabled  = "TTMB_PARTNER_PLUGIN_MOCK_EVENTS"
+	EnvKeyPort           = "TTMB_PARTNER_PLUGIN_MOCK_PORT"
+	EnvE2ETestMode       = "TTMB_PARTNER_PLUGIN_MOCK_TEST_MODE"
+	EnvKeyRealisticPrice = "TTMB_PARTNER_PLUGIN_MOCK_REALISTIC_PRICE"
+	EnvKeyTokenDecimals  = "TTMB_PARTNER_PLUGIN_MOCK_TOKEN_DECIMALS" //nolint:gosec // G101: env var name, not a credential
+	EnvKeyBaseUnits      = "TTMB_PARTNER_PLUGIN_MOCK_BASE_UNITS"
 	DefaultPort          = 50051
 	envValueTrue         = "true"
 )
@@ -266,7 +266,7 @@ func metadataExtractorInterceptor(ctx context.Context, req any, _ *grpc.UnarySer
 func loggingInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	md := metadata.FromContext(ctx)
 	callMeta := interceptors.NewServerCallMeta(info.FullMethod, nil, req)
-	log.Printf("CMAccount %s received request from CMAccount %s", md.RecipientCMAccount, md.SenderCMAccount)
+	log.Printf("TTMAccount %s received request from TTMAccount %s", md.RecipientTTMAccount, md.SenderTTMAccount)
 	log.Printf("Responding to %s: %s", callMeta.Service, md.RequestID)
 	resp, err := handler(ctx, req)
 	if err != nil {

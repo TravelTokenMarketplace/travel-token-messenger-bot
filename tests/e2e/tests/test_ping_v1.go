@@ -70,7 +70,7 @@ func (tt *TestPingV1) testPingV1Service(ctx context.Context, t *testing.T) {
 		Timestamp:   timestamppb.Now(),
 	}
 	resp, err := tt.distributorBot.PingServiceV1.Ping(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 

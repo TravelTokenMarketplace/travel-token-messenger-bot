@@ -16,10 +16,10 @@ import (
 )
 
 type chunkedMessage struct {
-	chunksCount   uint32
-	fromCMAccount common.Address
-	signature     []byte
-	chunks        []messageChunk
+	chunksCount    uint32
+	fromTTMAccount common.Address
+	signature      []byte
+	chunks         []messageChunk
 }
 
 type messageChunk struct {
@@ -33,7 +33,7 @@ func (b byChunkIndex) Len() int           { return len(b) }
 func (b byChunkIndex) Less(i, j int) bool { return b[i].index < b[j].index }
 func (b byChunkIndex) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSignedMessage, sendTo common.Address, senderCMAccount common.Address) error {
+func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSignedMessage, sendTo common.Address, senderTTMAccount common.Address) error {
 	messageID := uuid.New().String()
 
 	m.logger.Debugf("Sending message (id %s) to %s", messageID, sendTo)
@@ -48,9 +48,9 @@ func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSigne
 			MessageID: messageID,
 			Data:      msg.ChunkedEncodedMessage[0],
 		},
-		Signature:              msg.Signature,
-		SenderCMAccountAddress: senderCMAccount,
-		ChunksCount:            conversion.MustIntToUInt32(len(msg.ChunkedEncodedMessage)),
+		Signature:               msg.Signature,
+		SenderTTMAccountAddress: senderTTMAccount,
+		ChunksCount:             conversion.MustIntToUInt32(len(msg.ChunkedEncodedMessage)),
 	}
 
 	var chunkEvents []matrix.MessageChunkEventContent
@@ -148,7 +148,7 @@ func (m *messenger) tryCompleteMessageWithFirstChunk(eventContent *matrix.Signed
 				ChunkedEncodedMessage: [][]byte{eventContent.Data},
 				Signature:             eventContent.Signature,
 			},
-			SenderCMAccountAddress: eventContent.SenderCMAccountAddress,
+			SenderTTMAccountAddress: eventContent.SenderTTMAccountAddress,
 		}, true
 	}
 
@@ -179,7 +179,7 @@ func (m *messenger) addMessageFirstChunk(eventContent *matrix.SignedMessageEvent
 
 	message.signature = eventContent.Signature
 	message.chunksCount = eventContent.ChunksCount
-	message.fromCMAccount = eventContent.SenderCMAccountAddress
+	message.fromTTMAccount = eventContent.SenderTTMAccountAddress
 
 	return m.addMessageChunk(message, &eventContent.ChunkData, 0)
 }
@@ -224,6 +224,6 @@ func (m *messenger) assembleEncodedMessage(message *chunkedMessage) messaging.En
 			ChunkedEncodedMessage: chunkedData,
 			Signature:             message.signature,
 		},
-		SenderCMAccountAddress: message.fromCMAccount,
+		SenderTTMAccountAddress: message.fromTTMAccount,
 	}
 }

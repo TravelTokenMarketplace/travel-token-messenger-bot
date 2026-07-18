@@ -78,18 +78,18 @@ func WithSkips(skips *Skip) Option {
 // Only used for very specific testing purposes.
 type Skip struct {
 	// Skips the creation of the cm-account when setting up the bot.
-	CMAccountCreation bool
+	TTMAccountCreation bool
 	// Skips the transfer of funds to the cm-account owner.
-	// Requires CMAccountCreation to be false.
+	// Requires TTMAccountCreation to be false.
 	PrefundOwner bool
 	// Skips the transfer of funds to the bot.
-	// Requires CMAccountCreation to be false.
+	// Requires TTMAccountCreation to be false.
 	PrefundBot bool
 	// Skips the registration of the bot in the cm-account.
-	// Requires CMAccountCreation and PrefundOwner to be false.
+	// Requires TTMAccountCreation and PrefundOwner to be false.
 	BotRegistration bool
 	// Skips the registration of services in the cm-account.
-	// Requires CMAccountCreation and PrefundOwner to be false.
+	// Requires TTMAccountCreation and PrefundOwner to be false.
 	ServiceRegistration bool
 }
 
@@ -119,7 +119,7 @@ func (f *Factory) CreateBot(
 		opt(options)
 	}
 
-	cmAccountOwnerKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	ttmAccountOwnerKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}
@@ -129,29 +129,29 @@ func (f *Factory) CreateBot(
 		return nil, fmt.Errorf("failed to generate key: %w", err)
 	}
 
-	var cmAccountAddress common.Address
-	if !options.skips.CMAccountCreation {
+	var ttmAccountAddress common.Address
+	if !options.skips.TTMAccountCreation {
 		botAddr := crypto.PubkeyToAddress(botKey.PublicKey)
-		cmAccountOwnerAddress := crypto.PubkeyToAddress(cmAccountOwnerKey.PublicKey)
-		cmAccountAddress, _, err = f.networkClient.CreateCMAccount(ctx, cmAccountOwnerKey)
+		ttmAccountOwnerAddress := crypto.PubkeyToAddress(ttmAccountOwnerKey.PublicKey)
+		ttmAccountAddress, _, err = f.networkClient.CreateTTMAccount(ctx, ttmAccountOwnerKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create CM account: %w", err)
 		}
 
 		if !options.skips.PrefundOwner {
-			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], cmAccountOwnerAddress, e2eCommon.DefaultCMAccountOwnerFunds); err != nil {
+			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], ttmAccountOwnerAddress, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
 				return nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
 			}
 
 			if !options.skips.BotRegistration {
-				if err := f.networkClient.AddBotToCMAccount(ctx, cmAccountAddress, cmAccountOwnerKey, botAddr); err != nil {
+				if err := f.networkClient.AddBotToTTMAccount(ctx, ttmAccountAddress, ttmAccountOwnerKey, botAddr); err != nil {
 					return nil, fmt.Errorf("failed to add bot to CM account: %w", err)
 				}
 			}
 
 			if !options.skips.ServiceRegistration {
 				for _, service := range options.services {
-					if err := f.networkClient.AddCMService(ctx, cmAccountAddress, cmAccountOwnerKey, service.Name); err != nil {
+					if err := f.networkClient.AddCMService(ctx, ttmAccountAddress, ttmAccountOwnerKey, service.Name); err != nil {
 						return nil, fmt.Errorf("failed to add %s service to CM account: %w", service.Name, err)
 					}
 				}
@@ -159,7 +159,7 @@ func (f *Factory) CreateBot(
 		}
 
 		if !options.skips.PrefundBot {
-			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], botAddr, e2eCommon.DefaultCMAccountOwnerFunds); err != nil {
+			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], botAddr, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
 				return nil, fmt.Errorf("failed to transfer funds to bot: %w", err)
 			}
 		}
@@ -184,7 +184,7 @@ func (f *Factory) CreateBot(
 		DeveloperMode:       true,
 		E2ETestMode:         true,
 		BotKey:              hex.EncodeToString(crypto.FromECDSA(botKey)),
-		CMAccountAddress:    cmAccountAddress.Hex(),
+		TTMAccountAddress:   ttmAccountAddress.Hex(),
 		ChainRPCURL:         f.networkClient.ChainRPCURL(),
 		BookingTokenAddress: f.networkClient.BookingTokenContractAddress().Hex(),
 		ResponseTimeout:     30000, // 30s
@@ -230,7 +230,7 @@ func (f *Factory) CreateBot(
 
 	bot := newBot(
 		f.logger,
-		cmAccountAddress,
+		ttmAccountAddress,
 		f.binPath,
 		configPath,
 		path.Join(botDir, "bot.log"), // log file path

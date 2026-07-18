@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 )
@@ -28,15 +28,15 @@ const (
 )
 
 type Resolver interface {
-	GetBotAddress(ctx context.Context, recipientCMAccount common.Address) (common.Address, error)
+	GetBotAddress(ctx context.Context, recipientTTMAccount common.Address) (common.Address, error)
 	SetBotStatus(ctx context.Context, botAddress common.Address, status BotStatus) error
 }
 
 type Storage interface {
 	SessionHandler
-	GetFirstBotWithStatus(ctx context.Context, session Session, cmAccount common.Address, status BotStatus) (common.Address, error)
+	GetFirstBotWithStatus(ctx context.Context, session Session, ttmAccount common.Address, status BotStatus) (common.Address, error)
 	SetBotStatus(ctx context.Context, session Session, botAddress common.Address, status BotStatus) error
-	SetBots(ctx context.Context, session Session, cmAccount common.Address, bots []common.Address) error
+	SetBots(ctx context.Context, session Session, ttmAccount common.Address, bots []common.Address) error
 }
 
 type SessionHandler interface {
@@ -50,27 +50,27 @@ type Session interface {
 	Abort() error
 }
 type resolver struct {
-	logger     *zap.SugaredLogger
-	cmAccounts cmaccounts.Service
-	storage    Storage
+	logger      *zap.SugaredLogger
+	ttmAccounts ttmaccounts.Service
+	storage     Storage
 }
 
-func NewResolver(logger *zap.SugaredLogger, cmAccounts cmaccounts.Service, storage Storage) Resolver {
+func NewResolver(logger *zap.SugaredLogger, ttmAccounts ttmaccounts.Service, storage Storage) Resolver {
 	return &resolver{
-		logger:     logger,
-		cmAccounts: cmAccounts,
-		storage:    storage,
+		logger:      logger,
+		ttmAccounts: ttmAccounts,
+		storage:     storage,
 	}
 }
 
-func (r *resolver) GetBotAddress(ctx context.Context, recipientCMAccount common.Address) (common.Address, error) {
+func (r *resolver) GetBotAddress(ctx context.Context, recipientTTMAccount common.Address) (common.Address, error) {
 	session, err := r.storage.NewSession(ctx)
 	if err != nil {
 		return common.Address{}, err
 	}
 	defer r.storage.Abort(session)
 
-	reachableBot, err := r.storage.GetFirstBotWithStatus(ctx, session, recipientCMAccount, BotStatusReachable)
+	reachableBot, err := r.storage.GetFirstBotWithStatus(ctx, session, recipientTTMAccount, BotStatusReachable)
 	switch {
 	case err == nil:
 		return reachableBot, nil
@@ -78,9 +78,9 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientCMAccount common.
 		return common.Address{}, fmt.Errorf("failed to get first reachable bot from db: %w", err)
 	}
 
-	r.logger.Infof("no reachable bot found for recipient CM account %s in db, checking for unknown status bots", recipientCMAccount.Hex())
+	r.logger.Infof("no reachable bot found for recipient CM account %s in db, checking for unknown status bots", recipientTTMAccount.Hex())
 
-	reachableBot, err = r.storage.GetFirstBotWithStatus(ctx, session, recipientCMAccount, BotStatusUnknown)
+	reachableBot, err = r.storage.GetFirstBotWithStatus(ctx, session, recipientTTMAccount, BotStatusUnknown)
 	switch {
 	case err == nil:
 		return reachableBot, nil
@@ -88,14 +88,14 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientCMAccount common.
 		return common.Address{}, fmt.Errorf("failed to get first bot with unknown reachability status from db: %w", err)
 	}
 
-	r.logger.Infof("no unknown status bot found for recipient CM account %s in db, fetching bots from blockchain", recipientCMAccount.Hex())
+	r.logger.Infof("no unknown status bot found for recipient CM account %s in db, fetching bots from blockchain", recipientTTMAccount.Hex())
 
-	recipientBots, err := r.cmAccounts.GetAllMessengerBots(ctx, recipientCMAccount)
+	recipientBots, err := r.ttmAccounts.GetAllMessengerBots(ctx, recipientTTMAccount)
 	if err != nil {
 		return common.Address{}, err
 	}
 
-	if err := r.storage.SetBots(ctx, session, recipientCMAccount, recipientBots); err != nil {
+	if err := r.storage.SetBots(ctx, session, recipientTTMAccount, recipientBots); err != nil {
 		return common.Address{}, fmt.Errorf("failed to set bots in db: %w", err)
 	}
 
@@ -104,10 +104,10 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientCMAccount common.
 	}
 
 	if len(recipientBots) == 0 {
-		return common.Address{}, fmt.Errorf("no bots found for recipient CM account %s: %w", recipientCMAccount.Hex(), ErrNotFound)
+		return common.Address{}, fmt.Errorf("no bots found for recipient CM account %s: %w", recipientTTMAccount.Hex(), ErrNotFound)
 	}
 
-	r.logger.Infof("using first bot %s with unknown reachability status for recipient CM account %s", recipientBots[0].Hex(), recipientCMAccount.Hex())
+	r.logger.Infof("using first bot %s with unknown reachability status for recipient CM account %s", recipientBots[0].Hex(), recipientTTMAccount.Hex())
 
 	return recipientBots[0], nil
 }

@@ -82,16 +82,16 @@ func StartNewAppService(
 	// network fee CM account
 
 	networkFeeBotAddress := crypto.PubkeyToAddress(networkFeeKey.PublicKey)
-	networkFeeCMAccountAddress, _, err := networkClient.CreateCMAccount(ctx, networkFeeKey)
+	networkFeeTTMAccountAddress, _, err := networkClient.CreateTTMAccount(ctx, networkFeeKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create cm account: %w", err)
 	}
 
-	if err := networkClient.Transfer(ctx, networkClient.PrefundedKeys()[0], networkFeeBotAddress, e2eCommon.DefaultCMAccountOwnerFunds); err != nil {
+	if err := networkClient.Transfer(ctx, networkClient.PrefundedKeys()[0], networkFeeBotAddress, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
 		return nil, nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
 	}
 
-	if err := networkClient.AddBotToCMAccount(ctx, networkFeeCMAccountAddress, networkFeeKey, networkFeeBotAddress); err != nil {
+	if err := networkClient.AddBotToTTMAccount(ctx, networkFeeTTMAccountAddress, networkFeeKey, networkFeeBotAddress); err != nil {
 		return nil, nil, fmt.Errorf("failed to add bot to CM account: %w", err)
 	}
 
@@ -107,7 +107,7 @@ func StartNewAppService(
 		DB: config.UnparsedSQLiteDBConfig{
 			DBPath: dbDir,
 		},
-		NetworkFeeRecipientCMAccountAddress: networkFeeCMAccountAddress.Hex(),
+		NetworkFeeRecipientCMAccountAddress: networkFeeTTMAccountAddress.Hex(),
 		NetworkFeeRecipientBotKey:           hex.EncodeToString(crypto.FromECDSA(networkFeeKey)),
 		MinChequeDurationUntilExpiration:    3600 * 24 * 30 * 6, // 6 months
 		CashInPeriod:                        options.cashInPeriodSeconds,
@@ -134,15 +134,15 @@ func StartNewAppService(
 	}
 
 	m := &AppService{
-		logger:                     logger,
-		pid:                        cmd.Process.Pid,
-		asbDir:                     asbDir,
-		networkFeeBotAddress:       crypto.PubkeyToAddress(networkFeeKey.PublicKey),
-		networkFeeCMAccountAddress: networkFeeCMAccountAddress,
-		logFile:                    logFile,
-		hsAccessToken:              hsAccessToken,
-		asAccessToken:              asAccessToken,
-		host:                       host,
+		logger:                      logger,
+		pid:                         cmd.Process.Pid,
+		asbDir:                      asbDir,
+		networkFeeBotAddress:        crypto.PubkeyToAddress(networkFeeKey.PublicKey),
+		networkFeeTTMAccountAddress: networkFeeTTMAccountAddress,
+		logFile:                     logFile,
+		hsAccessToken:               hsAccessToken,
+		asAccessToken:               asAccessToken,
+		host:                        host,
 	}
 
 	if err := m.awaitReady(ctx); err != nil {
@@ -165,15 +165,15 @@ func StartNewAppService(
 
 // Not safe for concurrent use.
 type AppService struct {
-	logger                     *zap.SugaredLogger
-	pid                        int
-	asbDir                     string
-	host                       string
-	hsAccessToken              string
-	asAccessToken              string
-	networkFeeBotAddress       common.Address
-	networkFeeCMAccountAddress common.Address
-	logFile                    *os.File
+	logger                      *zap.SugaredLogger
+	pid                         int
+	asbDir                      string
+	host                        string
+	hsAccessToken               string
+	asAccessToken               string
+	networkFeeBotAddress        common.Address
+	networkFeeTTMAccountAddress common.Address
+	logFile                     *os.File
 }
 
 func (a *AppService) Host() string {
@@ -207,8 +207,8 @@ func (a *AppService) NetworkFeeRecipientBotAddress() common.Address {
 	return a.networkFeeBotAddress
 }
 
-func (a *AppService) NetworkFeeRecipientCMAccountAddress() common.Address {
-	return a.networkFeeCMAccountAddress
+func (a *AppService) NetworkFeeRecipientTTMAccountAddress() common.Address {
+	return a.networkFeeTTMAccountAddress
 }
 
 func (a *AppService) awaitReady(ctx context.Context) error {

@@ -18,8 +18,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/resolver"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/metadata"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	m "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/matchers"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 
@@ -33,7 +33,7 @@ type messageProcessorArgs struct {
 	serviceRegistry *MockServiceRegistry
 	responseHandler *MockResponseHandler
 	partnerPlugin   *partnerplugin.MockPartnerPlugin
-	cmAccounts      *cmaccounts.MockService
+	ttmAccounts     *ttmaccounts.MockService
 	encoderDecoder  *MockEncoderDecoder
 	resolver        *resolver.MockResolver
 }
@@ -44,7 +44,7 @@ func defaultMessageProcessorArgs(c *gomock.Controller) messageProcessorArgs {
 		serviceRegistry: NewMockServiceRegistry(c),
 		responseHandler: NewMockResponseHandler(c),
 		partnerPlugin:   partnerplugin.NewMockPartnerPlugin(c),
-		cmAccounts:      cmaccounts.NewMockService(c),
+		ttmAccounts:     ttmaccounts.NewMockService(c),
 		encoderDecoder:  NewMockEncoderDecoder(c),
 		resolver:        resolver.NewMockResolver(c),
 	}
@@ -56,10 +56,10 @@ func TestProcessIncomingMessage(t *testing.T) {
 	testSharedKey := encryption.NopKey{SessionKey: []byte("test key")}
 
 	senderBotAddress := ethCommon.Address{1}
-	senderCMAccount := ethCommon.Address{2}
+	senderTTMAccount := ethCommon.Address{2}
 
 	ownBot := ethCommon.Address{3}
-	ownCMAccount := ethCommon.Address{4}
+	ownTTMAccount := ethCommon.Address{4}
 
 	responseMessage := &message.Message{
 		Type:       generated.PingServiceV1Response,
@@ -72,10 +72,10 @@ func TestProcessIncomingMessage(t *testing.T) {
 	}
 
 	type args struct {
-		requestMessage         *message.Message
-		senderBotAddress       ethCommon.Address
-		senderCMAccountAddress ethCommon.Address
-		sharedKey              encryption.Key
+		requestMessage          *message.Message
+		senderBotAddress        ethCommon.Address
+		senderTTMAccountAddress ethCommon.Address
+		sharedKey               encryption.Key
 	}
 
 	tests := map[string]struct {
@@ -87,18 +87,18 @@ func TestProcessIncomingMessage(t *testing.T) {
 	}{
 		"Invalid message type": {
 			messageProcessorArgs: func(_ *gomock.Controller, pArgs *messageProcessorArgs, a args) {
-				pArgs.cmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderCMAccountAddress, a.senderBotAddress).Return(true, nil)
+				pArgs.ttmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderTTMAccountAddress, a.senderBotAddress).Return(true, nil)
 			},
 			args: args{
-				requestMessage:         &message.Message{Type: "invalid"},
-				senderBotAddress:       ethCommon.Address{1},
-				senderCMAccountAddress: ethCommon.Address{2},
+				requestMessage:          &message.Message{Type: "invalid"},
+				senderBotAddress:        ethCommon.Address{1},
+				senderTTMAccountAddress: ethCommon.Address{2},
 			},
 			expectedErr: ErrUnknownMessageCategory,
 		},
 		"Not supported service": {
 			messageProcessorArgs: func(_ *gomock.Controller, pArgs *messageProcessorArgs, a args) {
-				pArgs.cmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderCMAccountAddress, a.senderBotAddress).Return(true, nil)
+				pArgs.ttmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderTTMAccountAddress, a.senderBotAddress).Return(true, nil)
 				pArgs.serviceRegistry.EXPECT().GetService(a.requestMessage.Type).Return(nil, false)
 			},
 			args: args{
@@ -106,20 +106,20 @@ func TestProcessIncomingMessage(t *testing.T) {
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				senderBotAddress:       senderBotAddress,
-				senderCMAccountAddress: senderCMAccount,
+				senderBotAddress:        senderBotAddress,
+				senderTTMAccountAddress: senderTTMAccount,
 			},
 			expectedErr: ErrUnsupportedService,
 		},
 		"Messenger failed to send message": {
 			messageProcessorArgs: func(c *gomock.Controller, pArgs *messageProcessorArgs, a args) {
 				rpcService := rpc.NewMockService(c)
-				pArgs.cmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderCMAccountAddress, a.senderBotAddress).Return(true, nil)
+				pArgs.ttmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderTTMAccountAddress, a.senderBotAddress).Return(true, nil)
 				pArgs.serviceRegistry.EXPECT().GetService(a.requestMessage.Type).Return(rpcService, true)
-				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.senderCMAccountAddress, ownCMAccount).Return(responseMessage.Content, responseMessage.Type)
+				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.senderTTMAccountAddress, ownTTMAccount).Return(responseMessage.Content, responseMessage.Type)
 				pArgs.responseHandler.EXPECT().PrepareResponseMessage(m.Context, a.requestMessage, equalExceptTimestamps(responseMessage))
-				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), a.senderBotAddress, a.sharedKey, ownCMAccount).Return(encodedRespMsg, nil)
-				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBotAddress, ownCMAccount).Return(testErr)
+				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), a.senderBotAddress, a.sharedKey, ownTTMAccount).Return(encodedRespMsg, nil)
+				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBotAddress, ownTTMAccount).Return(testErr)
 			},
 			args: args{
 				requestMessage: &message.Message{
@@ -127,21 +127,21 @@ func TestProcessIncomingMessage(t *testing.T) {
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				senderBotAddress:       senderBotAddress,
-				senderCMAccountAddress: senderCMAccount,
-				sharedKey:              testSharedKey,
+				senderBotAddress:        senderBotAddress,
+				senderTTMAccountAddress: senderTTMAccount,
+				sharedKey:               testSharedKey,
 			},
 			expectedErr: testErr,
 		},
 		"OK: process request message": {
 			messageProcessorArgs: func(c *gomock.Controller, pArgs *messageProcessorArgs, a args) {
 				rpcService := rpc.NewMockService(c)
-				pArgs.cmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderCMAccountAddress, a.senderBotAddress).Return(true, nil)
+				pArgs.ttmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderTTMAccountAddress, a.senderBotAddress).Return(true, nil)
 				pArgs.serviceRegistry.EXPECT().GetService(a.requestMessage.Type).Return(rpcService, true)
-				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.senderCMAccountAddress, ownCMAccount).Return(responseMessage.Content, responseMessage.Type)
+				pArgs.partnerPlugin.EXPECT().DoServiceRequest(m.Context, a.requestMessage, rpcService, a.senderTTMAccountAddress, ownTTMAccount).Return(responseMessage.Content, responseMessage.Type)
 				pArgs.responseHandler.EXPECT().PrepareResponseMessage(m.Context, a.requestMessage, equalExceptTimestamps(responseMessage))
-				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), a.senderBotAddress, a.sharedKey, ownCMAccount).Return(encodedRespMsg, nil)
-				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBotAddress, ownCMAccount).Return(nil)
+				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), a.senderBotAddress, a.sharedKey, ownTTMAccount).Return(encodedRespMsg, nil)
+				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBotAddress, ownTTMAccount).Return(nil)
 			},
 			args: args{
 				requestMessage: &message.Message{
@@ -149,22 +149,22 @@ func TestProcessIncomingMessage(t *testing.T) {
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				senderBotAddress:       senderBotAddress,
-				senderCMAccountAddress: senderCMAccount,
-				sharedKey:              testSharedKey,
+				senderBotAddress:        senderBotAddress,
+				senderTTMAccountAddress: senderTTMAccount,
+				sharedKey:               testSharedKey,
 			},
 		},
 		"OK: process response message": {
 			messageProcessorArgs: func(_ *gomock.Controller, pArgs *messageProcessorArgs, a args) {
-				pArgs.cmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderCMAccountAddress, a.senderBotAddress).Return(true, nil)
+				pArgs.ttmAccounts.EXPECT().IsBotAllowed(m.Context, a.senderTTMAccountAddress, a.senderBotAddress).Return(true, nil)
 			},
 			responseChannels: map[string]chan *message.Message{
 				requestID: make(chan *message.Message, 1),
 			},
 			args: args{
-				requestMessage:         responseMessage,
-				senderBotAddress:       senderBotAddress,
-				senderCMAccountAddress: senderCMAccount,
+				requestMessage:          responseMessage,
+				senderBotAddress:        senderBotAddress,
+				senderTTMAccountAddress: senderTTMAccount,
 			},
 			require: func(t *testing.T, p *messageProcessor) {
 				responseChan, ok := p.getResponseChannel(requestID)
@@ -187,11 +187,11 @@ func TestProcessIncomingMessage(t *testing.T) {
 				zap.NewNop().Sugar(),
 				time.Duration(0),
 				ownBot,
-				ownCMAccount,
+				ownTTMAccount,
 				messageProcessorArgs.serviceRegistry,
 				messageProcessorArgs.responseHandler,
 				messageProcessorArgs.partnerPlugin,
-				messageProcessorArgs.cmAccounts,
+				messageProcessorArgs.ttmAccounts,
 				messageProcessorArgs.encoderDecoder,
 				messageProcessorArgs.resolver,
 			)
@@ -199,7 +199,7 @@ func TestProcessIncomingMessage(t *testing.T) {
 			for requestID, responseChan := range tt.responseChannels {
 				messageProcessor.setResponseChannel(requestID, responseChan)
 			}
-			err := messageProcessor.processIncomingMessage(context.Background(), tt.args.requestMessage, tt.args.senderBotAddress, tt.args.senderCMAccountAddress, tt.args.sharedKey)
+			err := messageProcessor.processIncomingMessage(context.Background(), tt.args.requestMessage, tt.args.senderBotAddress, tt.args.senderTTMAccountAddress, tt.args.sharedKey)
 			require.ErrorIs(t, err, tt.expectedErr)
 
 			if tt.require != nil {
@@ -219,9 +219,9 @@ func TestSendRequestMessage(t *testing.T) {
 	}
 
 	ownBot := ethCommon.Address{1}
-	ownCMAccount := ethCommon.Address{2}
+	ownTTMAccount := ethCommon.Address{2}
 	recipientBot := ethCommon.Address{3}
-	recipientCMAccount := ethCommon.Address{4}
+	recipientTTMAccount := ethCommon.Address{4}
 
 	encodedReqMsg := &EncodedSignedMessage{
 		ChunkedEncodedMessage: [][]byte{[]byte("chunk1"), []byte("chunk2")},
@@ -229,8 +229,8 @@ func TestSendRequestMessage(t *testing.T) {
 	}
 
 	type args struct {
-		msg                *message.Message
-		recipientCMAccount ethCommon.Address
+		msg                 *message.Message
+		recipientTTMAccount ethCommon.Address
 	}
 
 	testSharedKey, err := encryption.NewKey()
@@ -245,28 +245,28 @@ func TestSendRequestMessage(t *testing.T) {
 	}{
 		"Messenger failed to send message": {
 			messageProcessorArgs: func(pArgs *messageProcessorArgs, a args) {
-				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientCMAccount).Return(recipientBot, nil)
-				pArgs.cmAccounts.EXPECT().IsServiceSupported(m.Context, recipientCMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
+				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientTTMAccount).Return(recipientBot, nil)
+				pArgs.ttmAccounts.EXPECT().IsServiceSupported(m.Context, recipientTTMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
 				pArgs.responseHandler.EXPECT().PrepareRequest(a.msg.Content)
-				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownCMAccount).Return(encodedReqMsg, nil)
-				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownCMAccount).Return(testErr)
+				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownTTMAccount).Return(encodedReqMsg, nil)
+				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownTTMAccount).Return(testErr)
 			},
 			args: args{
 				msg: &message.Message{
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				recipientCMAccount: recipientCMAccount,
+				recipientTTMAccount: recipientTTMAccount,
 			},
 			expectedErr: testErr,
 		},
 		"Response timeout": {
 			messageProcessorArgs: func(pArgs *messageProcessorArgs, a args) {
-				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientCMAccount).Return(recipientBot, nil)
-				pArgs.cmAccounts.EXPECT().IsServiceSupported(m.Context, recipientCMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
+				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientTTMAccount).Return(recipientBot, nil)
+				pArgs.ttmAccounts.EXPECT().IsServiceSupported(m.Context, recipientTTMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
 				pArgs.responseHandler.EXPECT().PrepareRequest(a.msg.Content)
-				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownCMAccount).Return(encodedReqMsg, nil)
-				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownCMAccount).Return(nil)
+				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownTTMAccount).Return(encodedReqMsg, nil)
+				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownTTMAccount).Return(nil)
 				pArgs.resolver.EXPECT().SetBotStatus(m.Context, recipientBot, resolver.BotStatusUnreachable).Return(nil)
 			},
 			args: args{
@@ -274,17 +274,17 @@ func TestSendRequestMessage(t *testing.T) {
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				recipientCMAccount: recipientCMAccount,
+				recipientTTMAccount: recipientTTMAccount,
 			},
 			expectedErr: ErrExceededResponseTimeout,
 		},
 		"OK": {
 			messageProcessorArgs: func(pArgs *messageProcessorArgs, a args) {
-				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientCMAccount).Return(recipientBot, nil)
-				pArgs.cmAccounts.EXPECT().IsServiceSupported(m.Context, recipientCMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
+				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientTTMAccount).Return(recipientBot, nil)
+				pArgs.ttmAccounts.EXPECT().IsServiceSupported(m.Context, recipientTTMAccount, a.msg.Type.ToServiceName()).Return(true, nil)
 				pArgs.responseHandler.EXPECT().PrepareRequest(a.msg.Content)
-				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownCMAccount).Return(encodedReqMsg, nil)
-				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownCMAccount).Return(nil)
+				pArgs.encoderDecoder.EXPECT().EncodeMessage(m.Context, a.msg, recipientBot, gomock.AssignableToTypeOf(testSharedKey), ownTTMAccount).Return(encodedReqMsg, nil)
+				pArgs.messenger.EXPECT().SendMessage(m.Context, encodedReqMsg, recipientBot, ownTTMAccount).Return(nil)
 				pArgs.responseHandler.EXPECT().ProcessResponseMessage(m.Context, a.msg, responseMessage)
 				pArgs.resolver.EXPECT().SetBotStatus(m.Context, recipientBot, resolver.BotStatusReachable).Return(nil)
 			},
@@ -294,7 +294,7 @@ func TestSendRequestMessage(t *testing.T) {
 					RequestID:  requestID,
 					Timestamps: metadata.Timestamps{},
 				},
-				recipientCMAccount: recipientCMAccount,
+				recipientTTMAccount: recipientTTMAccount,
 			},
 			responses: func(p *messageProcessor) {
 				for {
@@ -310,29 +310,29 @@ func TestSendRequestMessage(t *testing.T) {
 		},
 		"Service not supported on-chain": {
 			messageProcessorArgs: func(pArgs *messageProcessorArgs, a args) {
-				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientCMAccount).Return(recipientBot, nil)
-				pArgs.cmAccounts.EXPECT().IsServiceSupported(m.Context, recipientCMAccount, a.msg.Type.ToServiceName()).Return(false, nil)
+				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientTTMAccount).Return(recipientBot, nil)
+				pArgs.ttmAccounts.EXPECT().IsServiceSupported(m.Context, recipientTTMAccount, a.msg.Type.ToServiceName()).Return(false, nil)
 			},
 			args: args{
 				msg: &message.Message{
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				recipientCMAccount: recipientCMAccount,
+				recipientTTMAccount: recipientTTMAccount,
 			},
-			expectedErr: cmaccounts.ErrServiceNotSupported,
+			expectedErr: ttmaccounts.ErrServiceNotSupported,
 		},
 		"Service check blockchain error": {
 			messageProcessorArgs: func(pArgs *messageProcessorArgs, a args) {
-				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientCMAccount).Return(recipientBot, nil)
-				pArgs.cmAccounts.EXPECT().IsServiceSupported(m.Context, recipientCMAccount, a.msg.Type.ToServiceName()).Return(false, testErr)
+				pArgs.resolver.EXPECT().GetBotAddress(m.Context, recipientTTMAccount).Return(recipientBot, nil)
+				pArgs.ttmAccounts.EXPECT().IsServiceSupported(m.Context, recipientTTMAccount, a.msg.Type.ToServiceName()).Return(false, testErr)
 			},
 			args: args{
 				msg: &message.Message{
 					Type:       generated.PingServiceV1Request,
 					Timestamps: metadata.Timestamps{},
 				},
-				recipientCMAccount: recipientCMAccount,
+				recipientTTMAccount: recipientTTMAccount,
 			},
 			expectedErr: rpc.ErrBlockchain,
 		},
@@ -351,18 +351,18 @@ func TestSendRequestMessage(t *testing.T) {
 				zap.NewNop().Sugar(),
 				1*time.Second, // response timeout
 				ownBot,
-				ownCMAccount,
+				ownTTMAccount,
 				messageProcessorArgs.serviceRegistry,
 				messageProcessorArgs.responseHandler,
 				messageProcessorArgs.partnerPlugin,
-				messageProcessorArgs.cmAccounts,
+				messageProcessorArgs.ttmAccounts,
 				messageProcessorArgs.encoderDecoder,
 				messageProcessorArgs.resolver,
 			)
 			if tt.responses != nil {
 				go tt.responses(p.(*messageProcessor))
 			}
-			responseMessage, err := p.SendRequestMessage(context.Background(), tt.args.msg, tt.args.recipientCMAccount)
+			responseMessage, err := p.SendRequestMessage(context.Background(), tt.args.msg, tt.args.recipientTTMAccount)
 			require.ErrorIs(t, err, tt.expectedErr)
 			require.Equal(t, tt.expectedResponseMessage, responseMessage)
 		})
@@ -375,7 +375,7 @@ func TestStart(t *testing.T) {
 
 	c := gomock.NewController(t)
 	serviceRegistry := NewMockServiceRegistry(c)
-	cmAccounts := cmaccounts.NewMockService(c)
+	ttmAccounts := ttmaccounts.NewMockService(c)
 	partnerPlugin := partnerplugin.NewMockPartnerPlugin(c)
 	messenger := NewMockMessenger(c)
 	encoderDecoder := NewMockEncoderDecoder(c)
@@ -383,10 +383,10 @@ func TestStart(t *testing.T) {
 	resolver := resolver.NewMockResolver(c)
 
 	senderBot := ethCommon.Address{1}
-	senderCMAccount := ethCommon.Address{2}
+	senderTTMAccount := ethCommon.Address{2}
 
 	ownBot := ethCommon.Address{3}
-	ownCMAccount := ethCommon.Address{4}
+	ownTTMAccount := ethCommon.Address{4}
 
 	requestMsg := &message.Message{
 		Type:       generated.PingServiceV1Request,
@@ -400,26 +400,26 @@ func TestStart(t *testing.T) {
 	// Received message from itself (bot)
 
 	incomingMessages = append(incomingMessages, EncodedSignedMessageWithSender{
-		Message:                EncodedSignedMessage{Signature: []byte("self-message (bot) signature")},
-		SenderBotAddress:       ownBot,
-		SenderCMAccountAddress: senderCMAccount,
+		Message:                 EncodedSignedMessage{Signature: []byte("self-message (bot) signature")},
+		SenderBotAddress:        ownBot,
+		SenderTTMAccountAddress: senderTTMAccount,
 	})
 
 	// Received message from itself (cm account)
 
 	encodedBadRequestMsg := EncodedSignedMessageWithSender{
-		Message:                EncodedSignedMessage{Signature: []byte("self-message (cm-account) signature")},
-		SenderBotAddress:       senderBot,
-		SenderCMAccountAddress: ownCMAccount,
+		Message:                 EncodedSignedMessage{Signature: []byte("self-message (cm-account) signature")},
+		SenderBotAddress:        senderBot,
+		SenderTTMAccountAddress: ownTTMAccount,
 	}
 	incomingMessages = append(incomingMessages, encodedBadRequestMsg)
 
 	// OK message
 
 	encodedRequestMsg := EncodedSignedMessageWithSender{
-		Message:                EncodedSignedMessage{Signature: []byte("message signature")},
-		SenderBotAddress:       senderBot,
-		SenderCMAccountAddress: senderCMAccount,
+		Message:                 EncodedSignedMessage{Signature: []byte("message signature")},
+		SenderBotAddress:        senderBot,
+		SenderTTMAccountAddress: senderTTMAccount,
 	}
 	incomingMessages = append(incomingMessages, encodedRequestMsg)
 
@@ -435,13 +435,13 @@ func TestStart(t *testing.T) {
 		Signature:             []byte("response signature"),
 	}
 
-	encoderDecoder.EXPECT().DecodeAndVerifyMessage(ctx, &encodedRequestMsg.Message, encodedRequestMsg.SenderBotAddress).Return(requestMsg, sharedKey, senderCMAccount, nil)
-	cmAccounts.EXPECT().IsBotAllowed(gomock.Any(), senderCMAccount, senderBot).Return(true, nil)
+	encoderDecoder.EXPECT().DecodeAndVerifyMessage(ctx, &encodedRequestMsg.Message, encodedRequestMsg.SenderBotAddress).Return(requestMsg, sharedKey, senderTTMAccount, nil)
+	ttmAccounts.EXPECT().IsBotAllowed(gomock.Any(), senderTTMAccount, senderBot).Return(true, nil)
 	serviceRegistry.EXPECT().GetService(requestMsg.Type).Return(rpcService, true)
 	responseHandler.EXPECT().PrepareResponseMessage(m.Context, requestMsg, equalExceptTimestamps(responseMessage))
-	partnerPlugin.EXPECT().DoServiceRequest(m.Context, requestMsg, rpcService, senderCMAccount, ownCMAccount).Return(responseMessage.Content, responseMessage.Type)
-	encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), senderBot, sharedKey, ownCMAccount).Return(encodedRespMsg, nil)
-	messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBot, ownCMAccount).Return(nil)
+	partnerPlugin.EXPECT().DoServiceRequest(m.Context, requestMsg, rpcService, senderTTMAccount, ownTTMAccount).Return(responseMessage.Content, responseMessage.Type)
+	encoderDecoder.EXPECT().EncodeMessage(m.Context, equalExceptTimestamps(responseMessage), senderBot, sharedKey, ownTTMAccount).Return(encodedRespMsg, nil)
+	messenger.EXPECT().SendMessage(m.Context, encodedRespMsg, senderBot, ownTTMAccount).Return(nil)
 
 	// set up incoming messages channel
 
@@ -458,11 +458,11 @@ func TestStart(t *testing.T) {
 		zap.NewNop().Sugar(),
 		time.Duration(0),
 		ownBot,
-		ownCMAccount,
+		ownTTMAccount,
 		serviceRegistry,
 		responseHandler,
 		partnerPlugin,
-		cmAccounts,
+		ttmAccounts,
 		encoderDecoder,
 		resolver,
 	).Start(ctx)

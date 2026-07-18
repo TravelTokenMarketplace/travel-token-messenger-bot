@@ -295,7 +295,7 @@ func (tt *TestCancellationV3) testCheckCancellationV3(ctx context.Context, t *te
 		Reason:  cancellationv1.CancellationReason_CANCELLATION_REASON_AMENITY_REQUIREMENT_CHANGE,
 	}
 	resp, err := tt.distributorBot.CheckCancellationServiceV3.CheckCancellation(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -416,9 +416,9 @@ func (h *cancellationV3Helper) initiateCancellation(
 	h.require.NotNil(successResp, "unexpected response status")
 
 	if h.initialProposer.Cmp(ethCommon.Address{}) == 0 {
-		h.initialProposer = initiatorBot.CMAccountAddress()
+		h.initialProposer = initiatorBot.TTMAccountAddress()
 	}
-	h.currentProposer = initiatorBot.CMAccountAddress()
+	h.currentProposer = initiatorBot.TTMAccountAddress()
 	h.cancellationReason = reason
 	h.rejectionReason = cancellationv1.RejectionReason_REJECTION_REASON_UNSPECIFIED
 	h.withdrawalReason = cancellationv1.WithdrawalReason_WITHDRAWAL_REASON_UNSPECIFIED
@@ -459,7 +459,7 @@ func (h *cancellationV3Helper) counterCancellation(
 	successResp := resp.GetSuccessResponse()
 	h.require.NotNil(successResp, "unexpected response status")
 
-	h.currentProposer = countererBot.CMAccountAddress()
+	h.currentProposer = countererBot.TTMAccountAddress()
 	h.counterReason = reason
 	h.timesCountered++
 

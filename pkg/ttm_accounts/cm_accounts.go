@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2026, Travel Token Marketplace. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package cmaccounts
+package ttmaccounts
 
 import (
 	"context"
@@ -26,28 +26,28 @@ import (
 const (
 	// Implementation slot for ERC1967Proxy
 	// See: https://eips.ethereum.org/EIPS/eip-1967#logic-contract-address
-	managerCMAccountImplementationSlotString = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
-	evmExecutionRevertErrorMessage           = "execution reverted"
+	managerTTMAccountImplementationSlotString = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+	evmExecutionRevertErrorMessage            = "execution reverted"
 )
 
 var (
 	_ Service = &service{}
 
-	messengerBotRole                   = crypto.Keccak256Hash([]byte("MESSENGER_BOT_ROLE"))
-	managerCMAccountImplementationSlot = common.HexToHash(managerCMAccountImplementationSlotString)
+	messengerBotRole                    = crypto.Keccak256Hash([]byte("MESSENGER_BOT_ROLE"))
+	managerTTMAccountImplementationSlot = common.HexToHash(managerTTMAccountImplementationSlotString)
 
 	ErrServiceNotSupported = errors.New("service is not supported")
 )
 
 type Service interface {
-	GetAllMessengerBots(ctx context.Context, cmAccountAddress common.Address) ([]common.Address, error)
-	IsBotAllowed(ctx context.Context, cmAccountAddress common.Address, botAddress common.Address) (bool, error)
-	IsServiceSupported(ctx context.Context, cmAccountAddress common.Address, serviceFullName string) (bool, error)
+	GetAllMessengerBots(ctx context.Context, ttmAccountAddress common.Address) ([]common.Address, error)
+	IsBotAllowed(ctx context.Context, ttmAccountAddress common.Address, botAddress common.Address) (bool, error)
+	IsServiceSupported(ctx context.Context, ttmAccountAddress common.Address, serviceFullName string) (bool, error)
 
 	MintBookingToken(
 		ctx context.Context,
 		transactOpts *bind.TransactOpts,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		reservedFor common.Address,
 		uri string,
 		expirationTimestamp *big.Int,
@@ -60,7 +60,7 @@ type Service interface {
 	BuyBookingToken(
 		ctx context.Context,
 		transactOpts *bind.TransactOpts,
-		cmAccountAddr common.Address,
+		ttmAccountAddr common.Address,
 		tokenID *big.Int,
 		price *big.Int,
 		paymentToken common.Address,
@@ -69,20 +69,20 @@ type Service interface {
 	RecordExpiration(
 		ctx context.Context,
 		transactOpts *bind.TransactOpts,
-		cmAccountAddress common.Address,
+		ttmAccountAddress common.Address,
 		tokenID *big.Int,
 	) (*types.Receipt, error)
 
-	IsCMAccountImplementationUpToDate(ctx context.Context, cmAccountAddress common.Address) (bool, error)
+	IsTTMAccountImplementationUpToDate(ctx context.Context, ttmAccountAddress common.Address) (bool, error)
 
-	CMAccount(common.Address) (*ttmaccount.Ttmaccount, error)
+	TTMAccount(common.Address) (*ttmaccount.Ttmaccount, error)
 
 	Cancellation
 }
 
 type botAuthCacheKey struct {
-	cmAccount common.Address
-	bot       common.Address
+	ttmAccount common.Address
+	bot        common.Address
 }
 
 type botAuthCacheVal struct {
@@ -128,14 +128,14 @@ func NewService(
 	}, nil
 }
 
-func (s *service) GetAllMessengerBots(ctx context.Context, cmAccountAddress common.Address) ([]common.Address, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+func (s *service) GetAllMessengerBots(ctx context.Context, ttmAccountAddress common.Address) ([]common.Address, error) {
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		s.logger.Errorf("Failed to get cm account: %v", err)
 		return nil, err
 	}
 
-	botsAddresses, err := cmAccount.GetRoleMembers(&bind.CallOpts{Context: ctx}, messengerBotRole)
+	botsAddresses, err := ttmAccount.GetRoleMembers(&bind.CallOpts{Context: ctx}, messengerBotRole)
 	if err != nil {
 		s.logger.Errorf("Failed to get messenger bots: %v", err)
 		return nil, err
@@ -144,8 +144,8 @@ func (s *service) GetAllMessengerBots(ctx context.Context, cmAccountAddress comm
 	return botsAddresses, nil
 }
 
-func (s *service) IsBotAllowed(ctx context.Context, cmAccountAddress common.Address, botAddress common.Address) (bool, error) {
-	key := botAuthCacheKey{cmAccount: cmAccountAddress, bot: botAddress}
+func (s *service) IsBotAllowed(ctx context.Context, ttmAccountAddress common.Address, botAddress common.Address) (bool, error) {
+	key := botAuthCacheKey{ttmAccount: ttmAccountAddress, bot: botAddress}
 
 	s.botAuthCacheMu.RLock()
 	cached, found := s.botAuthCache[key]
@@ -155,15 +155,15 @@ func (s *service) IsBotAllowed(ctx context.Context, cmAccountAddress common.Addr
 		return cached.allowed, nil
 	}
 
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		s.logger.Errorf("Failed to get cm account: %v", err)
 		return false, err
 	}
 
-	allowed, err := cmAccount.IsBotAllowed(&bind.CallOpts{Context: ctx}, botAddress)
+	allowed, err := ttmAccount.IsBotAllowed(&bind.CallOpts{Context: ctx}, botAddress)
 	if err != nil {
-		s.logger.Errorf("Failed to check if bot %s is allowed for CM account %s: %v", botAddress.Hex(), cmAccountAddress.Hex(), err)
+		s.logger.Errorf("Failed to check if bot %s is allowed for CM account %s: %v", botAddress.Hex(), ttmAccountAddress.Hex(), err)
 		return false, fmt.Errorf("failed to check if bot is allowed: %w", err)
 	}
 
@@ -179,20 +179,20 @@ func (s *service) IsBotAllowed(ctx context.Context, cmAccountAddress common.Addr
 	return allowed, nil
 }
 
-func (s *service) IsServiceSupported(ctx context.Context, cmAccountAddress common.Address, serviceFullName string) (bool, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+func (s *service) IsServiceSupported(ctx context.Context, ttmAccountAddress common.Address, serviceFullName string) (bool, error) {
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		s.logger.Errorf("Failed to get cm account: %v", err)
 		return false, err
 	}
 
-	return cmAccount.IsServiceSupported(&bind.CallOpts{Context: ctx}, serviceFullName)
+	return ttmAccount.IsServiceSupported(&bind.CallOpts{Context: ctx}, serviceFullName)
 }
 
 func (s *service) MintBookingToken(
 	ctx context.Context,
 	transactOpts *bind.TransactOpts,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	reservedFor common.Address,
 	uri string,
 	expirationTimestamp *big.Int,
@@ -201,12 +201,12 @@ func (s *service) MintBookingToken(
 	offChainPaymentCurrency *big.Int,
 	isCancellable bool,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := cmAccount.MintBookingToken(
+	tx, err := ttmAccount.MintBookingToken(
 		transactOpts,
 		reservedFor,
 		uri,
@@ -239,17 +239,17 @@ func (s *service) MintBookingToken(
 func (s *service) BuyBookingToken(
 	ctx context.Context,
 	transactOpts *bind.TransactOpts,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 	price *big.Int,
 	paymentToken common.Address,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := cmAccount.BuyBookingToken(
+	tx, err := ttmAccount.BuyBookingToken(
 		transactOpts,
 		tokenID,
 		price,
@@ -275,33 +275,33 @@ func (s *service) BuyBookingToken(
 	return receipt, nil
 }
 
-func (s *service) CMAccount(cmAccountAddr common.Address) (*ttmaccount.Ttmaccount, error) {
-	cmAccount, ok := s.cache.Get(cmAccountAddr)
+func (s *service) TTMAccount(ttmAccountAddr common.Address) (*ttmaccount.Ttmaccount, error) {
+	ttmAccount, ok := s.cache.Get(ttmAccountAddr)
 	if ok {
-		return cmAccount, nil
+		return ttmAccount, nil
 	}
 
-	cmaccount, err := ttmaccount.NewTtmaccount(cmAccountAddr, s.ethClient)
+	ttmAccount, err := ttmaccount.NewTtmaccount(ttmAccountAddr, s.ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cm account contract binding: %w", err)
 	}
-	s.cache.Add(cmAccountAddr, cmaccount)
+	s.cache.Add(ttmAccountAddr, ttmAccount)
 
-	return cmaccount, nil
+	return ttmAccount, nil
 }
 
 func (s *service) RecordExpiration(
 	ctx context.Context,
 	transactOpts *bind.TransactOpts,
-	cmAccountAddress common.Address,
+	ttmAccountAddress common.Address,
 	tokenID *big.Int,
 ) (*types.Receipt, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	tx, err := cmAccount.RecordExpiration(transactOpts, tokenID)
+	tx, err := ttmAccount.RecordExpiration(transactOpts, tokenID)
 	if err != nil {
 		return nil, wrapTxErr("failed to record expiration", err)
 	}
@@ -322,12 +322,12 @@ func (s *service) RecordExpiration(
 	return receipt, nil
 }
 
-func (s *service) getLatestCMAccountImplementation(ctx context.Context, cmAccountAddress common.Address) (common.Address, error) {
-	cmAccount, err := s.CMAccount(cmAccountAddress)
+func (s *service) getLatestTTMAccountImplementation(ctx context.Context, ttmAccountAddress common.Address) (common.Address, error) {
+	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
 		return common.Address{}, err
 	}
-	managerAddress, err := cmAccount.GetManagerAddress(&bind.CallOpts{Context: ctx})
+	managerAddress, err := ttmAccount.GetManagerAddress(&bind.CallOpts{Context: ctx})
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to fetch CM account manager address: %w", err)
 	}
@@ -342,21 +342,21 @@ func (s *service) getLatestCMAccountImplementation(ctx context.Context, cmAccoun
 	return currentImplOnManager, nil
 }
 
-func (s *service) getCurrentImplementationOnProxy(ctx context.Context, cmAccountAddress common.Address) (common.Address, error) {
-	implAddressSlotValue, err := s.ethClient.StorageAt(ctx, cmAccountAddress, managerCMAccountImplementationSlot, nil)
+func (s *service) getCurrentImplementationOnProxy(ctx context.Context, ttmAccountAddress common.Address) (common.Address, error) {
+	implAddressSlotValue, err := s.ethClient.StorageAt(ctx, ttmAccountAddress, managerTTMAccountImplementationSlot, nil)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to get implementation address from proxy: %w", err)
 	}
 	return slotValueToAddress(implAddressSlotValue)
 }
 
-func (s *service) IsCMAccountImplementationUpToDate(ctx context.Context, cmAccountAddress common.Address) (bool, error) {
-	currentImplOnManager, err := s.getLatestCMAccountImplementation(ctx, cmAccountAddress)
+func (s *service) IsTTMAccountImplementationUpToDate(ctx context.Context, ttmAccountAddress common.Address) (bool, error) {
+	currentImplOnManager, err := s.getLatestTTMAccountImplementation(ctx, ttmAccountAddress)
 	if err != nil {
 		return false, fmt.Errorf("failed to get latest cm account implementation from cm account manager: %w", err)
 	}
 
-	currentImplOnProxy, err := s.getCurrentImplementationOnProxy(ctx, cmAccountAddress)
+	currentImplOnProxy, err := s.getCurrentImplementationOnProxy(ctx, ttmAccountAddress)
 	if err != nil {
 		return false, fmt.Errorf("failed to get current cm account implementation implementation: %w", err)
 	}

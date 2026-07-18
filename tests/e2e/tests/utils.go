@@ -37,9 +37,9 @@ const (
 	Distributor
 )
 
-func requestContext(ctx context.Context, recipientCMAccount common.Address) context.Context {
+func requestContext(ctx context.Context, recipientTTMAccount common.Address) context.Context {
 	return grpcMetadata.NewOutgoingContext(ctx, grpcMetadata.Pairs(
-		metadata.KeyRecipientCMAccount, recipientCMAccount.Hex(),
+		metadata.KeyRecipientTTMAccount, recipientTTMAccount.Hex(),
 	))
 }
 

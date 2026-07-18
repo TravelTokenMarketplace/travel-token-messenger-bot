@@ -10,9 +10,9 @@ import (
 )
 
 type EncodedSignedMessageWithSender struct {
-	Message                EncodedSignedMessage
-	SenderBotAddress       common.Address
-	SenderCMAccountAddress common.Address
+	Message                 EncodedSignedMessage
+	SenderBotAddress        common.Address
+	SenderTTMAccountAddress common.Address
 }
 
 type EncodedSignedMessage struct {
@@ -28,7 +28,7 @@ type Messenger interface {
 	Stop() error
 
 	// Should only be called after Start() was called.
-	SendMessage(ctx context.Context, msg *EncodedSignedMessage, sendTo common.Address, senderCMAccount common.Address) error
+	SendMessage(ctx context.Context, msg *EncodedSignedMessage, sendTo common.Address, senderTTMAccount common.Address) error
 
 	// Channel where incoming messages are written
 	ReceivedMessageChan() chan EncodedSignedMessageWithSender

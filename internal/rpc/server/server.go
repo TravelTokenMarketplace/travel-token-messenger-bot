@@ -147,7 +147,7 @@ func (s *server) Stop() {
 }
 
 func (s *server) HandleMessageRequest(ctx context.Context, requestType message.Type, request protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
-	recipientCMAccountAddress, err := s.getRecipientAddress(ctx)
+	recipientTTMAccountAddress, err := s.getRecipientAddress(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recipient cm account address from request context: %w", err)
 	}
@@ -161,7 +161,7 @@ func (s *server) HandleMessageRequest(ctx context.Context, requestType message.T
 
 	requestMsg.Timestamps.Stamp(metadata.CheckpointGRPCRequestReceived)
 
-	responseMsg, err := s.processor.SendRequestMessage(ctx, requestMsg, recipientCMAccountAddress)
+	responseMsg, err := s.processor.SendRequestMessage(ctx, requestMsg, recipientTTMAccountAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request message: %w", err)
 	}
@@ -185,7 +185,7 @@ func (s *server) getRecipientAddress(ctx context.Context) (ethCommon.Address, er
 		return ethCommon.Address{}, fmt.Errorf("metadata not found in incoming context")
 	}
 
-	recipient := mdPairs[metadata.KeyRecipientCMAccount]
+	recipient := mdPairs[metadata.KeyRecipientTTMAccount]
 	if len(recipient) != 1 || !ethCommon.IsHexAddress(recipient[0]) {
 		return ethCommon.Address{}, fmt.Errorf("invalid recipient address: %s", recipient)
 	}
@@ -196,12 +196,12 @@ func (s *server) getRecipientAddress(ctx context.Context) (ethCommon.Address, er
 func (s *server) unaryRecoverInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			var recipientCMAccountAddress ethCommon.Address
-			recipientCMAccountAddress, err = s.getRecipientAddress(ctx)
+			var recipientTTMAccountAddress ethCommon.Address
+			recipientTTMAccountAddress, err = s.getRecipientAddress(ctx)
 			if err != nil {
 				s.logger.Errorf("failed to get recipient cm account address from request context: %v", err)
 			}
-			err = fmt.Errorf("gRPC %s (recipient %s) handler panicked: %v", info.FullMethod, recipientCMAccountAddress.Hex(), r) // we return this error to the client
+			err = fmt.Errorf("gRPC %s (recipient %s) handler panicked: %v", info.FullMethod, recipientTTMAccountAddress.Hex(), r) // we return this error to the client
 			s.logger.Errorf("recovered from panic: %v", err)
 		}
 	}()

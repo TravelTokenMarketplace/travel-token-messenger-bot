@@ -120,7 +120,7 @@ func (tt *TestActivityV4) testActivityV4ProductShortListService(ctx context.Cont
 	}
 
 	resp, err := tt.distributorBot.ActivityProductShortListServiceV4.ActivityProductShortList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func (tt *TestActivityV4) testActivityV4ProductShortListServiceWithFilter(ctx co
 		ModifiedAfter: timestamppb.New(modifiedAfter),
 	}
 	resp, err := tt.distributorBot.ActivityProductShortListServiceV4.ActivityProductShortList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -177,7 +177,7 @@ func (tt *TestActivityV4) testActivityV4ProductListService(ctx context.Context, 
 	}
 
 	resp, err := tt.distributorBot.ActivityProductListServiceV4.ActivityProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -200,7 +200,7 @@ func (tt *TestActivityV4) testActivityV4ProductInfoService(ctx context.Context, 
 		Languages:     []typesv1.Language{typesv1.Language_LANGUAGE_EN},
 	}
 	resp, err := tt.distributorBot.ActivityProductInfoServiceV4.ActivityProductInfo(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -241,7 +241,7 @@ func (tt *TestActivityV4) testActivityV4SearchServiceTravelPeriodOutOfBounds(ctx
 		}},
 	}
 	resp, err := tt.distributorBot.ActivitySearchServiceV4.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func testActivityV4SearchService(
 	}
 
 	resp, err := distributorBot.ActivitySearchServiceV4.ActivitySearch(
-		requestContext(ctx, supplierBot.CMAccountAddress()),
+		requestContext(ctx, supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -141,28 +141,28 @@ type Service interface {
 }
 
 type service struct {
-	logger                 *zap.SugaredLogger
-	transactOpts           *bind.TransactOpts
-	chainID                *big.Int
-	minterCMAccountAddress common.Address
-	cmAccounts             cmaccounts.Service
-	bookingToken           *bookingtoken.Bookingtoken
-	ethClient              *ethclient.Client
+	logger                  *zap.SugaredLogger
+	transactOpts            *bind.TransactOpts
+	chainID                 *big.Int
+	minterTTMAccountAddress common.Address
+	ttmAccounts             ttmaccounts.Service
+	bookingToken            *bookingtoken.Bookingtoken
+	ethClient               *ethclient.Client
 
 	tokenVisibleMaxAttempts int
 	tokenVisibleRetryDelay  time.Duration
 }
 
 // NewService initializes a new Service. It sets up the transactor with the provided
-// private key and creates the CMAccount contract.
+// private key and creates the TTMAccount contract.
 func NewService(
 	ethClient *ethclient.Client,
 	bookingTokenAddress common.Address,
-	minterCMAccountAddress common.Address,
+	minterTTMAccountAddress common.Address,
 	privateKey *ecdsa.PrivateKey,
 	chainID *big.Int,
 	logger *zap.SugaredLogger,
-	cmAccounts cmaccounts.Service,
+	ttmAccounts ttmaccounts.Service,
 	tokenVisibleMaxAttempts int,
 	tokenVisibleRetryDelay time.Duration,
 ) (Service, error) {
@@ -184,8 +184,8 @@ func NewService(
 		logger:                  logger,
 		transactOpts:            transactOpts,
 		chainID:                 chainID,
-		minterCMAccountAddress:  minterCMAccountAddress,
-		cmAccounts:              cmAccounts,
+		minterTTMAccountAddress: minterTTMAccountAddress,
+		ttmAccounts:             ttmAccounts,
 		bookingToken:            bookingToken,
 		ethClient:               ethClient,
 		tokenVisibleMaxAttempts: tokenVisibleMaxAttempts,
@@ -203,8 +203,8 @@ func (bs *service) MintBookingToken(
 	offChainPaymentCurrency *big.Int,
 	isCancellable bool,
 ) (*types.Receipt, *big.Int, error) {
-	bs.logger.Infof("📅 Minting BookingToken reservedFor=%s price=%s paymentToken=%s offChainCurrency=%s expiration=%s cmAccount=%s",
-		reservedFor.Hex(), price.String(), paymentToken.Hex(), offChainPaymentCurrency.String(), expirationTimestamp.String(), bs.minterCMAccountAddress.Hex())
+	bs.logger.Infof("📅 Minting BookingToken reservedFor=%s price=%s paymentToken=%s offChainCurrency=%s expiration=%s ttmAccount=%s",
+		reservedFor.Hex(), price.String(), paymentToken.Hex(), offChainPaymentCurrency.String(), expirationTimestamp.String(), bs.minterTTMAccountAddress.Hex())
 
 	// Validate URI
 	// TODO: Should we have default tokenURI if no URI is provided?
@@ -212,10 +212,10 @@ func (bs *service) MintBookingToken(
 		return nil, nil, errEmptyURI
 	}
 
-	receipt, err := bs.cmAccounts.MintBookingToken(
+	receipt, err := bs.ttmAccounts.MintBookingToken(
 		ctx,
 		bs.transactOpts,
-		bs.minterCMAccountAddress,
+		bs.minterTTMAccountAddress,
 		reservedFor,
 		uri,
 		expirationTimestamp,
@@ -225,7 +225,7 @@ func (bs *service) MintBookingToken(
 		isCancellable,
 	)
 	if err != nil {
-		// cmAccounts.MintBookingToken already prefixes "failed to mint booking token"
+		// ttmAccounts.MintBookingToken already prefixes "failed to mint booking token"
 		// and decodes the custom revert; add call params instead of re-wrapping.
 		return nil, nil, fmt.Errorf("mint reservedFor %s (price %s): %w", reservedFor.Hex(), price.String(), err)
 	}
@@ -246,8 +246,8 @@ func (bs *service) BuyBookingToken(
 	price *big.Int,
 	paymentToken common.Address,
 ) (*types.Receipt, error) {
-	bs.logger.Infof("🛒 Buying BookingToken TokenID=%s price=%s paymentToken=%s cmAccount=%s",
-		tokenID.String(), price.String(), paymentToken.Hex(), bs.minterCMAccountAddress.Hex())
+	bs.logger.Infof("🛒 Buying BookingToken TokenID=%s price=%s paymentToken=%s ttmAccount=%s",
+		tokenID.String(), price.String(), paymentToken.Hex(), bs.minterTTMAccountAddress.Hex())
 
 	// Validate tokenID
 	if tokenID.Sign() < 0 {
@@ -265,9 +265,9 @@ func (bs *service) BuyBookingToken(
 	}
 
 	// Call the BuyBookingToken function from the contract
-	receipt, err := bs.cmAccounts.BuyBookingToken(ctx, bs.transactOpts, bs.minterCMAccountAddress, tokenID, price, paymentToken)
+	receipt, err := bs.ttmAccounts.BuyBookingToken(ctx, bs.transactOpts, bs.minterTTMAccountAddress, tokenID, price, paymentToken)
 	if err != nil {
-		// cmAccounts.BuyBookingToken already prefixes "failed to buy booking token"
+		// ttmAccounts.BuyBookingToken already prefixes "failed to buy booking token"
 		// and decodes the custom revert; add the call parameters as context here
 		// instead of re-wrapping with the same phrase.
 		return nil, fmt.Errorf("buy tokenID %s (price %s, paymentToken %s): %w", tokenID.String(), price.String(), paymentToken.Hex(), err)
@@ -428,7 +428,7 @@ func (bs *service) RecordExpiration(
 		return nil, fmt.Errorf("tokenID must be a positive integer (>= 0)")
 	}
 
-	receipt, err := bs.cmAccounts.RecordExpiration(ctx, bs.transactOpts, bs.minterCMAccountAddress, tokenID)
+	receipt, err := bs.ttmAccounts.RecordExpiration(ctx, bs.transactOpts, bs.minterTTMAccountAddress, tokenID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to record token expiration: %w", err)
 	}

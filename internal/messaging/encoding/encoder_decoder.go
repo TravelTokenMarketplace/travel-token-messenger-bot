@@ -92,7 +92,7 @@ type publicMetadata struct {
 	RequestID          string `json:"request_id"`
 	EncryptedSharedKey []byte `json:"encrypted_shared_key,omitempty"`
 	ExpiresAt          uint64 `json:"expires_at"` // Unix timestamp in seconds, when the message is no longer valid
-	SenderCMAccount    string `json:"sender_cm_account,omitempty"`
+	SenderTTMAccount   string `json:"sender_cm_account,omitempty"`
 }
 
 func (m *publicMetadata) ExpiresAtTime() time.Time {
@@ -109,7 +109,7 @@ func (e *encoderDecoder) EncodeMessage(
 	msg *message.Message,
 	toBot common.Address,
 	sharedKey encryption.Key,
-	senderCMAccount common.Address,
+	senderTTMAccount common.Address,
 ) (*messaging.EncodedSignedMessage, error) {
 	recipientECDSAPubKey, err := e.getBotPubKey(ctx, toBot)
 	if err != nil {
@@ -143,7 +143,7 @@ func (e *encoderDecoder) EncodeMessage(
 		RequestID:          msg.RequestID,
 		EncryptedSharedKey: encryptedSharedKey,
 		ExpiresAt:          conversion.MustInt64ToUInt64(time.Now().Add(defaultExpirationTime).Unix()),
-		SenderCMAccount:    senderCMAccount.Hex(),
+		SenderTTMAccount:   senderTTMAccount.Hex(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal public metadata: %w", err)
@@ -194,7 +194,7 @@ func (e *encoderDecoder) DecodeAndVerifyMessage(
 ) (
 	msg *message.Message,
 	sharedKey encryption.Key,
-	senderCMAccount common.Address,
+	senderTTMAccount common.Address,
 	err error,
 ) {
 	encodedData := bytes.Join(encodedMessage.ChunkedEncodedMessage, nil)
@@ -212,7 +212,7 @@ func (e *encoderDecoder) DecodeAndVerifyMessage(
 		return nil, nil, common.Address{}, fmt.Errorf("sender address %s does not match recovered address %s", senderBotAddress.Hex(), crypto.PubkeyToAddress(*senderPubKey).Hex())
 	}
 
-	msg, encryptionKey, senderCMAccountAddr, err := e.decodeAndVerifyMessageV1(encodedData[messageVersionSize:])
+	msg, encryptionKey, senderTTMAccountAddr, err := e.decodeAndVerifyMessageV1(encodedData[messageVersionSize:])
 	if err != nil {
 		return nil, nil, common.Address{}, fmt.Errorf("failed to decode and verify message: %w", err)
 	}
@@ -225,7 +225,7 @@ func (e *encoderDecoder) DecodeAndVerifyMessage(
 		msg.Timestamps = metadata.Timestamps{}
 	}
 
-	return msg, encryptionKey, senderCMAccountAddr, nil
+	return msg, encryptionKey, senderTTMAccountAddr, nil
 }
 
 func (e *encoderDecoder) decodeAndVerifyMessageV1(
@@ -233,7 +233,7 @@ func (e *encoderDecoder) decodeAndVerifyMessageV1(
 ) (
 	msg *message.Message,
 	sharedKey encryption.Key,
-	senderCMAccount common.Address,
+	senderTTMAccount common.Address,
 	err error,
 ) {
 	publicMetadataLen := binary.BigEndian.Uint16(encodedData[:publicMetadataLenSize])
@@ -285,7 +285,7 @@ func (e *encoderDecoder) decodeAndVerifyMessageV1(
 		return nil, nil, common.Address{}, fmt.Errorf("failed to unmarshal content: %w", err)
 	}
 
-	return msg, sharedKey, common.HexToAddress(publicMetadata.SenderCMAccount), nil
+	return msg, sharedKey, common.HexToAddress(publicMetadata.SenderTTMAccount), nil
 }
 
 func (e *encoderDecoder) getBotPubKey(

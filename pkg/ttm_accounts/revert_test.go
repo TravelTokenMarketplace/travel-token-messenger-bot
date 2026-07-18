@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2026, Travel Token Marketplace. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package cmaccounts
+package ttmaccounts
 
 import (
 	"errors"

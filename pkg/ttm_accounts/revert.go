@@ -1,7 +1,7 @@
 // Copyright (C) 2022-2026, Travel Token Marketplace. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package cmaccounts
+package ttmaccounts
 
 import (
 	"errors"
@@ -18,9 +18,9 @@ import (
 )
 
 // revertABIs holds the ABIs whose custom errors can bubble up through a
-// CMAccount call (the CMAccount delegates booking-token mint/buy/cancel logic to
+// TTMAccount call (the TTMAccount delegates booking-token mint/buy/cancel logic to
 // the BookingToken and BookingTokenOperator contracts, so their custom errors
-// surface from a CMAccount transaction's gas-estimation eth_call).
+// surface from a TTMAccount transaction's gas-estimation eth_call).
 var revertABIs = func() []abi.ABI {
 	metas := []string{
 		ttmaccount.TtmaccountMetaData.ABI,

@@ -19,7 +19,7 @@ const botsTable = "bots"
 
 var _ resolver.Storage = (*storage)(nil)
 
-func (s *storage) GetFirstBotWithStatus(ctx context.Context, session resolver.Session, cmAccount common.Address, status resolver.BotStatus) (common.Address, error) {
+func (s *storage) GetFirstBotWithStatus(ctx context.Context, session resolver.Session, ttmAccount common.Address, status resolver.BotStatus) (common.Address, error) {
 	tx, err := sqlite.GetSQLXTx(session)
 	if err != nil {
 		s.base.Logger.Error(err)
@@ -27,7 +27,7 @@ func (s *storage) GetFirstBotWithStatus(ctx context.Context, session resolver.Se
 	}
 
 	botAddr := common.Address{}
-	if err := tx.StmtxContext(ctx, s.getBot).GetContext(ctx, &botAddr, cmAccount, int(status)); err != nil {
+	if err := tx.StmtxContext(ctx, s.getBot).GetContext(ctx, &botAddr, ttmAccount, int(status)); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return common.Address{}, resolver.ErrNotFound
 		}
@@ -58,21 +58,21 @@ func (s *storage) SetBotStatus(ctx context.Context, session resolver.Session, bo
 	return nil
 }
 
-func (s *storage) SetBots(ctx context.Context, session resolver.Session, cmAccount common.Address, bots []common.Address) error {
+func (s *storage) SetBots(ctx context.Context, session resolver.Session, ttmAccount common.Address, bots []common.Address) error {
 	tx, err := sqlite.GetSQLXTx(session)
 	if err != nil {
 		s.base.Logger.Error(err)
 		return err
 	}
 
-	_, err = tx.StmtxContext(ctx, s.deleteBotsByCMAccount).ExecContext(ctx, cmAccount)
+	_, err = tx.StmtxContext(ctx, s.deleteBotsByTTMAccount).ExecContext(ctx, ttmAccount)
 	if err != nil {
 		s.base.Logger.Error(err)
 		return err
 	}
 
 	for _, botAddr := range bots {
-		result, err := tx.StmtxContext(ctx, s.insertBot).ExecContext(ctx, cmAccount, botAddr)
+		result, err := tx.StmtxContext(ctx, s.insertBot).ExecContext(ctx, ttmAccount, botAddr)
 		if err != nil {
 			s.base.Logger.Error(err)
 			return err
@@ -88,10 +88,10 @@ func (s *storage) SetBots(ctx context.Context, session resolver.Session, cmAccou
 }
 
 type botsStatements struct {
-	insertBot             *sqlx.Stmt
-	deleteBotsByCMAccount *sqlx.Stmt
-	setBotStatus          *sqlx.Stmt
-	getBot                *sqlx.Stmt
+	insertBot              *sqlx.Stmt
+	deleteBotsByTTMAccount *sqlx.Stmt
+	setBotStatus           *sqlx.Stmt
+	getBot                 *sqlx.Stmt
 }
 
 func (s *storage) prepareBotsStmts(ctx context.Context) error {
@@ -105,7 +105,7 @@ func (s *storage) prepareBotsStmts(ctx context.Context) error {
 	}
 	s.insertBot = insertBot
 
-	deleteBotsByCMAccount, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
+	deleteBotsByTTMAccount, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
 		DELETE FROM %s
 		WHERE cm_account = ?
 	`, botsTable))
@@ -113,7 +113,7 @@ func (s *storage) prepareBotsStmts(ctx context.Context) error {
 		s.base.Logger.Error(err)
 		return err
 	}
-	s.deleteBotsByCMAccount = deleteBotsByCMAccount
+	s.deleteBotsByTTMAccount = deleteBotsByTTMAccount
 
 	setBotStatus, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
 		UPDATE %s

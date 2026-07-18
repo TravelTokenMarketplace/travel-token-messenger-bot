@@ -36,15 +36,15 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/client"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/server"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
-	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/erc20"
 	matrixPkg "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/matrix"
+	ttmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/ttm_accounts"
 )
 
 const (
 	cashInJobName        = "cash_in"
-	appName              = "camino-messenger-bot"
-	cmAccountsCacheSize  = 100
+	appName              = "travel-token-messenger-bot"
+	ttmAccountsCacheSize = 100
 	erc20CacheSize       = 100
 	cashInTxIssueTimeout = 10 * time.Second
 )
@@ -69,7 +69,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 
 	// register supported services, check if they actually supported by bot
 	serviceRegistry, err := messaging.NewServiceRegistry(
-		cfg.CMAccountAddress,
+		cfg.TTMAccountAddress,
 		evmClient,
 		logger,
 		rpcClient,
@@ -92,10 +92,10 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 
 	// blockchain services
 
-	cmAccounts, err := cmaccounts.NewService(
+	ttmAccounts, err := ttmaccounts.NewService(
 		ctx,
 		logger,
-		cmAccountsCacheSize,
+		ttmAccountsCacheSize,
 		evmClient,
 		cfg.BotAuthCacheTimeout,
 	)
@@ -104,15 +104,15 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 	}
 
 	// TODO: @VjeraTurk Ensure multiple versions compatibility
-	cmAccountUpToDate, err := cmAccounts.IsCMAccountImplementationUpToDate(ctx, cfg.CMAccountAddress)
+	ttmAccountUpToDate, err := ttmAccounts.IsTTMAccountImplementationUpToDate(ctx, cfg.TTMAccountAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compare CMAccount implementations: %w", err)
+		return nil, fmt.Errorf("failed to compare TTMAccount implementations: %w", err)
 	}
 
-	if !cmAccountUpToDate {
-		logger.Warn("⏫ CMAccount needs an upgrade!")
+	if !ttmAccountUpToDate {
+		logger.Warn("⏫ TTMAccount needs an upgrade!")
 	} else {
-		logger.Info("✅ CMAccount is using the latest implementation.")
+		logger.Info("✅ TTMAccount is using the latest implementation.")
 	}
 
 	erc20, err := erc20.NewERC20Service(evmClient, erc20CacheSize)
@@ -123,11 +123,11 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 	bookingService, err := booking.NewService(
 		evmClient,
 		cfg.BookingTokenAddress,
-		cfg.CMAccountAddress,
+		cfg.TTMAccountAddress,
 		cfg.BotKey,
 		chainID,
 		logger,
-		cmAccounts,
+		ttmAccounts,
 		cfg.TokenVisibleMaxAttempts,
 		cfg.TokenVisibleRetryDelay,
 	)
@@ -152,7 +152,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		cfg.BookingTokenAddress,
 		partnerPlugin,
 		bookingService,
-		cmAccounts,
+		ttmAccounts,
 		cfg.RecordExpiration,
 	)
 	if err != nil {
@@ -163,7 +163,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 
 	responseHandler, err := messaging.NewResponseHandler(
 		logger,
-		cfg.CMAccountAddress,
+		cfg.TTMAccountAddress,
 		eventListener,
 		bookingService,
 		priceHandler,
@@ -230,7 +230,7 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		return nil, err
 	}
 
-	resolver := resolver.NewResolver(logger, cmAccounts, resolverStorage)
+	resolver := resolver.NewResolver(logger, ttmAccounts, resolverStorage)
 
 	matrixMessenger, err := messenger.NewMessenger(
 		logger,
@@ -247,11 +247,11 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 		logger,
 		cfg.ResponseTimeout,
 		botAddress,
-		cfg.CMAccountAddress,
+		cfg.TTMAccountAddress,
 		serviceRegistry,
 		responseHandler,
 		partnerPlugin,
-		cmAccounts,
+		ttmAccounts,
 		messagesEncoderDecoder,
 		resolver,
 	)
@@ -259,24 +259,24 @@ func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) 
 	cancellationV1Service := cancellation_v1.NewService(
 		logger,
 		cfg.BotKey,
-		cfg.CMAccountAddress,
-		cmAccounts,
+		cfg.TTMAccountAddress,
+		ttmAccounts,
 		priceHandler,
 	)
 
 	cancellationV2Service := cancellation_v2.NewService(
 		logger,
 		cfg.BotKey,
-		cfg.CMAccountAddress,
-		cmAccounts,
+		cfg.TTMAccountAddress,
+		ttmAccounts,
 		priceHandler,
 	)
 
 	cancellationV3Service := cancellation_v3.NewServiceV3(
 		logger,
 		cfg.BotKey,
-		cfg.CMAccountAddress,
-		cmAccounts,
+		cfg.TTMAccountAddress,
+		ttmAccounts,
 		priceHandler,
 	)
 

@@ -133,7 +133,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithSearchID(ctx context.Conte
 		},
 	}
 	resp, err := tt.distributorBot.SeatMapAvailabilityServiceV4.SeatMapAvailability(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -156,7 +156,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadSearchID(ctx context.Co
 		},
 	}
 	resp, err := tt.distributorBot.SeatMapAvailabilityServiceV4.SeatMapAvailability(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -188,7 +188,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithMintID(
 		},
 	}
 	resp, err := tt.distributorBot.SeatMapAvailabilityServiceV4.SeatMapAvailability(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func (tt *TestSeatMapV4) testSeatMapAvailabilityV4WithBadMintID(ctx context.Cont
 		},
 	}
 	resp, err := tt.distributorBot.SeatMapAvailabilityServiceV4.SeatMapAvailability(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func (tt *TestSeatMapV4) testSeatMapV4BadID(ctx context.Context, t *testing.T) {
 		Languages: []typesv1.Language{typesv1.Language_LANGUAGE_EN},
 	}
 	resp, err := tt.distributorBot.SeatMapServiceV4.SeatMap(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -243,7 +243,7 @@ func (tt *TestSeatMapV4) testSeatMapV4WithoutLocalization(ctx context.Context, t
 		Languages: []typesv1.Language{typesv1.Language_LANGUAGE_AA},
 	}
 	resp, err := tt.distributorBot.SeatMapServiceV4.SeatMap(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func (tt *TestSeatMapV4) testSeatMapV4(ctx context.Context, t *testing.T, seatMa
 		Languages: []typesv1.Language{expectedLang},
 	}
 	resp, err := tt.distributorBot.SeatMapServiceV4.SeatMap(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -352,7 +352,7 @@ func (tt *TestSeatMapV4) transportV4ProductListGetTripWithSeatMap(
 		Header: &typesv4.RequestHeader{BaseHeader: &typesv4.Header{Version: &typesv4.Version{}}},
 	}
 	resp, err := tt.distributorBot.TransportProductListServiceV4.TransportProductList(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func (tt *TestSeatMapV4) transportV4SearchWithSupplierCode(
 		}},
 	}
 	resp, err := tt.distributorBot.TransportSearchServiceV4.TransportSearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -473,7 +473,7 @@ func (tt *TestSeatMapV4) activityV4SearchGetActivityWithSeatMap(
 	}
 
 	resp, err := tt.distributorBot.ActivitySearchServiceV4.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)
@@ -512,7 +512,7 @@ func (tt *TestSeatMapV4) activityV4SearchGetActivityWithSeatMap(
 	}
 
 	resp, err = tt.distributorBot.ActivitySearchServiceV4.ActivitySearch(
-		requestContext(ctx, tt.supplierBot.CMAccountAddress()),
+		requestContext(ctx, tt.supplierBot.TTMAccountAddress()),
 		req,
 	)
 	require.NoError(t, err)

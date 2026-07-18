@@ -30,8 +30,8 @@ type PartnerPlugin interface {
 		ctx context.Context,
 		requestMsg *message.Message,
 		serviceClient rpc.Client,
-		fromCMAccount common.Address,
-		toCMAccount common.Address,
+		fromTTMAccount common.Address,
+		toTTMAccount common.Address,
 	) (protoreflect.ProtoMessage, message.Type)
 
 	TokenBoughtNotificationWithoutBuyTx(ctx context.Context, tokenID *big.Int, mintID string) error
@@ -66,13 +66,13 @@ func (p *partnerPlugin) DoServiceRequest(
 	ctx context.Context,
 	requestMsg *message.Message,
 	serviceClient rpc.Client,
-	fromCMAccount common.Address,
-	toCMAccount common.Address,
+	fromTTMAccount common.Address,
+	toTTMAccount common.Address,
 ) (protoreflect.ProtoMessage, message.Type) {
 	return serviceClient.Call(grpc_metadata.NewOutgoingContext(ctx, grpc_metadata.Pairs(
 		metadata.KeyRequestID, requestMsg.RequestID,
-		metadata.KeyRecipientCMAccount, toCMAccount.Hex(),
-		metadata.KeySenderCMAccount, fromCMAccount.Hex(),
+		metadata.KeyRecipientTTMAccount, toTTMAccount.Hex(),
+		metadata.KeySenderTTMAccount, fromTTMAccount.Hex(),
 	)), requestMsg.Content)
 }
 

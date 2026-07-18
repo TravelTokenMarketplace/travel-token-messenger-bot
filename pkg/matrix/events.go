@@ -42,9 +42,13 @@ func (e *MessageChunkEventContent) Verify() error {
 type SignedMessageEventContent struct {
 	ChunkData
 
-	ChunksCount            uint32
-	Signature              []byte
-	SenderCMAccountAddress common.Address
+	ChunksCount uint32
+	Signature   []byte
+	// Wire key frozen to the pre-rebrand field name for Matrix P2P
+	// backward compatibility (this event type is untagged; the Go field
+	// name would otherwise become the JSON key). Same freeze pattern as
+	// the "sender_cm_account" metadata/encoder keys.
+	SenderTTMAccountAddress common.Address `json:"SenderCMAccountAddress"`
 }
 
 func (e *SignedMessageEventContent) Verify() error {
