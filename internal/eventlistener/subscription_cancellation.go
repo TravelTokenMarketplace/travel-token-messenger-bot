@@ -12,7 +12,7 @@ import (
 	notificationv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/notification/v3"
 	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
 )
 
 const zeroHashStr = "0x0000000000000000000000000000000000000000000000000000000000000000"

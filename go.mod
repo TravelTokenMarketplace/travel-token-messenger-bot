@@ -7,7 +7,6 @@ require (
 	buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go v1.36.11-00000000000000-2114a9de49cb.1
 	buf.build/go/protovalidate v1.0.0
 	github.com/chain4travel/camino-matrix-app-service v1.0.0-rc1
-	github.com/chain4travel/camino-messenger-contracts/go/contracts v0.0.0-20251013112359-7d9270fba024
 	github.com/chain4travel/caminogoeth-compat v1.1.0-rc1
 	github.com/ethereum/go-ethereum v1.16.4
 	github.com/go-viper/mapstructure/v2 v2.4.0
@@ -30,6 +29,8 @@ require (
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.81.0
 )
+
+require github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts v0.0.0-20260716095946-7255c5ece7da
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20250912141014-52f32327d4b0.1 // indirect
@@ -96,7 +97,4 @@ require (
 	maunium.net/go/mautrix v0.15.1
 )
 
-replace (
-	github.com/chain4travel/camino-messenger-contracts/go/contracts => github.com/TravelTokenMarketplace/camino-messenger-contracts/go/contracts v0.0.0-20260627105341-219c1b0149c4
-	maunium.net/go/mautrix => ./camino-matrix-go
-)
+replace maunium.net/go/mautrix => ./camino-matrix-go

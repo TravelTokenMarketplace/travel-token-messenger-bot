@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
 )
 
 type TokenBoughtSubscriptionStorage interface {

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/erc20"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/erc20"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

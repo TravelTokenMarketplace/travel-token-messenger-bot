@@ -12,7 +12,7 @@ import (
 	"time"
 
 	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

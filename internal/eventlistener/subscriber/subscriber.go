@@ -11,8 +11,8 @@ import (
 	"time"
 
 	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -30,7 +30,7 @@ type Subscriber interface {
 
 	SubscribeServiceAdded(
 		cmAccountAddr common.Address,
-		handler func(*cmaccount.CmaccountServiceAdded) uint64,
+		handler func(*ttmaccount.TtmaccountServiceAdded) uint64,
 	) (unsubscribe func(), err error)
 
 	SubscribeTokenBought(
@@ -112,7 +112,7 @@ func (s *subscriber) Stop() {
 // Returns a function to unsubscribe from the event.
 func (s *subscriber) SubscribeServiceAdded(
 	cmAccountAddr common.Address,
-	handler func(*cmaccount.CmaccountServiceAdded) uint64,
+	handler func(*ttmaccount.TtmaccountServiceAdded) uint64,
 ) (unsubscribe func(), err error) {
 	cmAccount, err := s.cmAccounts.CMAccount(cmAccountAddr)
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *subscriber) SubscribeServiceAdded(
 	return startResubscriber(
 		s,
 		handler,
-		func(ctx context.Context, eventChan chan *cmaccount.CmaccountServiceAdded) (event.Subscription, error) {
+		func(ctx context.Context, eventChan chan *ttmaccount.TtmaccountServiceAdded) (event.Subscription, error) {
 			blockNumber := s.blockNumber.Load()
 			return cmAccount.WatchServiceAdded(&bind.WatchOpts{Context: ctx, Start: &blockNumber}, eventChan, nil)
 		},

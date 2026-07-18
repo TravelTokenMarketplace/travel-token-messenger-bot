@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtoken"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/bookingtokenoperator"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtoken"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/bookingtokenoperator"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -23,7 +23,7 @@ import (
 // surface from a CMAccount transaction's gas-estimation eth_call).
 var revertABIs = func() []abi.ABI {
 	metas := []string{
-		cmaccount.CmaccountMetaData.ABI,
+		ttmaccount.TtmaccountMetaData.ABI,
 		bookingtokenoperator.BookingtokenoperatorMetaData.ABI,
 		bookingtoken.BookingtokenMetaData.ABI,
 	}

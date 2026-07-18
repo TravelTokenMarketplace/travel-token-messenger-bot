@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccount"
-	"github.com/chain4travel/camino-messenger-contracts/go/contracts/cmaccountmanager"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccountmanager"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -75,7 +75,7 @@ type Service interface {
 
 	IsCMAccountImplementationUpToDate(ctx context.Context, cmAccountAddress common.Address) (bool, error)
 
-	CMAccount(common.Address) (*cmaccount.Cmaccount, error)
+	CMAccount(common.Address) (*ttmaccount.Ttmaccount, error)
 
 	Cancellation
 }
@@ -92,7 +92,7 @@ type botAuthCacheVal struct {
 
 type service struct {
 	ethClient *ethclient.Client
-	cache     *lru.Cache[common.Address, *cmaccount.Cmaccount]
+	cache     *lru.Cache[common.Address, *ttmaccount.Ttmaccount]
 	logger    *zap.SugaredLogger
 	chainID   *big.Int
 
@@ -113,7 +113,7 @@ func NewService(
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	cache, err := lru.New[common.Address, *cmaccount.Cmaccount](cacheSize)
+	cache, err := lru.New[common.Address, *ttmaccount.Ttmaccount](cacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cm account cache: %w", err)
 	}
@@ -275,13 +275,13 @@ func (s *service) BuyBookingToken(
 	return receipt, nil
 }
 
-func (s *service) CMAccount(cmAccountAddr common.Address) (*cmaccount.Cmaccount, error) {
+func (s *service) CMAccount(cmAccountAddr common.Address) (*ttmaccount.Ttmaccount, error) {
 	cmAccount, ok := s.cache.Get(cmAccountAddr)
 	if ok {
 		return cmAccount, nil
 	}
 
-	cmaccount, err := cmaccount.NewCmaccount(cmAccountAddr, s.ethClient)
+	cmaccount, err := ttmaccount.NewTtmaccount(cmAccountAddr, s.ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cm account contract binding: %w", err)
 	}
@@ -331,7 +331,7 @@ func (s *service) getLatestCMAccountImplementation(ctx context.Context, cmAccoun
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to fetch CM account manager address: %w", err)
 	}
-	manager, err := cmaccountmanager.NewCmaccountmanager(managerAddress, s.ethClient)
+	manager, err := ttmaccountmanager.NewTtmaccountmanager(managerAddress, s.ethClient)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to create CM account manager contract binding: %w", err)
 	}
