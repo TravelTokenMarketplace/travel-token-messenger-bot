@@ -10,8 +10,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
-	seat_mapv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/seat_map/v3"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	seat_mapv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/seat_map/v3"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 )
 
 func (s *seat_mapv3SeatMapAvailabilityServer) SeatMapAvailability(ctx context.Context, request *seat_mapv3.SeatMapAvailabilityRequest) (*seat_mapv3.SeatMapAvailabilityResponse, error) {

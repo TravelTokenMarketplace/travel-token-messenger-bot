@@ -8,9 +8,9 @@ import (
 	"log"
 	"time"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/book/v5/bookv5grpc"
-	bookv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/book/v5"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/book/v5/bookv5grpc"
+	bookv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/book/v5"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/config"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/handlers/state"

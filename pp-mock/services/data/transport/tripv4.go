@@ -6,7 +6,7 @@ package transport
 import (
 	"fmt"
 
-	transportv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/transport/v4"
+	transportv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/transport/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"google.golang.org/protobuf/proto"
 )

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"go.uber.org/zap"
 )
@@ -50,9 +50,9 @@ func init() {
 	info, _ := debug.ReadBuildInfo()
 	for _, dependency := range info.Deps {
 		switch dependency.Path {
-		case "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go":
+		case "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go":
 			BufBuildPBCommit = dependency.Version
-		case "buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go":
+		case "buf.build/gen/go/ttm/messenger-protocol/grpc/go":
 			BufBuildGRPCCommit = dependency.Version
 		case "github.com/chain4travel/camino-messenger-contracts/go/contracts":
 			ContractsGitCommit = dependency.Version

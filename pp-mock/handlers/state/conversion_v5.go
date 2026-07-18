@@ -4,8 +4,8 @@
 package state
 
 import (
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
-	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
+	typesv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v5"
 )
 
 func (p *UnifiedPrice) ExtractCurrencyV5() *typesv4.Currency {

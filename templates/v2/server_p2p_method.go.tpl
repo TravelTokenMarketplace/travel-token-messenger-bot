@@ -11,7 +11,7 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
-	typesv{{COMMON_TYPES_VERSION}} "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v{{COMMON_TYPES_VERSION}}"
+	typesv{{COMMON_TYPES_VERSION}} "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v{{COMMON_TYPES_VERSION}}"
 	{{TYPE_PACKAGE}} "{{PROTO_INC}}"
 
 	"buf.build/go/protovalidate"

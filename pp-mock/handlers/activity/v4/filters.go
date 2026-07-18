@@ -6,9 +6,9 @@ package v4
 import (
 	"time"
 
-	activityv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v4"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	activityv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/activity/v4"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/localization"
 	"google.golang.org/protobuf/proto"

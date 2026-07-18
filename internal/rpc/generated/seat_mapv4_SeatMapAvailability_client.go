@@ -7,13 +7,13 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/seat_map/v4/seat_mapv4grpc"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/seat_map/v4/seat_mapv4grpc"
 
 	"google.golang.org/grpc"
 )
 
 const (
-	SeatMapAvailabilityServiceV4                      = "cmp.services.seat_map.v4.SeatMapAvailabilityService"
+	SeatMapAvailabilityServiceV4                      = "ttm.services.seat_map.v4.SeatMapAvailabilityService"
 	SeatMapAvailabilityServiceV4Request  message.Type = message.Type(SeatMapAvailabilityServiceV4 + ".Request")
 	SeatMapAvailabilityServiceV4Response message.Type = message.Type(SeatMapAvailabilityServiceV4 + ".Response")
 )

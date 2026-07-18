@@ -13,10 +13,10 @@ import (
 	cmaccounts "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/cm_accounts"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
-	cancellationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v1"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v1/cancellationv1grpc"
+	cancellationv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/cancellation/v1"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
+	typesv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v3"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"

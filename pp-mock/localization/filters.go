@@ -4,8 +4,8 @@
 package localization
 
 import (
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 )
 
 func FilterDescriptionsV4(descriptions []*typesv4.LocalizedDescriptionSet, languages []typesv1.Language) []*typesv4.LocalizedDescriptionSet {

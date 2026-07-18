@@ -4,7 +4,7 @@
 package state
 
 import (
-	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
+	typesv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v3"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 )
 

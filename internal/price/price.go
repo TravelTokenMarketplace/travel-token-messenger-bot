@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"math/big"
 
-	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
-	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
+	typesv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v3"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
+	typesv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v5"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/erc20"

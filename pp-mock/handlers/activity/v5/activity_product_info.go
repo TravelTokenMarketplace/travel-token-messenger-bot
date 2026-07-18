@@ -9,9 +9,9 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	mockdata "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/services/data"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v5/activityv5grpc"
-	activityv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v5"
-	typesv4 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v4"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/activity/v5/activityv5grpc"
+	activityv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/activity/v5"
+	typesv4 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v4"
 )
 
 var _ activityv5grpc.ActivityProductInfoServiceServer = (*activityProductInfoV5Server)(nil)

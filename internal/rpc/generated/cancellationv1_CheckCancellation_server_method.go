@@ -10,8 +10,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version"
 
-	cancellationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v1"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	cancellationv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/cancellation/v1"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 )
 
 func (s *cancellationv1CheckCancellationServer) CheckCancellation(ctx context.Context, request *cancellationv1.CheckCancellationRequest) (*cancellationv1.CheckCancellationResponse, error) {

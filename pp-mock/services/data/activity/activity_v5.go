@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"slices"
 
-	activityv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v5"
+	activityv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/activity/v5"
 	"google.golang.org/protobuf/proto"
 )
 

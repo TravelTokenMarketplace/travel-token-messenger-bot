@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BUF_SDK_BASE="buf.build/gen/go/chain4travel/camino-messenger-protocol"
+BUF_SDK_BASE="buf.build/gen/go/ttm/messenger-protocol"
 TEMPLATES_DIR_BASE="templates"
 P2P_OUTPATH="internal/rpc/generated"
 LOCAL_OUTPATH="internal/rpc/generated"
@@ -273,10 +273,10 @@ mkdir -p $P2P_OUTPATH
 rm -rf $LOCAL_OUTPATH
 mkdir -p $LOCAL_OUTPATH
 
-BUF_GRPC_VERSION=$(grep -oP "buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go.*" go.mod | cut -d" " -f2)
+BUF_GRPC_VERSION=$(grep -oP "buf.build/gen/go/ttm/messenger-protocol/grpc/go.*" go.mod | cut -d" " -f2)
 echo "🔗 Extracting SDK GRPC version from go.mod: $BUF_GRPC_VERSION"
 
-BUF_PB_VERSION=$(grep -oP "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go.*" go.mod | cut -d" " -f2)
+BUF_PB_VERSION=$(grep -oP "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go.*" go.mod | cut -d" " -f2)
 echo "🔗 Extracting SDK PB version from go.mod: $BUF_PB_VERSION"
 
 BUF_SDK_URL_GO_GRPC="${BUF_SDK_BASE}/grpc/go"
@@ -312,10 +312,10 @@ if [ -z "$GO_PATH" ] ; then
 	exit 1
 fi
 
-SDK_GRPC_PATH="${GO_PATH}/pkg/mod/buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go@${BUF_GRPC_VERSION}"
+SDK_GRPC_PATH="${GO_PATH}/pkg/mod/buf.build/gen/go/ttm/messenger-protocol/grpc/go@${BUF_GRPC_VERSION}"
 echo "SDK_GRPC_PATH: $SDK_GRPC_PATH"
 
-SDK_PB_PATH="${GO_PATH}/pkg/mod/buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go@${BUF_PB_VERSION}"
+SDK_PB_PATH="${GO_PATH}/pkg/mod/buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go@${BUF_PB_VERSION}"
 echo "SDK_PB_PATH: $SDK_PB_PATH"
 
 echo "⌛ Making sure gofumpt is installed"
@@ -353,7 +353,7 @@ while read -r file ; do
 	echo "🔍 Scanning file $file"
 
 	# Extract the annotation line
-	TAGS_LINE=$(grep -E '@custom:cmp-service' "$file")
+	TAGS_LINE=$(grep -E '@custom:ttm-service' "$file")
 
 	# Use shell parameter expansion to extract values
 	SERVICE_TYPE=${TAGS_LINE#*type:}
@@ -376,7 +376,7 @@ while read -r file ; do
     SERVER_TEMPLATE="${TEMPLATES_DIR}/server.go.tpl"
     SERVER_P2P_METHOD_TEMPLATE="${TEMPLATES_DIR}/server_p2p_method.go.tpl"
 
-	FQPN=$(grep -P 'FullMethodName' "$file" | grep -oP 'cmp\.services\.[^/]+' | head -n1) # only 1 - it may contain more
+	FQPN=$(grep -P 'FullMethodName' "$file" | grep -oP 'ttm\.services\.[^/]+' | head -n1) # only 1 - it may contain more
 	SERVICE=${FQPN##*.}
 	SERVICE=${SERVICE%Service}
 	PACKAGE=$(grep -oP '^package \S+$' "$file" | cut -d" " -f2)
@@ -387,7 +387,7 @@ while read -r file ; do
 
 	file_name=$(basename "$file")
 	file_name_prefix=${file_name%_grpc.pb.go}
-	pb_file="$SDK_PB_PATH/cmp/services/${PACKAGE_NAME}/v${PACKAGE_VERSION}/${file_name_prefix}.pb.go"
+	pb_file="$SDK_PB_PATH/ttm/services/${PACKAGE_NAME}/v${PACKAGE_VERSION}/${file_name_prefix}.pb.go"
 
 	if [ ! -f "$pb_file" ] ; then
 		echo "❌ Can't find corresponding pb file (${pb_file}) for $file"
@@ -439,11 +439,11 @@ while read -r file ; do
 		fi
 
 		echo " ◉ $method (↓ in: '$INPUT' - ↑ out: '$OUTPUT')"
-	done < <(grep -P 'FullMethodName' "$file" | grep -oP 'cmp\.services\.[^"]+' | cut -d"/" -f2)
+	done < <(grep -P 'FullMethodName' "$file" | grep -oP 'ttm\.services\.[^"]+' | cut -d"/" -f2)
 
 	# We also need something like:
-	# "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/activity/v2"
-	# "buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/activity/v2/activityv2grpc"
+	# "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/activity/v2"
+	# "buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/activity/v2/activityv2grpc"
 	# We already have the base URL in BUF_SDK_URL_GO_GRPC - now we only need the suffixes for the protocolbuffers and grpc
 	# And store them into the PROTO_INCLUDES_FOR_UNMARSHALLING array
 	# First the protocolbuffers
@@ -464,7 +464,7 @@ while read -r file ; do
 	fi
 
 	echo
-done < <(find "$SDK_GRPC_PATH/cmp/services/" -name "*_grpc.pb.go" | sort)
+done < <(find "$SDK_GRPC_PATH/ttm/services/" -name "*_grpc.pb.go" | sort)
 
 generate_register_services_server "$REGISTER_SERVICES_SERVER_FILE" SERVICES_TO_REGISTER
 generate_register_services_client "$REGISTER_SERVICES_CLIENT_FILE" SERVICES_TO_REGISTER

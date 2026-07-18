@@ -6,9 +6,9 @@ package v1
 import (
 	"context"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/cancellation/v1/cancellationv1grpc"
-	cancellationv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/cancellation/v1"
-	typesv3 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v3"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/cancellation/v1/cancellationv1grpc"
+	cancellationv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/cancellation/v1"
+	typesv3 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v3"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
 	"google.golang.org/protobuf/types/known/timestamppb"

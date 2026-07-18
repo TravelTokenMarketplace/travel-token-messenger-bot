@@ -6,7 +6,7 @@ package accommodation
 import (
 	"fmt"
 
-	typesv5 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v5"
+	typesv5 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v5"
 )
 
 func VerifyAndGetMapping(facts []*typesv5.ServiceFact, factDefinitions []*typesv5.ServiceFactDefinition) map[string]*typesv5.ServiceFactDefinition {

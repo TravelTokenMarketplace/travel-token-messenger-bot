@@ -16,9 +16,9 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/process"
 
-	"buf.build/gen/go/chain4travel/camino-messenger-protocol/grpc/go/cmp/services/ping/v1/pingv1grpc"
-	pingv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/services/ping/v1"
-	typesv1 "buf.build/gen/go/chain4travel/camino-messenger-protocol/protocolbuffers/go/cmp/types/v1"
+	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/ping/v1/pingv1grpc"
+	pingv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/ping/v1"
+	typesv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/types/v1"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
