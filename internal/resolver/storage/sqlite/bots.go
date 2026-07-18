@@ -96,7 +96,7 @@ type botsStatements struct {
 
 func (s *storage) prepareBotsStmts(ctx context.Context) error {
 	insertBot, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
-			INSERT INTO %s (cm_account, bot, status)
+			INSERT INTO %s (ttm_account, bot, status)
 			VALUES (?, ?, %d)
 	`, botsTable, resolver.BotStatusUnknown))
 	if err != nil {
@@ -107,7 +107,7 @@ func (s *storage) prepareBotsStmts(ctx context.Context) error {
 
 	deleteBotsByTTMAccount, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
 		DELETE FROM %s
-		WHERE cm_account = ?
+		WHERE ttm_account = ?
 	`, botsTable))
 	if err != nil {
 		s.base.Logger.Error(err)
@@ -128,7 +128,7 @@ func (s *storage) prepareBotsStmts(ctx context.Context) error {
 
 	getBot, err := s.base.DB.PreparexContext(ctx, fmt.Sprintf(`
 		SELECT bot FROM %s
-		WHERE cm_account = ? AND status = ?
+		WHERE ttm_account = ? AND status = ?
 		LIMIT 1
 	`, botsTable))
 	if err != nil {

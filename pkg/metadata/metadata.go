@@ -12,8 +12,8 @@ import (
 
 const (
 	KeyRequestID           = "request_id"
-	KeyRecipientTTMAccount = "recipient_cm_account"
-	KeySenderTTMAccount    = "sender_cm_account"
+	KeyRecipientTTMAccount = "recipient_ttm_account"
+	KeySenderTTMAccount    = "sender_ttm_account"
 	KeyTimestamps          = "timestamps"
 )
 
@@ -36,11 +36,11 @@ func FromGRPCContext(ctx context.Context) *Metadata {
 		md.RequestID = requestID[0]
 	}
 
-	if recipientTTMAccount := mdPairs["recipient_cm_account"]; len(recipientTTMAccount) == 1 {
+	if recipientTTMAccount := mdPairs[KeyRecipientTTMAccount]; len(recipientTTMAccount) == 1 {
 		md.RecipientTTMAccount = common.HexToAddress(recipientTTMAccount[0])
 	}
 
-	if senderTTMAccount := mdPairs["sender_cm_account"]; len(senderTTMAccount) == 1 {
+	if senderTTMAccount := mdPairs[KeySenderTTMAccount]; len(senderTTMAccount) == 1 {
 		md.SenderTTMAccount = common.HexToAddress(senderTTMAccount[0])
 	}
 

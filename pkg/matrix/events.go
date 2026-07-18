@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	EventTypeSignedMessage = event.Type{Type: "m.room.c4t-signed-msg", Class: event.MessageEventType}
-	EventTypeMessageChunk  = event.Type{Type: "m.room.c4t-msg-chunk", Class: event.MessageEventType}
+	EventTypeSignedMessage = event.Type{Type: "m.room.ttm-signed-msg", Class: event.MessageEventType}
+	EventTypeMessageChunk  = event.Type{Type: "m.room.ttm-msg-chunk", Class: event.MessageEventType}
 
 	ErrWrongChunkIndex = errors.New("wrong chunk index")
 	ErrNoChunks        = errors.New("zero chunks count")
@@ -42,13 +42,9 @@ func (e *MessageChunkEventContent) Verify() error {
 type SignedMessageEventContent struct {
 	ChunkData
 
-	ChunksCount uint32
-	Signature   []byte
-	// Wire key frozen to the pre-rebrand field name for Matrix P2P
-	// backward compatibility (this event type is untagged; the Go field
-	// name would otherwise become the JSON key). Same freeze pattern as
-	// the "sender_cm_account" metadata/encoder keys.
-	SenderTTMAccountAddress common.Address `json:"SenderCMAccountAddress"`
+	ChunksCount             uint32
+	Signature               []byte
+	SenderTTMAccountAddress common.Address
 }
 
 func (e *SignedMessageEventContent) Verify() error {
