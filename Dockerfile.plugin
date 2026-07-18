@@ -1,11 +1,11 @@
 FROM golang:1.25.10-alpine AS build-stage
 RUN apk update && apk upgrade && apk add build-base
 
-WORKDIR /camino-messenger-bot
+WORKDIR /travel-token-messenger-bot
 
 COPY . .
 RUN apk --no-cache add bash
-RUN CAMINOBOT_PATH=$(pwd) bash ./scripts/build_partner_plugin_mock.sh
+RUN TTMBOT_PATH=$(pwd) bash ./scripts/build_partner_plugin_mock.sh
 
 
 #runtime stage
@@ -14,8 +14,8 @@ FROM alpine:3.21 AS runtime-stage
 WORKDIR /
 
 ARG port=55555
-COPY --from=build-stage /camino-messenger-bot/build/pp-mock /pp-mock
-ENV CMB_PARTNER_PLUGIN_MOCK_PORT=$port
+COPY --from=build-stage /travel-token-messenger-bot/build/pp-mock /pp-mock
+ENV TTMB_PARTNER_PLUGIN_MOCK_PORT=$port
 
 # Run the 'env' command
 

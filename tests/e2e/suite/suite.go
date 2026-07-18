@@ -43,7 +43,7 @@ func New(
 	matrixBinPath string,
 	asbBinPath string,
 	partnerPluginBinPath string,
-	cmbBinPath string,
+	ttmbBinPath string,
 	testsDataDir string,
 	existingNetworkNodeURI string,
 	existingNetworkAdminKey *secp256k1.PrivateKey,
@@ -75,7 +75,7 @@ func New(
 		matrixBinPath:           matrixBinPath,
 		asbBinPath:              asbBinPath,
 		partnerPluginBinPath:    partnerPluginBinPath,
-		cmbBinPath:              cmbBinPath,
+		ttmbBinPath:             ttmbBinPath,
 		testsDataDir:            testsDataDir,
 		existingNetworkNodeURI:  existingNetworkNodeURI,
 		existingNetworkAdminKey: existingNetworkAdminKey,
@@ -90,7 +90,7 @@ type Suite struct {
 	matrixBinPath           string
 	asbBinPath              string
 	partnerPluginBinPath    string
-	cmbBinPath              string
+	ttmbBinPath             string
 	testsDataDir            string
 	existingNetworkNodeURI  string
 	existingNetworkAdminKey *secp256k1.PrivateKey
@@ -171,7 +171,7 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 		s.logger,
 		e.resourceManagerSession,
 		dataDir,
-		s.cmbBinPath,
+		s.ttmbBinPath,
 		e.CaminoNetwork.Client,
 		e.matrix,
 		e.ASB,

@@ -28,7 +28,7 @@ const (
 	flagKeyMatrixBinPath        = "matrix"
 	flagKeyASBBinPath           = "asb"
 	flagKeyPartnerPluginBinPath = "partner-plugin"
-	flagKeyTTMBBinPath          = "cmb"
+	flagKeyTTMBBinPath          = "ttmb"
 	flagKeyDebug                = "debug"
 	flagKeyFilter               = "filter"
 )

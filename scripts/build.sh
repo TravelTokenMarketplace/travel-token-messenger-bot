@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the output binary name
-OUTPUT_BINARY="build/camino-messenger-bot"
+OUTPUT_BINARY="build/travel-token-messenger-bot"
 
 # Set the main source file
 MAIN_SOURCE="main.go"
@@ -48,25 +48,25 @@ version_lt() {
 }
 
 if version_lt "$(go_version)" "$go_version_minimum"; then
-    echo "camino-messenger-bot requires Go >= $go_version_minimum, Go $(go_version) found." >&2
+    echo "travel-token-messenger-bot requires Go >= $go_version_minimum, Go $(go_version) found." >&2
     exit 1
 fi
 
 echo "Starting build process..."
 
-if [ -z "${CAMINOBOT_PATH}" ]; then
-	# camino-messenger-bot root folder
-	CAMINOBOT_PATH=$(
+if [ -z "${TTMBOT_PATH}" ]; then
+	# travel-token-messenger-bot root folder
+	TTMBOT_PATH=$(
 		cd "$(dirname "${BASH_SOURCE[0]}")" || exit
 		cd .. && pwd
 	)
 fi
-echo "cd $CAMINOBOT_PATH"
-cd "$CAMINOBOT_PATH" || exit
+echo "cd $TTMBOT_PATH"
+cd "$TTMBOT_PATH" || exit
 
 # Load the constants
 echo "Preparing constants..."
-source "$CAMINOBOT_PATH"/scripts/constants.sh
+source "$TTMBOT_PATH"/scripts/constants.sh
 
 echo "  DEBUG                  : $DEBUG"
 echo "  git_tag                : $git_tag"
@@ -80,7 +80,7 @@ LDFLAGS="$LDFLAGS -X github.com/TravelTokenMarketplace/travel-token-messenger-bo
 LDFLAGS="$LDFLAGS -X github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/version.BufBuildGRPCCMPRelease=$grpc_release"
 
 # Build the Go application
-echo "Building camino-messenger-bot..."
+echo "Building travel-token-messenger-bot..."
 if [ "$DEBUG" = true ]; then
 	BUILD_CMD="go build -o ${OUTPUT_BINARY} -ldflags \"$LDFLAGS\" -gcflags \"all=-N -l\" ${MAIN_SOURCE}"
 else
@@ -92,7 +92,7 @@ echo "$BUILD_CMD"
 
 if eval "$BUILD_CMD"
 then
-	echo "Output binary: ${CAMINOBOT_PATH}/${OUTPUT_BINARY}"
+	echo "Output binary: ${TTMBOT_PATH}/${OUTPUT_BINARY}"
 	echo "Build successful!"
 else
 	echo "Build failed."
