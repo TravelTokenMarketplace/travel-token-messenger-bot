@@ -6,10 +6,10 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./cmb-config:/cmb-config
+      - ./ttm-config:/ttm-config
     ports:
       - "9090:9090"
-    command: ["--config", "/cmb-config/config.yaml"]
+    command: ["--config", "/ttm-config/config.yaml"]
   provider-plugin:
     image: travel-token-messenger-bot-plugin
     build:

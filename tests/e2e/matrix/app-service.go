@@ -79,20 +79,20 @@ func StartNewAppService(
 		return nil, nil, fmt.Errorf("failed to create asb db dir: %w", err)
 	}
 
-	// network fee CM account
+	// network fee TTM account
 
 	networkFeeBotAddress := crypto.PubkeyToAddress(networkFeeKey.PublicKey)
 	networkFeeTTMAccountAddress, _, err := networkClient.CreateTTMAccount(ctx, networkFeeKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create cm account: %w", err)
+		return nil, nil, fmt.Errorf("failed to create ttm account: %w", err)
 	}
 
 	if err := networkClient.Transfer(ctx, networkClient.PrefundedKeys()[0], networkFeeBotAddress, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
-		return nil, nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
+		return nil, nil, fmt.Errorf("failed to transfer funds to ttm account owner: %w", err)
 	}
 
 	if err := networkClient.AddBotToTTMAccount(ctx, networkFeeTTMAccountAddress, networkFeeKey, networkFeeBotAddress); err != nil {
-		return nil, nil, fmt.Errorf("failed to add bot to CM account: %w", err)
+		return nil, nil, fmt.Errorf("failed to add bot to TTM account: %w", err)
 	}
 
 	//

@@ -405,7 +405,7 @@ func TestStart(t *testing.T) {
 		SenderTTMAccountAddress: senderTTMAccount,
 	})
 
-	// Received message from itself (cm account)
+	// Received message from itself (ttm account)
 
 	encodedBadRequestMsg := EncodedSignedMessageWithSender{
 		Message:                 EncodedSignedMessage{Signature: []byte("self-message (cm-account) signature")},

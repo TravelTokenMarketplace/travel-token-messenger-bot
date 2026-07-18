@@ -135,24 +135,24 @@ func (f *Factory) CreateBot(
 		ttmAccountOwnerAddress := crypto.PubkeyToAddress(ttmAccountOwnerKey.PublicKey)
 		ttmAccountAddress, _, err = f.networkClient.CreateTTMAccount(ctx, ttmAccountOwnerKey)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create CM account: %w", err)
+			return nil, fmt.Errorf("failed to create TTM account: %w", err)
 		}
 
 		if !options.skips.PrefundOwner {
 			if err := f.networkClient.Transfer(ctx, f.networkClient.PrefundedKeys()[0], ttmAccountOwnerAddress, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
-				return nil, fmt.Errorf("failed to transfer funds to cm account owner: %w", err)
+				return nil, fmt.Errorf("failed to transfer funds to ttm account owner: %w", err)
 			}
 
 			if !options.skips.BotRegistration {
 				if err := f.networkClient.AddBotToTTMAccount(ctx, ttmAccountAddress, ttmAccountOwnerKey, botAddr); err != nil {
-					return nil, fmt.Errorf("failed to add bot to CM account: %w", err)
+					return nil, fmt.Errorf("failed to add bot to TTM account: %w", err)
 				}
 			}
 
 			if !options.skips.ServiceRegistration {
 				for _, service := range options.services {
 					if err := f.networkClient.AddCMService(ctx, ttmAccountAddress, ttmAccountOwnerKey, service.Name); err != nil {
-						return nil, fmt.Errorf("failed to add %s service to CM account: %w", service.Name, err)
+						return nil, fmt.Errorf("failed to add %s service to TTM account: %w", service.Name, err)
 					}
 				}
 			}

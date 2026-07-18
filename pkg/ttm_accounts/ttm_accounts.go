@@ -115,7 +115,7 @@ func NewService(
 
 	cache, err := lru.New[common.Address, *ttmaccount.Ttmaccount](cacheSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cm account cache: %w", err)
+		return nil, fmt.Errorf("failed to create ttm account cache: %w", err)
 	}
 
 	return &service{
@@ -131,7 +131,7 @@ func NewService(
 func (s *service) GetAllMessengerBots(ctx context.Context, ttmAccountAddress common.Address) ([]common.Address, error) {
 	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		s.logger.Errorf("Failed to get cm account: %v", err)
+		s.logger.Errorf("Failed to get ttm account: %v", err)
 		return nil, err
 	}
 
@@ -157,13 +157,13 @@ func (s *service) IsBotAllowed(ctx context.Context, ttmAccountAddress common.Add
 
 	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		s.logger.Errorf("Failed to get cm account: %v", err)
+		s.logger.Errorf("Failed to get ttm account: %v", err)
 		return false, err
 	}
 
 	allowed, err := ttmAccount.IsBotAllowed(&bind.CallOpts{Context: ctx}, botAddress)
 	if err != nil {
-		s.logger.Errorf("Failed to check if bot %s is allowed for CM account %s: %v", botAddress.Hex(), ttmAccountAddress.Hex(), err)
+		s.logger.Errorf("Failed to check if bot %s is allowed for TTM account %s: %v", botAddress.Hex(), ttmAccountAddress.Hex(), err)
 		return false, fmt.Errorf("failed to check if bot is allowed: %w", err)
 	}
 
@@ -182,7 +182,7 @@ func (s *service) IsBotAllowed(ctx context.Context, ttmAccountAddress common.Add
 func (s *service) IsServiceSupported(ctx context.Context, ttmAccountAddress common.Address, serviceFullName string) (bool, error) {
 	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
-		s.logger.Errorf("Failed to get cm account: %v", err)
+		s.logger.Errorf("Failed to get ttm account: %v", err)
 		return false, err
 	}
 
@@ -283,7 +283,7 @@ func (s *service) TTMAccount(ttmAccountAddr common.Address) (*ttmaccount.Ttmacco
 
 	ttmAccount, err := ttmaccount.NewTtmaccount(ttmAccountAddr, s.ethClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cm account contract binding: %w", err)
+		return nil, fmt.Errorf("failed to create ttm account contract binding: %w", err)
 	}
 	s.cache.Add(ttmAccountAddr, ttmAccount)
 
@@ -329,11 +329,11 @@ func (s *service) getLatestTTMAccountImplementation(ctx context.Context, ttmAcco
 	}
 	managerAddress, err := ttmAccount.GetManagerAddress(&bind.CallOpts{Context: ctx})
 	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to fetch CM account manager address: %w", err)
+		return common.Address{}, fmt.Errorf("failed to fetch TTM account manager address: %w", err)
 	}
 	manager, err := ttmaccountmanager.NewTtmaccountmanager(managerAddress, s.ethClient)
 	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to create CM account manager contract binding: %w", err)
+		return common.Address{}, fmt.Errorf("failed to create TTM account manager contract binding: %w", err)
 	}
 	currentImplOnManager, err := manager.GetAccountImplementation(&bind.CallOpts{Context: ctx})
 	if err != nil {
@@ -353,14 +353,14 @@ func (s *service) getCurrentImplementationOnProxy(ctx context.Context, ttmAccoun
 func (s *service) IsTTMAccountImplementationUpToDate(ctx context.Context, ttmAccountAddress common.Address) (bool, error) {
 	currentImplOnManager, err := s.getLatestTTMAccountImplementation(ctx, ttmAccountAddress)
 	if err != nil {
-		return false, fmt.Errorf("failed to get latest cm account implementation from cm account manager: %w", err)
+		return false, fmt.Errorf("failed to get latest ttm account implementation from ttm account manager: %w", err)
 	}
 
 	currentImplOnProxy, err := s.getCurrentImplementationOnProxy(ctx, ttmAccountAddress)
 	if err != nil {
-		return false, fmt.Errorf("failed to get current cm account implementation implementation: %w", err)
+		return false, fmt.Errorf("failed to get current ttm account implementation implementation: %w", err)
 	}
-	s.logger.Info("📜 CM Account Implementation:")
+	s.logger.Info("📜 TTM Account Implementation:")
 	s.logger.Info("   - Active:  " + currentImplOnProxy.Hex())
 	s.logger.Info("   - Latest:  " + currentImplOnManager.Hex())
 

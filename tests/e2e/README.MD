@@ -81,7 +81,7 @@ Example runConfiguration .xml file can be found [here](../../examples/debug-laun
 
 
 ## Troubleshooting
-The logs of tests are stored inside `/tmp/cmb-e2e` folder. 
+The logs of tests are stored inside `/tmp/ttm-e2e` folder. 
 ```sh
-find /tmp/cmb-e2e -name "node-*.log" 2>/dev/null
+find /tmp/ttm-e2e -name "node-*.log" 2>/dev/null
 ```

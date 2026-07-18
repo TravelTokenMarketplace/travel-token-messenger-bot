@@ -7,10 +7,10 @@ __debug*
 
 CLAUDE.local.md
 
-./camino-messenger-bot-supplier.yaml
-./camino-messenger-bot-distributor.yaml
+./travel-token-messenger-bot-supplier.yaml
+./travel-token-messenger-bot-distributor.yaml
 
-cmb-config
+ttm-config
 distributor-bot-db
 supplier-bot-db
 

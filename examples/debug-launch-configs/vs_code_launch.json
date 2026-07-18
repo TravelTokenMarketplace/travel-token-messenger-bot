@@ -23,8 +23,8 @@
 				//"-matrix=${workspaceFolder}/build/dependencies/camino-conduit/build/camino-conduit", // path to conduit binary if build locally
 				// "-asb=${workspaceFolder}/build/dependencies/camino-matrix-app-service/build/camino-matrix-app-service/" // path to camino-matrix-app-service if built locally
 				"-partner-plugin=${workspaceFolder}/build/pp-mock", // path to partner-plugin binary
-				"-cmb=${workspaceFolder}/build/camino-messenger-bot", // path to cmb binary
-				"-tests-data-dir=/tmp/cmb-e2e", // path to e2e tests data directory
+				"-ttmb=${workspaceFolder}/build/travel-token-messenger-bot", // path to ttmb binary
+				"-tests-data-dir=/tmp/ttm-e2e", // path to e2e tests data directory
 				"--filter=PingV1,TransportV3", // run specific tests. Will run all tests if not specified or empty
 				"--debug" // enables verbose debug logging (including rpc requests and responses)
 			]

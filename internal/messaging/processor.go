@@ -128,7 +128,7 @@ func (p *messageProcessor) Start(ctx context.Context) {
 
 					if encodedMessage.SenderTTMAccountAddress == p.ttmAccountAddress {
 						// should never happen, if messenger server and p.messenger are configured and working correctly
-						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.ttmAccountAddress.Hex())
+						p.logger.Errorf("Received message from own TTM Account %s, ignoring", p.ttmAccountAddress.Hex())
 						return
 					}
 
@@ -140,7 +140,7 @@ func (p *messageProcessor) Start(ctx context.Context) {
 
 					if senderTTMAccountAddress == p.ttmAccountAddress {
 						// should never happen, if messenger server and p.messenger are configured and working correctly
-						p.logger.Errorf("Received message from own CM Account %s, ignoring", p.ttmAccountAddress.Hex())
+						p.logger.Errorf("Received message from own TTM Account %s, ignoring", p.ttmAccountAddress.Hex())
 						return
 					}
 					p.logger.Debugf("Decoded message (%s, %s), processing", msg.Type, msg.RequestID)
@@ -169,10 +169,10 @@ func (p *messageProcessor) processIncomingMessage(
 ) error {
 	allowed, err := p.ttmAccounts.IsBotAllowed(ctx, senderTTMAccountAddress, senderBotAddress)
 	if err != nil {
-		return fmt.Errorf("failed to verify bot authorization for CM account %s and bot %s: %w", senderTTMAccountAddress.Hex(), senderBotAddress.Hex(), err)
+		return fmt.Errorf("failed to verify bot authorization for TTM account %s and bot %s: %w", senderTTMAccountAddress.Hex(), senderBotAddress.Hex(), err)
 	}
 	if !allowed {
-		return fmt.Errorf("bot %s is not authorized for CM account %s", senderBotAddress.Hex(), senderTTMAccountAddress.Hex())
+		return fmt.Errorf("bot %s is not authorized for TTM account %s", senderBotAddress.Hex(), senderTTMAccountAddress.Hex())
 	}
 
 	msgCategory := msg.Type.Category()
@@ -210,7 +210,7 @@ func (p *messageProcessor) SendRequestMessage(
 
 	recipientBotAddr, err := p.resolver.GetBotAddress(ctx, recipientTTMAccount)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to resolve bot address for CM account %s: %w", rpc.ErrBusinessProcess, recipientTTMAccount.Hex(), err)
+		return nil, fmt.Errorf("%w: failed to resolve bot address for TTM account %s: %w", rpc.ErrBusinessProcess, recipientTTMAccount.Hex(), err)
 	}
 
 	supported, err := p.ttmAccounts.IsServiceSupported(ctx, recipientTTMAccount, requestMsg.Type.ToServiceName())
@@ -243,7 +243,7 @@ func (p *messageProcessor) SendRequestMessage(
 		return nil, err
 	}
 
-	p.logger.Infof("Distributor: Bot %s is contacting bot %s of the CMaccount %s", p.botAddress, recipientBotAddr, recipientTTMAccount.Hex())
+	p.logger.Infof("Distributor: Bot %s is contacting bot %s of the TTM account %s", p.botAddress, recipientBotAddr, recipientTTMAccount.Hex())
 
 	if err := p.messenger.SendMessage(
 		ctx,

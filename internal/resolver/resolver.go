@@ -16,7 +16,7 @@ import (
 var (
 	_ Resolver = (*resolver)(nil)
 
-	ErrNotFound = fmt.Errorf("no bot found for the given CM account and status")
+	ErrNotFound = fmt.Errorf("no bot found for the given TTM account and status")
 )
 
 type BotStatus uint8
@@ -78,7 +78,7 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientTTMAccount common
 		return common.Address{}, fmt.Errorf("failed to get first reachable bot from db: %w", err)
 	}
 
-	r.logger.Infof("no reachable bot found for recipient CM account %s in db, checking for unknown status bots", recipientTTMAccount.Hex())
+	r.logger.Infof("no reachable bot found for recipient TTM account %s in db, checking for unknown status bots", recipientTTMAccount.Hex())
 
 	reachableBot, err = r.storage.GetFirstBotWithStatus(ctx, session, recipientTTMAccount, BotStatusUnknown)
 	switch {
@@ -88,7 +88,7 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientTTMAccount common
 		return common.Address{}, fmt.Errorf("failed to get first bot with unknown reachability status from db: %w", err)
 	}
 
-	r.logger.Infof("no unknown status bot found for recipient CM account %s in db, fetching bots from blockchain", recipientTTMAccount.Hex())
+	r.logger.Infof("no unknown status bot found for recipient TTM account %s in db, fetching bots from blockchain", recipientTTMAccount.Hex())
 
 	recipientBots, err := r.ttmAccounts.GetAllMessengerBots(ctx, recipientTTMAccount)
 	if err != nil {
@@ -104,10 +104,10 @@ func (r *resolver) GetBotAddress(ctx context.Context, recipientTTMAccount common
 	}
 
 	if len(recipientBots) == 0 {
-		return common.Address{}, fmt.Errorf("no bots found for recipient CM account %s: %w", recipientTTMAccount.Hex(), ErrNotFound)
+		return common.Address{}, fmt.Errorf("no bots found for recipient TTM account %s: %w", recipientTTMAccount.Hex(), ErrNotFound)
 	}
 
-	r.logger.Infof("using first bot %s with unknown reachability status for recipient CM account %s", recipientBots[0].Hex(), recipientTTMAccount.Hex())
+	r.logger.Infof("using first bot %s with unknown reachability status for recipient TTM account %s", recipientBots[0].Hex(), recipientTTMAccount.Hex())
 
 	return recipientBots[0], nil
 }
