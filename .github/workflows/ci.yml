@@ -82,7 +82,13 @@ jobs:
       - name: codegen
         shell: bash
         run: ./scripts/generate_grpc_service_handlers.sh
-      - uses: bufbuild/buf-setup-action@v1.47.2
+      - name: Install buf
+        shell: bash
+        # Install buf via our script (release-download redirect, no
+        # api.github.com calls) instead of bufbuild/buf-setup-action, which
+        # hits the unauthenticated GitHub API rate limit on shared runner IPs.
+        # Pinned to the version scripts/protobuf_codegen.sh requires.
+        run: sudo ./scripts/buf-installer.sh --version=v1.47.2 --do-not-validate
       - name: protobuf codegen
         shell: bash
         run: ./scripts/protobuf_codegen.sh
