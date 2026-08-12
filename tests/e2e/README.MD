@@ -52,6 +52,18 @@ single [anvil](https://book.getfoundry.sh/anvil/) process (from `anvil` on
 fresh for the duration of the run - there is no bootstrapping, no validator
 set, and no genesis to configure.
 
+The automatic download supports **Linux/x86_64 only** - that is the one release
+asset the pinned checksum covers, and it is what CI runs. On any other platform
+(macOS included) install foundry yourself so `anvil` is on your `PATH`, and the
+script will use it:
+
+```sh
+curl -L https://foundry.paradigm.xyz | bash && foundryup   # or: brew install foundry
+```
+
+`e2e.sh` fails immediately with that instruction rather than downloading a Linux
+binary that cannot execute.
+
 Flags (All optional):
 
 * `--clean` Always re-download dependencies instead of re-using already existing ones

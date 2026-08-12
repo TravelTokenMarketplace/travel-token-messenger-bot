@@ -190,6 +190,22 @@ function provision_anvil() {
 		return 0
 	fi
 
+	# The download path only supports linux/amd64: that is the single asset the
+	# FOUNDRY_SHA256 pin covers, and it is what CI runs. Fail here with something
+	# actionable rather than fetching a Linux ELF onto a Mac and failing later
+	# with a confusing exec-format error. Other platforms are expected to install
+	# foundry themselves; the PATH check above then picks it up.
+	local os_name arch_name
+	os_name="$(uname -s)"
+	arch_name="$(uname -m)"
+	if [ "$os_name" != "Linux" ] || [ "$arch_name" != "x86_64" ] ; then
+		echo "CRIT: no anvil on PATH, and the automatic download supports only Linux/x86_64 (detected ${os_name}/${arch_name})."
+		echo "CRIT: install foundry manually so 'anvil' is on your PATH, then re-run:"
+		echo "CRIT:   curl -L https://foundry.paradigm.xyz | bash && foundryup"
+		echo "CRIT: (macOS: 'brew install foundry' also works.)"
+		exit 1
+	fi
+
 	local asset="foundry_${FOUNDRY_VERSION}_linux_amd64.tar.gz"
 	local url="https://github.com/foundry-rs/foundry/releases/download/${FOUNDRY_VERSION}/${asset}"
 
