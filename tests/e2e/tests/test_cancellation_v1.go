@@ -68,7 +68,7 @@ func (tt *TestCancellationV1) Run(t *testing.T) {
 }
 
 func (tt *TestCancellationV1) prepare(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx,
 		botGenerated.AccommodationSearchServiceV3,
 		botGenerated.ValidationServiceV3,
 		botGenerated.MintServiceV3,
@@ -515,9 +515,9 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	refundAmountBig, err := price.ToBigInt(refundAmount.Value, refundAmount.Decimals, price.NativeTokenDecimals)
 	h.require.NoError(err)
 
-	supplierBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
+	supplierBalance, err := h.e.Chain.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
 	h.require.NoError(err)
-	distributorBalance, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
+	distributorBalance, err := h.e.Chain.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
 	h.require.NoError(err)
 
 	expectedSupplierBalance := big.NewInt(0).Sub(supplierBalance, refundAmountBig)
@@ -537,9 +537,9 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 	h.expectCancellationFinalizedNotification(h.supplierPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 	h.expectCancellationFinalizedNotification(h.distributorPPEventStream, finalizeCancellationResp.TransactionId.Hash)
 
-	supplierBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
+	supplierBalanceAfter, err := h.e.Chain.Client.BalanceOf(h.ctx, h.supplierBot.TTMAccountAddress())
 	h.require.NoError(err)
-	distributorBalanceAfter, err := h.e.CaminoNetwork.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
+	distributorBalanceAfter, err := h.e.Chain.Client.BalanceOf(h.ctx, h.distributorBot.TTMAccountAddress())
 	h.require.NoError(err)
 
 	h.require.Truef(

@@ -107,7 +107,7 @@ func (tt *TestBotSanity) prepareBeforeCMManagerRegisterServices(ctx context.Cont
 }
 
 func (tt *TestBotSanity) prepareAfterCMManagerRegisterServices(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx,
 		botGenerated.PingServiceV2,
 		botGenerated.MintServiceV4,
 	))

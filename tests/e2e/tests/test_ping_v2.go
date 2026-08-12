@@ -50,7 +50,7 @@ func (tt *TestPingV2) Run(t *testing.T) {
 }
 
 func (tt *TestPingV2) prepare(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx, botGenerated.PingServiceV2))
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx, botGenerated.PingServiceV2))
 
 	tt.supplierPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
 

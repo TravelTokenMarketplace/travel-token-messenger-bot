@@ -2,16 +2,21 @@
 
 set -e
 
-CAMINOGO_REPO="https://github.com/chain4travel/caminogo"
 CONDUIT_REPO="https://github.com/chain4travel/camino-conduit"
 ASB_REPO="https://github.com/TravelTokenMarketplace/camino-matrix-app-service"
 
 default_version="latest"
 FALLBACK_BRANCH="dev"
 
-CAMINOGO_VERSION="$default_version"
 CONDUIT_VERSION="$default_version"
 ASB_VERSION="$default_version"
+DEFAULT_FOUNDRY_VERSION="v1.7.1"
+FOUNDRY_VERSION="$DEFAULT_FOUNDRY_VERSION"
+# Pinned checksum for $DEFAULT_FOUNDRY_VERSION's linux_amd64 asset only. Verified
+# unconditionally when FOUNDRY_VERSION equals the default - that is the case
+# this pin exists to protect, so it is never skipped. If --foundry requests a
+# different version, this checksum does not apply to it; see provision_anvil.
+FOUNDRY_SHA256="cf7e688ed0c4c48adffca788b496076e31060b67ac5afe1e43dbb5499c20c88b"
 
 BUILD_SCRIPT="./scripts/build.sh"
 
@@ -22,16 +27,16 @@ OUT_BINARY=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --caminogo)
-            CAMINOGO_VERSION="$2"
-            shift 2
-            ;;
         --camino-conduit)
             CONDUIT_VERSION="$2"
             shift 2
             ;;
         --asb)
             ASB_VERSION="$2"
+            shift 2
+            ;;
+        --foundry)
+            FOUNDRY_VERSION="$2"
             shift 2
             ;;
 		--clean)
@@ -152,8 +157,8 @@ function download_and_extract() {
 	if [ -f "$OUT_BINARY" ] ; then
 		return 0
 	fi
-	
-	# caminogo release is build like this:
+
+	# Some releases (e.g., camino-conduit v1.0.0) unpack into a versioned subdirectory:
 	OUT_BINARY=$dest_dir/$repo_name-$release_version/$repo_name
 
 	if [ -f "$OUT_BINARY" ] ; then
@@ -164,8 +169,76 @@ function download_and_extract() {
 	exit 1
 }
 
-download_and_extract "caminogo" "$CAMINOGO_VERSION" "$CAMINOGO_REPO"
-CAMINOGO_BIN_PATH="$OUT_BINARY"
+# Resolves a usable anvil into ANVIL_BIN_PATH. Prefers an anvil already on PATH;
+# otherwise downloads the pinned Foundry release into build/dependencies/foundry.
+function provision_anvil() {
+	if command -v anvil >/dev/null 2>&1 ; then
+		ANVIL_BIN_PATH="$(command -v anvil)"
+		echo "Using anvil from PATH: $ANVIL_BIN_PATH ($("$ANVIL_BIN_PATH" --version | head -1))"
+		return 0
+	fi
+
+	local dest_dir="$dependency_dir/foundry"
+	ANVIL_BIN_PATH="$dest_dir/anvil"
+
+	if [ $CLEAN -eq 1 ] ; then
+		rm -rf "$dest_dir"
+	fi
+
+	if [ -x "$ANVIL_BIN_PATH" ] ; then
+		echo "Directory $dest_dir already exists. Skipping download of foundry."
+		return 0
+	fi
+
+	# The download path only supports linux/amd64: that is the single asset the
+	# FOUNDRY_SHA256 pin covers, and it is what CI runs. Fail here with something
+	# actionable rather than fetching a Linux ELF onto a Mac and failing later
+	# with a confusing exec-format error. Other platforms are expected to install
+	# foundry themselves; the PATH check above then picks it up.
+	local os_name arch_name
+	os_name="$(uname -s)"
+	arch_name="$(uname -m)"
+	if [ "$os_name" != "Linux" ] || [ "$arch_name" != "x86_64" ] ; then
+		echo "CRIT: no anvil on PATH, and the automatic download supports only Linux/x86_64 (detected ${os_name}/${arch_name})."
+		echo "CRIT: install foundry manually so 'anvil' is on your PATH, then re-run:"
+		echo "CRIT:   curl -L https://foundry.paradigm.xyz | bash && foundryup"
+		echo "CRIT: (macOS: 'brew install foundry' also works.)"
+		exit 1
+	fi
+
+	local asset="foundry_${FOUNDRY_VERSION}_linux_amd64.tar.gz"
+	local url="https://github.com/foundry-rs/foundry/releases/download/${FOUNDRY_VERSION}/${asset}"
+
+	echo "Downloading foundry $FOUNDRY_VERSION..."
+	mkdir -p "$dest_dir"
+	if ! curl -sSL --fail "$url" -o "$dest_dir/$asset" ; then
+		echo "CRIT: Unable to download foundry $FOUNDRY_VERSION from $url"
+		exit 1
+	fi
+
+	if [ "$FOUNDRY_VERSION" = "$DEFAULT_FOUNDRY_VERSION" ] ; then
+		echo "$FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
+			echo "CRIT: foundry checksum mismatch for $asset"
+			exit 1
+		}
+	elif [ -n "$TTMB_FOUNDRY_SHA256" ] ; then
+		echo "$TTMB_FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
+			echo "CRIT: foundry checksum mismatch for $asset"
+			exit 1
+		}
+	else
+		echo "WARN: no pinned checksum for foundry $FOUNDRY_VERSION (pin only covers $DEFAULT_FOUNDRY_VERSION)." >&2
+		echo "WARN: skipping checksum verification for $asset. Set TTMB_FOUNDRY_SHA256 to verify this version." >&2
+	fi
+
+	tar xzf "$dest_dir/$asset" -C "$dest_dir"
+	rm -f "$dest_dir/$asset"
+
+	if [ ! -x "$ANVIL_BIN_PATH" ] ; then
+		echo "CRIT: Could not find anvil executable in '$ANVIL_BIN_PATH'"
+		exit 1
+	fi
+}
 
 download_and_extract "camino-conduit" "$CONDUIT_VERSION" "$CONDUIT_REPO"
 MATRIX_BIN_PATH="$OUT_BINARY"
@@ -173,14 +246,9 @@ MATRIX_BIN_PATH="$OUT_BINARY"
 download_and_extract "camino-matrix-app-service" "$ASB_VERSION" "$ASB_REPO"
 ASB_BIN_PATH="$OUT_BINARY"
 
-echo "Checking dependency binaries..."
-#CAMINOGO_BIN_PATH=$dependency_dir/caminogo/caminogo
-#MATRIX_BIN_PATH=$dependency_dir/camino-conduit/camino-conduit
+provision_anvil
 
-if [ ! -f "$CAMINOGO_BIN_PATH" ] ; then
-	echo "CRIT: Unable to find caminogo executable in '$CAMINOGO_BIN_PATH'"
-	exit 1
-fi
+echo "Checking dependency binaries..."
 
 if [ ! -f "$MATRIX_BIN_PATH" ] ; then
 	echo "CRIT: Unable to find camino-conduit executable in '$MATRIX_BIN_PATH'"
@@ -191,6 +259,21 @@ if [ ! -f "$ASB_BIN_PATH" ] ; then
 	echo "CRIT: Unable to find ASB executable in '$ASB_BIN_PATH'"
 	exit 1
 fi
+
+if [ ! -x "$ANVIL_BIN_PATH" ] ; then
+	echo "CRIT: Unable to find anvil executable in '$ANVIL_BIN_PATH'"
+	exit 1
+fi
+
+# Resolved to an absolute path now (rather than down with the other binaries
+# below) because the chain lifecycle test that follows runs `go test` against
+# ./tests/e2e/blockchain, which changes cwd to that package directory - a
+# relative ANVIL_BIN_PATH would no longer resolve from there.
+ANVIL_BIN_PATH="$(realpath "${ANVIL_BIN_PATH}")"
+
+echo "Verifying anvil chain lifecycle (Cancun activation, prefunding)..."
+
+TTMB_TEST_ANVIL_BIN="$ANVIL_BIN_PATH" go test -tags=e2e -run TestStartChainIsReadyAndFundsKeys ./tests/e2e/blockchain/
 
 echo "Building e2e tests..."
 
@@ -204,7 +287,6 @@ cd "$ORIG_DIR"
 PARTNER_PLUGIN_BIN_PATH=build/pp-mock
 TTMB_BIN_PATH=build/travel-token-messenger-bot
 
-CAMINOGO_BIN_PATH="$(realpath "${CAMINOGO_BIN_PATH}")"
 MATRIX_BIN_PATH="$(realpath "${MATRIX_BIN_PATH}")"
 ASB_BIN_PATH="$(realpath "${ASB_BIN_PATH}")"
 PARTNER_PLUGIN_BIN_PATH="$(realpath "${PARTNER_PLUGIN_BIN_PATH}")"
@@ -223,7 +305,7 @@ fi
 
 ./$E2E_BIN_OUT \
 	-test.v \
-	-node="${CAMINOGO_BIN_PATH}" \
+	-anvil="${ANVIL_BIN_PATH}" \
 	-matrix="${MATRIX_BIN_PATH}" \
 	-asb="${ASB_BIN_PATH}" \
 	-partner-plugin="${PARTNER_PLUGIN_BIN_PATH}" \

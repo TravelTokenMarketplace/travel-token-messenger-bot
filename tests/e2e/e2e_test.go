@@ -6,16 +6,18 @@
 package e2e
 
 import (
+	"crypto/ecdsa"
 	"flag"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/chain4travel/caminogoeth-compat/caminogo/secp256k1"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/runner"
@@ -24,7 +26,7 @@ import (
 )
 
 const (
-	flagKeyNodeBinPath          = "node"
+	flagKeyAnvilBinPath         = "anvil"
 	flagKeyMatrixBinPath        = "matrix"
 	flagKeyASBBinPath           = "asb"
 	flagKeyPartnerPluginBinPath = "partner-plugin"
@@ -34,7 +36,7 @@ const (
 )
 
 var (
-	flagNodeBinPath             string
+	flagAnvilBinPath            string
 	flagMatrixBinPath           string
 	flagASBBinPath              string
 	flagPartnerPluginBinPath    string
@@ -47,9 +49,13 @@ var (
 )
 
 func init() {
-	flag.StringVar(&flagNodeBinPath, flagKeyNodeBinPath, "", "Path to node binary.")
+	flag.StringVar(&flagAnvilBinPath, flagKeyAnvilBinPath, "", "Path to anvil binary.")
 	flag.StringVar(&flagExistingNetworkNodeURI, "existing-network-node-uri", "", "URI of existing network node.")
-	flag.StringVar(&flagExistingNetworkAdminKey, "existing-network-admin-key", "", "Admin key of existing network.")
+	// Flag name kept for compatibility with existing invocations and IDE configs.
+	// The value is no longer a Camino admin key: there is no admin role on this
+	// chain any more, and the key is the hex-encoded ECDSA key that deploys the
+	// contracts and signs setup transactions.
+	flag.StringVar(&flagExistingNetworkAdminKey, "existing-network-admin-key", "", "Hex-encoded ECDSA deployer key for an existing network (0x prefix optional). Required with -existing-network-node-uri.")
 	flag.StringVar(&flagMatrixBinPath, flagKeyMatrixBinPath, "", "Path to matrix binary.")
 	flag.StringVar(&flagASBBinPath, flagKeyASBBinPath, "", "Path to ASB binary.")
 	flag.StringVar(&flagPartnerPluginBinPath, flagKeyPartnerPluginBinPath, "", "Path to partner plugin binary.")
@@ -63,13 +69,13 @@ func TestE2E(t *testing.T) {
 	flag.Parse()
 	var err error
 
-	require.NotEmptyf(t, flagNodeBinPath, "flag -%s (node binary path) is required", flagKeyNodeBinPath)
+	require.NotEmptyf(t, flagAnvilBinPath, "flag -%s (anvil binary path) is required", flagKeyAnvilBinPath)
 	require.NotEmpty(t, flagMatrixBinPath, "flag -%s (matrix binary path) is required", flagKeyMatrixBinPath)
 	require.NotEmpty(t, flagASBBinPath, "flag -%s (ASB binary path) is required", flagKeyASBBinPath)
 	require.NotEmpty(t, flagTTMBBinPath, "flag -%s (TTMB binary path) is required", flagKeyTTMBBinPath)
 	require.NotEmpty(t, flagPartnerPluginBinPath, "flag -%s (partner plugin binary path) is required", flagKeyPartnerPluginBinPath)
 
-	flagNodeBinPath, err = filepath.Abs(flagNodeBinPath)
+	flagAnvilBinPath, err = filepath.Abs(flagAnvilBinPath)
 	require.NoError(t, err)
 	flagMatrixBinPath, err = filepath.Abs(flagMatrixBinPath)
 	require.NoError(t, err)
@@ -80,7 +86,7 @@ func TestE2E(t *testing.T) {
 	flagPartnerPluginBinPath, err = filepath.Abs(flagPartnerPluginBinPath)
 	require.NoError(t, err)
 
-	checkFileExist(t, flagNodeBinPath)
+	checkFileExist(t, flagAnvilBinPath)
 	checkFileExist(t, flagMatrixBinPath)
 	checkFileExist(t, flagASBBinPath)
 	checkFileExist(t, flagTTMBBinPath)
@@ -91,21 +97,29 @@ func TestE2E(t *testing.T) {
 	os.RemoveAll(flagTestsDataDir)
 	require.NoError(t, os.MkdirAll(flagTestsDataDir, 0o755))
 
-	var existingNetworkAdminKey *secp256k1.PrivateKey
+	var existingNetworkDeployerKey *ecdsa.PrivateKey
+	if len(flagExistingNetworkNodeURI) > 0 {
+		// The deployer key is not optional for an existing chain: it signs every
+		// setup transaction (CreateTTMAccount, RegisterCMService, ...). Without it
+		// the run starts and then dies at the first transaction, far from the cause.
+		require.NotEmptyf(t, flagExistingNetworkAdminKey,
+			"flag -existing-network-admin-key is required when -%s is set", "existing-network-node-uri")
+	}
 	if len(flagExistingNetworkAdminKey) > 0 {
-		existingNetworkAdminKey = new(secp256k1.PrivateKey)
-		require.NoError(t, existingNetworkAdminKey.UnmarshalText([]byte("\""+flagExistingNetworkAdminKey+"\"")))
+		var err error
+		existingNetworkDeployerKey, err = crypto.HexToECDSA(strings.TrimPrefix(flagExistingNetworkAdminKey, "0x"))
+		require.NoError(t, err, "failed to parse existing network deployer key")
 	}
 
 	suite, err := suite.New(
-		flagNodeBinPath,
+		flagAnvilBinPath,
 		flagMatrixBinPath,
 		flagASBBinPath,
 		flagPartnerPluginBinPath,
 		flagTTMBBinPath,
 		flagTestsDataDir,
 		flagExistingNetworkNodeURI,
-		existingNetworkAdminKey,
+		existingNetworkDeployerKey,
 		flagDebug,
 		flagFilter,
 	)

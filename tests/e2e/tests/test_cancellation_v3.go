@@ -71,7 +71,7 @@ func (tt *TestCancellationV3) Run(t *testing.T) {
 }
 
 func (tt *TestCancellationV3) prepare(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx,
 		botGenerated.AccommodationSearchServiceV5,
 		botGenerated.ValidationServiceV5,
 		botGenerated.MintServiceV5,

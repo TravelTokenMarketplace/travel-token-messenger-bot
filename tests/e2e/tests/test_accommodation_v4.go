@@ -79,7 +79,7 @@ func (tt *TestAccommodationV4) Run(t *testing.T) {
 }
 
 func (tt *TestAccommodationV4) prepare(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx,
 		botGenerated.AccommodationProductShortListServiceV4,
 		botGenerated.AccommodationProductListServiceV4,
 		botGenerated.AccommodationProductInfoServiceV4,

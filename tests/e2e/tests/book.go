@@ -309,16 +309,16 @@ func verifyBookingTokenStateBought(
 	bigTokenID := big.NewInt(0).SetUint64(tokenID)
 	callOpts := &bind.CallOpts{Context: ctx}
 
-	reservationPrice, err := e.CaminoNetwork.Client.BookingToken.GetReservationPrice(callOpts, bigTokenID)
+	reservationPrice, err := e.Chain.Client.BookingToken.GetReservationPrice(callOpts, bigTokenID)
 	require.NoError(t, err)
 	require.Equal(t, booking.NativePaymentToken, reservationPrice.PaymentToken)
 	require.Equal(t, expectedReservationPrice, reservationPrice.Price)
 
-	ownerAddr, err := e.CaminoNetwork.Client.BookingToken.OwnerOf(callOpts, bigTokenID)
+	ownerAddr, err := e.Chain.Client.BookingToken.OwnerOf(callOpts, bigTokenID)
 	require.NoError(t, err)
 	require.Equal(t, distributorBot.TTMAccountAddress(), ownerAddr)
 
-	tokenStatus, err := e.CaminoNetwork.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
+	tokenStatus, err := e.Chain.Client.BookingToken.GetBookingStatus(callOpts, bigTokenID)
 	require.NoError(t, err)
 	require.Equal(t, booking.StatusBought, booking.Status(tokenStatus))
 
