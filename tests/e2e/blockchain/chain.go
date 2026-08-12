@@ -6,6 +6,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -118,7 +119,37 @@ func StartChain(
 		deployerKey:   deployerKey,
 	}
 
-	if err := c.awaitReady(ctx); err != nil {
+	// The reaper must exist before anything below can fail. Without it, a
+	// process that dies later (e.g. during prepareTTMBContracts) is never
+	// Wait()-ed on and stays a zombie: process.StopProcess's getProcess still
+	// sees it via Signal(0) forever, so waitKillProcess never observes it
+	// stop and spins SIGKILL in a tight loop until the caller's ctx is done
+	// (which is never, for context.Background()). It is the sole sender and
+	// closer of errChan.
+	errChan := make(chan error)
+	go func() {
+		if err := <-process.ListenForProcessError(cmd); err != nil {
+			errChan <- fmt.Errorf("anvil (pid %d) failed: %w", c.pid, err)
+		}
+		close(errChan)
+	}()
+
+	// Until c is handed to the caller - on full success, or on the
+	// prepareTTMBContracts failure below where c is returned specifically so
+	// the caller can call Stop - StartChain owns cleanup itself. Otherwise a
+	// failure here would leak the anvil process, its log file handle, and
+	// the port, since the caller only ever sees a nil *Chain to clean up.
+	ownedByCaller := false
+	defer func() {
+		if ownedByCaller {
+			return
+		}
+		if stopErr := c.Stop(context.Background()); stopErr != nil {
+			logger.Warnf("failed to clean up anvil (pid %d) after startup failure: %v", c.pid, stopErr)
+		}
+	}()
+
+	if err := c.awaitReady(ctx, errChan); err != nil {
 		return nil, nil, fmt.Errorf("failed to wait for anvil (pid %d) to be ready: %w", c.pid, err)
 	}
 
@@ -135,17 +166,11 @@ func StartChain(
 	logger.Debug("Preparing TTMB contracts...")
 
 	if err := c.Client.prepareTTMBContracts(ctx); err != nil {
+		ownedByCaller = true
 		return c, nil, fmt.Errorf("failed to prepare TTMB contracts: %w", err)
 	}
 
-	errChan := make(chan error)
-	go func() {
-		if err := <-process.ListenForProcessError(cmd); err != nil {
-			errChan <- fmt.Errorf("anvil (pid %d) failed: %w", c.pid, err)
-		}
-		close(errChan)
-	}()
-
+	ownedByCaller = true
 	logger.Debugf("Anvil chain (pid %d, port %d) started", c.pid, port)
 
 	return c, errChan, nil
@@ -184,8 +209,13 @@ func UseExistingChain(
 	return c, nil
 }
 
-// awaitReady polls until the JSON-RPC endpoint answers eth_blockNumber.
-func (c *Chain) awaitReady(ctx context.Context) error {
+// awaitReady polls until the JSON-RPC endpoint answers eth_blockNumber. It
+// also watches errChan so that a process which exited immediately (a bad
+// flag, or a port resources.Session handed out without checking it was
+// actually free - see resources.Manager.getNetworkPort) is reported directly
+// instead of only ever timing out against ctx with the real cause sitting
+// unread in anvil.log.
+func (c *Chain) awaitReady(ctx context.Context, errChan <-chan error) error {
 	ticker := time.NewTicker(chainReadyTickerInterval)
 	defer ticker.Stop()
 
@@ -203,6 +233,11 @@ func (c *Chain) awaitReady(ctx context.Context) error {
 		case <-ticker.C:
 		case <-ctx.Done():
 			return ctx.Err()
+		case procErr, ok := <-errChan:
+			if !ok {
+				return errors.New("anvil process exited before becoming ready")
+			}
+			return fmt.Errorf("anvil process exited before becoming ready: %w", procErr)
 		}
 	}
 }
