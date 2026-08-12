@@ -3,7 +3,7 @@
         <module name="travel-token-messenger-bot" />
         <working_directory value="$PROJECT_DIR$" />
         <go_parameters value="-tags=e2e" />
-        <parameters value="-test.parallel=4 -node=$PROJECT_DIR$/build/dependencies/caminogo/build/caminogo -matrix=$PROJECT_DIR$/build/dependencies/camino-conduit/build/camino-conduit -asb=$PROJECT_DIR$/build/dependencies/camino-matrix-app-service/build/camino-matrix-app-service/ -partner-plugin=$PROJECT_DIR$/build/pp-mock -ttmb=$PROJECT_DIR$/build/travel-token-messenger-bot -tests-data-dir=/tmp/ttm-e2e --debug" />
+        <parameters value="-test.parallel=4 -anvil=$PROJECT_DIR$/build/dependencies/foundry/anvil -matrix=$PROJECT_DIR$/build/dependencies/camino-conduit/build/camino-conduit -asb=$PROJECT_DIR$/build/dependencies/camino-matrix-app-service/build/camino-matrix-app-service/ -partner-plugin=$PROJECT_DIR$/build/pp-mock -ttmb=$PROJECT_DIR$/build/travel-token-messenger-bot -tests-data-dir=/tmp/ttm-e2e --debug" />
         <!-- envs for macOS:-->
         <envs>
             <env name="CGO_CFLAGS" value="-I/opt/homebrew/include" />

@@ -15,10 +15,9 @@
 			],
 			"args": [
 				// "-test.parallel=8", // number of parallel test runs
-				// "-existing-network-node-uri=http://127.0.0.1:19651", // local node endpoint, if need to use pre-existing local network
-				// "-existing-network-admin-key=PrivateKey-vmRQiZeXEXYMyJhEiqdC2z5JhuDbxL8ix9UVvjgMu2Er1NepE",
-				"-node=${workspaceFolder}/build/dependencies/caminogo/caminogo-v1.1.0/caminogo", // path to caminogo binary
-        		// "-node=${workspaceFolder}/build/dependencies/caminogo/build/caminogo", // path to caminogo binary if build locally
+				// "-existing-network-node-uri=127.0.0.1:19651", // local node endpoint, if need to use pre-existing local network
+				// "-existing-network-admin-key=0x1111111111111111111111111111111111111111111111111111111111111111",
+				"-anvil=${workspaceFolder}/build/dependencies/foundry/anvil", // path to anvil binary
 				"-matrix=${workspaceFolder}/build/dependencies/camino-conduit/camino-conduit-v1.0.0/camino-conduit", // path to conduit binary
 				//"-matrix=${workspaceFolder}/build/dependencies/camino-conduit/build/camino-conduit", // path to conduit binary if build locally
 				// "-asb=${workspaceFolder}/build/dependencies/camino-matrix-app-service/build/camino-matrix-app-service/" // path to camino-matrix-app-service if built locally

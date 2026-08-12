@@ -49,7 +49,7 @@ type Chain struct {
 
 	logger        *zap.SugaredLogger
 	pid           int
-	rpcURL        string
+	hostPort      string
 	logFile       *os.File
 	prefundedKeys []*ecdsa.PrivateKey
 	deployerKey   *ecdsa.PrivateKey
@@ -113,7 +113,7 @@ func StartChain(
 	c := &Chain{
 		logger:        logger,
 		pid:           cmd.Process.Pid,
-		rpcURL:        fmt.Sprintf("127.0.0.1:%d", port),
+		hostPort:      fmt.Sprintf("127.0.0.1:%d", port),
 		logFile:       logFile,
 		prefundedKeys: prefundedKeys,
 		deployerKey:   deployerKey,
@@ -126,7 +126,14 @@ func StartChain(
 	// stop and spins SIGKILL in a tight loop until the caller's ctx is done
 	// (which is never, for context.Background()). It is the sole sender and
 	// closer of errChan.
-	errChan := make(chan error)
+	//
+	// The channel is buffered by 1 so the send cannot block: awaitReady may
+	// return (on success, or via ctx.Done()) before this goroutine's send runs,
+	// and there is a window between that and the suite registering a consumer
+	// of the *Chain during which nothing is reading errChan. An unbuffered
+	// channel would park this goroutine forever if anvil died in that window;
+	// a buffer of 1 lets the send complete and close() still runs right after.
+	errChan := make(chan error, 1)
 	go func() {
 		if err := <-process.ListenForProcessError(cmd); err != nil {
 			errChan <- fmt.Errorf("anvil (pid %d) failed: %w", c.pid, err)
@@ -153,7 +160,7 @@ func StartChain(
 		return nil, nil, fmt.Errorf("failed to wait for anvil (pid %d) to be ready: %w", c.pid, err)
 	}
 
-	client, err := newClient(ctx, c.rpcURL, prefundedKeys, deployerKey)
+	client, err := newClient(ctx, c.hostPort, prefundedKeys, deployerKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create chain client: %w", err)
 	}
@@ -181,19 +188,19 @@ func StartChain(
 func UseExistingChain(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
-	rpcURL string,
+	hostPort string,
 	deployerKey *ecdsa.PrivateKey,
 ) (*Chain, error) {
 	logger.Info("Connecting to existing chain...")
 
-	client, err := newClient(ctx, rpcURL, nil, deployerKey)
+	client, err := newClient(ctx, hostPort, nil, deployerKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain client: %w", err)
 	}
 
 	c := &Chain{
 		logger:      logger,
-		rpcURL:      rpcURL,
+		hostPort:    hostPort,
 		deployerKey: deployerKey,
 		Client:      client,
 	}
@@ -220,7 +227,7 @@ func (c *Chain) awaitReady(ctx context.Context, errChan <-chan error) error {
 	defer ticker.Stop()
 
 	for {
-		ethClient, err := ethclient.DialContext(ctx, "ws://"+c.rpcURL)
+		ethClient, err := ethclient.DialContext(ctx, "ws://"+c.hostPort)
 		if err == nil {
 			_, err = ethClient.BlockNumber(ctx)
 			ethClient.Close()

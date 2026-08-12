@@ -51,7 +51,7 @@ TTMB_PARTNER_PLUGIN_MOCK_PORT=50051 go run ./pp-mock
 
 A typical local Base Sepolia loop runs three processes together: a supplier bot, a distributor bot (each with its own TTM Account + config + SQLite db dir), and the pp-mock partner plugin on the host/port the supplier's `partner_plugin.host` points to (e.g. `localhost:50051`).
 
-E2E tests are heavyweight — they download/build caminogo, camino-conduit, and the matrix-app-service, then spin up a real network:
+E2E tests are heavyweight — they provision a local anvil chain (from `anvil` on `PATH`, or a pinned Foundry release otherwise) plus camino-conduit and the matrix-app-service (downloaded/built), then spin up a real network:
 
 ```bash
 ./scripts/e2e.sh                          # full e2e run (see tests/e2e/README.MD)

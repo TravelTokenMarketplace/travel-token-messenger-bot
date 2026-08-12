@@ -7,6 +7,7 @@ package blockchain
 
 import (
 	"context"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -18,10 +19,19 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/resources"
 )
 
-// anvilBinPathForTest returns the anvil binary to test against, or skips.
+// anvilBinPathForTest returns the anvil binary to test against. If the caller
+// explicitly pointed at one via TTMB_TEST_ANVIL_BIN (as scripts/e2e.sh does),
+// that path must work - it fails the test rather than skipping, so a broken
+// wiring between the script and this test cannot silently no-op. When no
+// binary is requested at all, it falls back to a provisioned one if present,
+// and only skips when nothing is available - so a bare `go test -tags=e2e
+// ./...` on a clean checkout still works.
 func anvilBinPathForTest(t *testing.T) string {
 	t.Helper()
 	if p := os.Getenv("TTMB_TEST_ANVIL_BIN"); p != "" {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("TTMB_TEST_ANVIL_BIN=%q is set but unusable: %v", p, err)
+		}
 		return p
 	}
 	const provisioned = "build/dependencies/foundry/anvil"
@@ -75,11 +85,16 @@ func TestStartChainIsReadyAndFundsKeys(t *testing.T) {
 
 	// The deployer key pays real gas to deploy the TTMB contracts below (anvil's
 	// default base fee is nonzero), so its balance is defaultPrefund minus
-	// deployment gas, not an exact match. Check it is funded and did not
-	// somehow exceed what fundKeys gave it, rather than asserting equality.
+	// deployment gas, not an exact match. The measured deployment cost is about
+	// 0.024 ETH against a 1,000,000 ETH prefund, so require the balance sits
+	// within one ether of the prefund rather than merely require.Positive,
+	// which would pass even if the deployer were funded with 1 wei.
+	oneEther := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	minDeployerBalance := new(big.Int).Sub(defaultPrefund, oneEther)
+
 	deployerBalance, err := ethClient.BalanceAt(ctx, crypto.PubkeyToAddress(chain.deployerKey.PublicKey), nil)
 	require.NoError(t, err)
-	require.Positive(t, deployerBalance.Sign(), "deployer key must be funded")
+	require.Greaterf(t, deployerBalance.Cmp(minDeployerBalance), 0, "deployer balance %s must be within one ether of prefund %s (i.e. > %s)", deployerBalance, defaultPrefund, minDeployerBalance)
 	require.LessOrEqualf(t, deployerBalance.Cmp(defaultPrefund), 0, "deployer balance %s must not exceed prefund %s", deployerBalance, defaultPrefund)
 
 	// StartChain deploys the TTMB contracts, which is what the Camino chain

@@ -10,7 +10,12 @@ FALLBACK_BRANCH="dev"
 
 CONDUIT_VERSION="$default_version"
 ASB_VERSION="$default_version"
-FOUNDRY_VERSION="v1.7.1"
+DEFAULT_FOUNDRY_VERSION="v1.7.1"
+FOUNDRY_VERSION="$DEFAULT_FOUNDRY_VERSION"
+# Pinned checksum for $DEFAULT_FOUNDRY_VERSION's linux_amd64 asset only. Verified
+# unconditionally when FOUNDRY_VERSION equals the default - that is the case
+# this pin exists to protect, so it is never skipped. If --foundry requests a
+# different version, this checksum does not apply to it; see provision_anvil.
 FOUNDRY_SHA256="cf7e688ed0c4c48adffca788b496076e31060b67ac5afe1e43dbb5499c20c88b"
 
 BUILD_SCRIPT="./scripts/build.sh"
@@ -195,10 +200,20 @@ function provision_anvil() {
 		exit 1
 	fi
 
-	echo "$FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
-		echo "CRIT: foundry checksum mismatch for $asset"
-		exit 1
-	}
+	if [ "$FOUNDRY_VERSION" = "$DEFAULT_FOUNDRY_VERSION" ] ; then
+		echo "$FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
+			echo "CRIT: foundry checksum mismatch for $asset"
+			exit 1
+		}
+	elif [ -n "$TTMB_FOUNDRY_SHA256" ] ; then
+		echo "$TTMB_FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
+			echo "CRIT: foundry checksum mismatch for $asset"
+			exit 1
+		}
+	else
+		echo "WARN: no pinned checksum for foundry $FOUNDRY_VERSION (pin only covers $DEFAULT_FOUNDRY_VERSION)." >&2
+		echo "WARN: skipping checksum verification for $asset. Set TTMB_FOUNDRY_SHA256 to verify this version." >&2
+	fi
 
 	tar xzf "$dest_dir/$asset" -C "$dest_dir"
 	rm -f "$dest_dir/$asset"
@@ -234,6 +249,16 @@ if [ ! -x "$ANVIL_BIN_PATH" ] ; then
 	exit 1
 fi
 
+# Resolved to an absolute path now (rather than down with the other binaries
+# below) because the chain lifecycle test that follows runs `go test` against
+# ./tests/e2e/blockchain, which changes cwd to that package directory - a
+# relative ANVIL_BIN_PATH would no longer resolve from there.
+ANVIL_BIN_PATH="$(realpath "${ANVIL_BIN_PATH}")"
+
+echo "Verifying anvil chain lifecycle (Cancun activation, prefunding)..."
+
+TTMB_TEST_ANVIL_BIN="$ANVIL_BIN_PATH" go test -tags=e2e -run TestStartChainIsReadyAndFundsKeys ./tests/e2e/blockchain/
+
 echo "Building e2e tests..."
 
 E2E_BIN_OUT=build/tests_e2e
@@ -246,7 +271,6 @@ cd "$ORIG_DIR"
 PARTNER_PLUGIN_BIN_PATH=build/pp-mock
 TTMB_BIN_PATH=build/travel-token-messenger-bot
 
-ANVIL_BIN_PATH="$(realpath "${ANVIL_BIN_PATH}")"
 MATRIX_BIN_PATH="$(realpath "${MATRIX_BIN_PATH}")"
 ASB_BIN_PATH="$(realpath "${ASB_BIN_PATH}")"
 PARTNER_PLUGIN_BIN_PATH="$(realpath "${PARTNER_PLUGIN_BIN_PATH}")"

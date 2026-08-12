@@ -54,7 +54,6 @@ func newClient(
 	}
 
 	return &Client{
-		nodeURI:       hostPort,
 		chainRPCURL:   chainRPCURL,
 		ethClient:     ethClient,
 		ethChainID:    ethChainID,
@@ -70,7 +69,6 @@ type Client struct {
 
 	prefundedKeys               []*ecdsa.PrivateKey
 	deployerKey                 *ecdsa.PrivateKey
-	nodeURI                     string
 	chainRPCURL                 string
 	ethClient                   *ethclient.Client
 	ethChainID                  *big.Int
