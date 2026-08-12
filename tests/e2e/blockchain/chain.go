@@ -27,6 +27,13 @@ const (
 	// NetworkID is kept for camino-conduit, which is configured with it via
 	// CONDUIT_CAMINO_NETWORK_ID (tests/e2e/matrix/conduit.go). It no longer
 	// describes the chain the harness runs.
+	//
+	// It is deliberately unrelated to evmChainID (502) below, and the two must
+	// not be reconciled. NetworkID is an opaque label conduit tags its own state
+	// with — conduit never talks to the chain and is handed no RPC URL — whereas
+	// evmChainID is the real EVM chain ID anvil is started with and transactions
+	// are signed against. Changing NetworkID to match would only invalidate
+	// existing conduit state for no gain.
 	NetworkID = 1005
 
 	chainReadyTickerInterval = 500 * time.Millisecond

@@ -51,7 +51,11 @@ var (
 func init() {
 	flag.StringVar(&flagAnvilBinPath, flagKeyAnvilBinPath, "", "Path to anvil binary.")
 	flag.StringVar(&flagExistingNetworkNodeURI, "existing-network-node-uri", "", "URI of existing network node.")
-	flag.StringVar(&flagExistingNetworkAdminKey, "existing-network-admin-key", "", "Admin key of existing network.")
+	// Flag name kept for compatibility with existing invocations and IDE configs.
+	// The value is no longer a Camino admin key: there is no admin role on this
+	// chain any more, and the key is the hex-encoded ECDSA key that deploys the
+	// contracts and signs setup transactions.
+	flag.StringVar(&flagExistingNetworkAdminKey, "existing-network-admin-key", "", "Hex-encoded ECDSA deployer key for an existing network (0x prefix optional). Required with -existing-network-node-uri.")
 	flag.StringVar(&flagMatrixBinPath, flagKeyMatrixBinPath, "", "Path to matrix binary.")
 	flag.StringVar(&flagASBBinPath, flagKeyASBBinPath, "", "Path to ASB binary.")
 	flag.StringVar(&flagPartnerPluginBinPath, flagKeyPartnerPluginBinPath, "", "Path to partner plugin binary.")
