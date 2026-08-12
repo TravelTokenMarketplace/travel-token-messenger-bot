@@ -153,6 +153,13 @@ function download_and_extract() {
 		return 0
 	fi
 
+	# Some releases (e.g., camino-conduit v1.0.0) unpack into a versioned subdirectory:
+	OUT_BINARY=$dest_dir/$repo_name-$release_version/$repo_name
+
+	if [ -f "$OUT_BINARY" ] ; then
+		return 0
+	fi
+
 	echo "CRIT: Could not find executable for '$repo_name'"
 	exit 1
 }
