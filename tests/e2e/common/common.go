@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chain4travel/caminogoeth-compat/caminogo/units"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,9 +17,10 @@ const (
 )
 
 var (
-	X2CRateBig                  = big.NewInt(1_000_000_000)
-	CAM                         = big.NewInt(0).Mul(big.NewInt(0).SetUint64(units.Avax), X2CRateBig)
-	DefaultTTMAccountOwnerFunds = big.NewInt(0).Mul(CAM, big.NewInt(100))
+	// Ether is 1e18 wei. It replaces the old CAM constant, which evaluated to
+	// exactly the same value (units.Avax 1e9 * X2CRateBig 1e9).
+	Ether                       = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	DefaultTTMAccountOwnerFunds = big.NewInt(0).Mul(Ether, big.NewInt(100))
 )
 
 func AwaitError(t *testing.T, errChan chan error, errContent string, timeout time.Duration) {

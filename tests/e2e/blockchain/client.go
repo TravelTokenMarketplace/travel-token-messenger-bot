@@ -20,7 +20,6 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/nullusd"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccountmanager"
-	"github.com/chain4travel/caminogoeth-compat/caminoethvm/contracts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,19 +31,18 @@ import (
 const bookingTokenOperatorLibName = "12bd2f62b73a470fe0f6e02c33045f3191" //nolint:gosec // this is not credentials.
 
 var (
-	kycAdminRole                 = big.NewInt(0b100)
-	ttmAccountNativeTokenPrefund = big.NewInt(0).Mul(e2eCommon.CAM, big.NewInt(100))
+	ttmAccountNativeTokenPrefund = big.NewInt(0).Mul(e2eCommon.Ether, big.NewInt(100))
 
 	ErrorAddServiceTxFailed = errors.New("failed to issue AddService tx")
 )
 
 func newClient(
 	ctx context.Context,
-	nodeURI string,
+	hostPort string,
 	prefundedKeys []*ecdsa.PrivateKey,
-	adminKey *ecdsa.PrivateKey,
+	deployerKey *ecdsa.PrivateKey,
 ) (*Client, error) {
-	chainRPCURL := "ws://" + nodeURI + "/ext/bc/C/ws"
+	chainRPCURL := "ws://" + hostPort
 	ethClient, err := ethclient.Dial(chainRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the Ethereum client: %w", err)
@@ -55,19 +53,13 @@ func newClient(
 		return nil, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
-	adminContract, err := contracts.NewCaminoAdmin(evmAdminContract, ethClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create admin contract binding: %w", err)
-	}
-
 	return &Client{
-		nodeURI:       nodeURI,
+		nodeURI:       hostPort,
 		chainRPCURL:   chainRPCURL,
 		ethClient:     ethClient,
 		ethChainID:    ethChainID,
 		prefundedKeys: prefundedKeys,
-		adminKey:      adminKey,
-		adminContract: adminContract,
+		deployerKey:   deployerKey,
 		nonces:        make(map[common.Address]uint64),
 	}, nil
 }
@@ -77,7 +69,7 @@ type Client struct {
 	BookingToken *bookingtoken.Bookingtoken
 
 	prefundedKeys               []*ecdsa.PrivateKey
-	adminKey                    *ecdsa.PrivateKey
+	deployerKey                 *ecdsa.PrivateKey
 	nodeURI                     string
 	chainRPCURL                 string
 	ethClient                   *ethclient.Client
@@ -85,7 +77,6 @@ type Client struct {
 	bookingTokenContractAddress common.Address
 	ttmAccountManager           *ttmaccountmanager.Ttmaccountmanager
 	ttmAccountManagerAddress    common.Address
-	adminContract               *contracts.CaminoAdmin
 
 	nonces      map[common.Address]uint64
 	noncesMutex sync.Mutex
@@ -108,7 +99,7 @@ func (c *Client) BookingTokenContractAddress() common.Address {
 }
 
 func (c *Client) CreateTTMAccount(ctx context.Context, owner *ecdsa.PrivateKey) (common.Address, *ttmaccount.Ttmaccount, error) {
-	transactor, err := c.transactor(ctx, c.adminKey, ttmAccountNativeTokenPrefund)
+	transactor, err := c.transactor(ctx, c.deployerKey, ttmAccountNativeTokenPrefund)
 	if err != nil {
 		return common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
@@ -209,7 +200,7 @@ func (c *Client) RegisterCMService(
 	ctx context.Context,
 	serviceName string,
 ) error {
-	transactor, err := c.transactor(ctx, c.adminKey, nil)
+	transactor, err := c.transactor(ctx, c.deployerKey, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create admin transactor: %w", err)
 	}
@@ -293,24 +284,6 @@ func (c *Client) TTMAccount(addr common.Address) (*ttmaccount.Ttmaccount, error)
 	return ttmaccount.NewTtmaccount(addr, c.ethClient)
 }
 
-func (c *Client) SetKYC(ctx context.Context, account common.Address, isKYCVerified bool) error {
-	transactor, err := c.transactor(ctx, c.adminKey, common.Big0)
-	if err != nil {
-		return fmt.Errorf("failed to create admin transactor: %w", err)
-	}
-
-	tx, err := c.adminContract.ApplyKycState(transactor, account, !isKYCVerified, evmAddrStateKYCVerified)
-	if err != nil {
-		return fmt.Errorf("failed to issue ApplyKycState tx: %w", err)
-	}
-
-	if _, err := c.waitTxSucceed(ctx, tx); err != nil {
-		return fmt.Errorf("failed to wait for ApplyKycState tx to succeed: %w", err)
-	}
-
-	return nil
-}
-
 func (c *Client) transactor(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*bind.TransactOpts, error) {
 	nonce, err := c.nextNonce(ctx, crypto.PubkeyToAddress(key.PublicKey))
 	if err != nil {
@@ -335,41 +308,16 @@ func (c *Client) waitTxSucceed(ctx context.Context, tx *types.Transaction) (*typ
 	return receipt, nil
 }
 
-func (c *Client) prepareAdmin(ctx context.Context) error {
-	adminAddress := crypto.PubkeyToAddress(c.adminKey.PublicKey)
-
-	transactor, err := c.transactor(ctx, c.adminKey, common.Big0)
-	if err != nil {
-		return fmt.Errorf("failed to create default transactor: %w", err)
-	}
-
-	adminGrantRoleTx, err := c.adminContract.GrantRole(transactor, adminAddress, kycAdminRole)
-	if err != nil {
-		return fmt.Errorf("failed to issue adminContract.GrantRole tx: %w", err)
-	}
-
-	if _, err := c.waitTxSucceed(ctx, adminGrantRoleTx); err != nil {
-		return fmt.Errorf("failed to wait for adminContract.GrantRole tx to succeed: %w", err)
-	}
-
-	// set KYC state for admin account, so we can deploy contracts with it
-	if err := c.SetKYC(ctx, adminAddress, true); err != nil {
-		return fmt.Errorf("failed to set KYC state for admin account: %w", err)
-	}
-
-	return nil
-}
-
 // TODO @evlekht we can use some kind of snapshotting to skip the process of deploying SCs if we'll use persistent network
 func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 	c.noncesMutex.Lock()
 	defer c.noncesMutex.Unlock()
 
-	adminAddress := crypto.PubkeyToAddress(c.adminKey.PublicKey)
+	adminAddress := crypto.PubkeyToAddress(c.deployerKey.PublicKey)
 
 	// prepare contracts, will be done in 4 blocks
 
-	transactor, err := bind.NewKeyedTransactorWithChainID(c.adminKey, c.ethChainID)
+	transactor, err := bind.NewKeyedTransactorWithChainID(c.deployerKey, c.ethChainID)
 	if err != nil {
 		return fmt.Errorf("failed to create transactor: %w", err)
 	}
