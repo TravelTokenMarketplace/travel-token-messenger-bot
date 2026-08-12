@@ -11,7 +11,7 @@ developer_mode: true
 response_timeout: 10000
 
 # Booking Token contract address. This address will be used for minting, buying of Booking Tokens
-booking_token_address: 0x459EEdD4bE13bD7D1Af27DA5DdA6d69407118C83
+booking_token_address: 0xB9ac3D8898e8bE5481a0DDCb7692692979794efC
 
 # Blockchain RPC URL. The public endpoint (e.g. wss://base-sepolia.drpc.org) is subject to rate limiting.
 # For production or high-volume usage, users should use their own private endpoints from third-party RPC providers (such as QuickNode, Ankr, Infura, etc.).

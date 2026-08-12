@@ -99,6 +99,12 @@ type service struct {
 	botAuthCacheTimeout time.Duration
 	botAuthCacheMu      sync.RWMutex
 	botAuthCache        map[botAuthCacheKey]botAuthCacheVal
+
+	// Service names are hashed on every outbound request message, but they come
+	// from a small fixed set (the bot's own registered message types), so the
+	// map reaches steady state right after startup and needs no eviction.
+	serviceHashCacheMu sync.RWMutex
+	serviceHashCache   map[string][32]byte
 }
 
 func NewService(
@@ -125,6 +131,7 @@ func NewService(
 		chainID:             chainID,
 		botAuthCacheTimeout: botAuthCacheTimeout,
 		botAuthCache:        make(map[botAuthCacheKey]botAuthCacheVal),
+		serviceHashCache:    make(map[string][32]byte),
 	}, nil
 }
 
@@ -179,6 +186,27 @@ func (s *service) IsBotAllowed(ctx context.Context, ttmAccountAddress common.Add
 	return allowed, nil
 }
 
+// serviceHash returns keccak256(name), memoized. This mirrors the contracts'
+// own hashing (ServiceRegistry._registerServiceName hashes the service name
+// with abi.encodePacked on a string).
+func (s *service) serviceHash(name string) [32]byte {
+	s.serviceHashCacheMu.RLock()
+	hash, found := s.serviceHashCache[name]
+	s.serviceHashCacheMu.RUnlock()
+
+	if found {
+		return hash
+	}
+
+	hash = crypto.Keccak256Hash([]byte(name))
+
+	s.serviceHashCacheMu.Lock()
+	s.serviceHashCache[name] = hash
+	s.serviceHashCacheMu.Unlock()
+
+	return hash
+}
+
 func (s *service) IsServiceSupported(ctx context.Context, ttmAccountAddress common.Address, serviceFullName string) (bool, error) {
 	ttmAccount, err := s.TTMAccount(ttmAccountAddress)
 	if err != nil {
@@ -186,7 +214,7 @@ func (s *service) IsServiceSupported(ctx context.Context, ttmAccountAddress comm
 		return false, err
 	}
 
-	return ttmAccount.IsServiceSupported(&bind.CallOpts{Context: ctx}, serviceFullName)
+	return ttmAccount.IsServiceSupported(&bind.CallOpts{Context: ctx}, s.serviceHash(serviceFullName))
 }
 
 func (s *service) MintBookingToken(

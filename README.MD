@@ -158,7 +158,31 @@ yarn hardhat manager services:list --network base_sepolia
 yarn hardhat account service:list --ttm-account <0xTTMAccount-address> --network base_sepolia
 ```
 
-6. Once your bot is active, offering its services to other TTM Accounts, and
+6. **Declare the payment tokens** the TTM Account accepts. A supplier account
+   cannot mint a single Booking Token until at least one payment mode has been
+   declared — `BookingToken.safeMintWithReservation` reverts with
+   `PaymentTokenNotSupported`. Do this as part of account setup, not after the
+   first failed mint.
+
+Payment modes are all encoded as addresses and share one allowlist:
+
+| Payment mode | Address to add |
+| --- | --- |
+| Native coin (ETH) | `0x0000000000000000000000000000000000000000` |
+| Off-chain payment (fiat) | `0x0000000000000000000000000000000000000001` |
+| ERC-20 | that token's contract address |
+
+```
+yarn hardhat account payment-token:add --ttm-account <0xTTMAccount-address> --private-key <0xstatic-private-key-of-the-ttm-account-wallet> --payment-token <0xPayment-token-address> --network base_sepolia
+```
+
+To list what an account currently accepts:
+
+```
+yarn hardhat account payment-token:list --ttm-account <0xTTMAccount-address> --network base_sepolia
+```
+
+7. Once your bot is active, offering its services to other TTM Accounts, and
    performing regular cash-ins, it is possible to withdraw a possible surplus
    gas coins to an address with WITHDRAWER_ROLE via `hardhat` (and also via
    suite). To do it via hardhat run:
