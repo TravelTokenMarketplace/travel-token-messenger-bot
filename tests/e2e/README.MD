@@ -41,7 +41,7 @@ or to download from the dev branch
 ./scripts/e2e.sh --clean --debug --camino-conduit "dev" --asb "dev"
 ```
 Different dependencies might require different go versions or otherwise will fail to build. In this case, manually delete the dependency from `build/dependencies` folder, use gvm to adjust the version and re-run the script with just the dependency.
-```
+```sh
 gvm use go1.25
 ./scripts/e2e.sh --debug --asb "dev"
 ```

@@ -49,7 +49,7 @@ type Chain struct {
 
 	logger        *zap.SugaredLogger
 	pid           int
-	hostPort      string
+	endpoint      string
 	logFile       *os.File
 	prefundedKeys []*ecdsa.PrivateKey
 	deployerKey   *ecdsa.PrivateKey
@@ -107,13 +107,16 @@ func StartChain(
 	cmd.Stderr = logFile
 
 	if err := cmd.Start(); err != nil {
+		// Nothing owns logFile yet — the Chain that would close it in Stop does
+		// not exist, so close it here or the descriptor leaks.
+		_ = logFile.Close()
 		return nil, nil, fmt.Errorf("failed to start anvil: %w", err)
 	}
 
 	c := &Chain{
 		logger:        logger,
 		pid:           cmd.Process.Pid,
-		hostPort:      fmt.Sprintf("127.0.0.1:%d", port),
+		endpoint:      fmt.Sprintf("127.0.0.1:%d", port),
 		logFile:       logFile,
 		prefundedKeys: prefundedKeys,
 		deployerKey:   deployerKey,
@@ -141,11 +144,10 @@ func StartChain(
 		close(errChan)
 	}()
 
-	// Until c is handed to the caller - on full success, or on the
-	// prepareTTMBContracts failure below where c is returned specifically so
-	// the caller can call Stop - StartChain owns cleanup itself. Otherwise a
-	// failure here would leak the anvil process, its log file handle, and
-	// the port, since the caller only ever sees a nil *Chain to clean up.
+	// Until c is handed to the caller on full success, StartChain owns cleanup
+	// itself. Every failure path below returns a nil *Chain, so the caller has
+	// nothing to clean up and would otherwise leak the anvil process, its log
+	// file handle and the port.
 	ownedByCaller := false
 	defer func() {
 		if ownedByCaller {
@@ -160,7 +162,7 @@ func StartChain(
 		return nil, nil, fmt.Errorf("failed to wait for anvil (pid %d) to be ready: %w", c.pid, err)
 	}
 
-	client, err := newClient(ctx, c.hostPort, prefundedKeys, deployerKey)
+	client, err := newClient(ctx, c.endpoint, prefundedKeys, deployerKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create chain client: %w", err)
 	}
@@ -173,8 +175,15 @@ func StartChain(
 	logger.Debug("Preparing TTMB contracts...")
 
 	if err := c.Client.prepareTTMBContracts(ctx); err != nil {
-		ownedByCaller = true
-		return c, nil, fmt.Errorf("failed to prepare TTMB contracts: %w", err)
+		// Do NOT hand the chain to the caller here. suite.SetupEnvironment wraps
+		// this call in require.NoError, which calls FailNow -> runtime.Goexit, so
+		// SetupEnvironment never returns. runner.Run registers its Cleanup before
+		// calling SetupEnvironment but only assigns the Environment from its
+		// return value, so the Environment stays nil and Suite.Cleanup's
+		// `if e == nil { return }` skips every teardown. Returning c would
+		// therefore leak anvil; leaving ownedByCaller false lets our own deferred
+		// cleanup stop the process and close the log file.
+		return nil, nil, fmt.Errorf("failed to prepare TTMB contracts: %w", err)
 	}
 
 	ownedByCaller = true
@@ -188,19 +197,19 @@ func StartChain(
 func UseExistingChain(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
-	hostPort string,
+	endpoint string,
 	deployerKey *ecdsa.PrivateKey,
 ) (*Chain, error) {
 	logger.Info("Connecting to existing chain...")
 
-	client, err := newClient(ctx, hostPort, nil, deployerKey)
+	client, err := newClient(ctx, endpoint, nil, deployerKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain client: %w", err)
 	}
 
 	c := &Chain{
 		logger:      logger,
-		hostPort:    hostPort,
+		endpoint:    endpoint,
 		deployerKey: deployerKey,
 		Client:      client,
 	}
@@ -227,7 +236,7 @@ func (c *Chain) awaitReady(ctx context.Context, errChan <-chan error) error {
 	defer ticker.Stop()
 
 	for {
-		ethClient, err := ethclient.DialContext(ctx, "ws://"+c.hostPort)
+		ethClient, err := ethclient.DialContext(ctx, dialURL(c.endpoint))
 		if err == nil {
 			_, err = ethClient.BlockNumber(ctx)
 			ethClient.Close()

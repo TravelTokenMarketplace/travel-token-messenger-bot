@@ -36,13 +36,25 @@ var (
 	ErrorAddServiceTxFailed = errors.New("failed to issue AddService tx")
 )
 
+// dialURL turns an endpoint into something ethclient can dial. StartChain passes
+// a bare host:port, which defaults to ws://. An endpoint that already carries a
+// scheme is passed through untouched: go-ethereum speaks ws, wss, http and
+// https, so an existing chain reachable only over https must not be silently
+// downgraded to a websocket URL it never served.
+func dialURL(endpoint string) string {
+	if strings.Contains(endpoint, "://") {
+		return endpoint
+	}
+	return "ws://" + endpoint
+}
+
 func newClient(
 	ctx context.Context,
-	hostPort string,
+	endpoint string,
 	prefundedKeys []*ecdsa.PrivateKey,
 	deployerKey *ecdsa.PrivateKey,
 ) (*Client, error) {
-	chainRPCURL := "ws://" + hostPort
+	chainRPCURL := dialURL(endpoint)
 	ethClient, err := ethclient.Dial(chainRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the Ethereum client: %w", err)

@@ -76,25 +76,10 @@ func New(
 		partnerPluginBinPath:       partnerPluginBinPath,
 		ttmbBinPath:                ttmbBinPath,
 		testsDataDir:               testsDataDir,
-		existingNetworkNodeURI:     stripSchemePrefix(existingNetworkNodeURI),
+		existingNetworkNodeURI:     existingNetworkNodeURI,
 		existingNetworkDeployerKey: existingNetworkDeployerKey,
 		TestFilter:                 testFilterElements,
 	}, nil
-}
-
-// stripSchemePrefix normalizes the -existing-network-node-uri flag into the
-// bare host:port form blockchain.UseExistingChain expects. The flag is
-// documented as "URI of existing network node", so a caller may reasonably
-// pass a scheme (ws://, wss://, http://, https://); UseExistingChain's
-// underlying client always prepends "ws://" itself, so leaving a scheme on
-// would produce "ws://ws://host:port" and a baffling dial failure.
-func stripSchemePrefix(uri string) string {
-	for _, prefix := range []string{"wss://", "ws://", "https://", "http://"} {
-		if trimmed, ok := strings.CutPrefix(uri, prefix); ok {
-			return trimmed
-		}
-	}
-	return uri
 }
 
 // Safe for concurrent use.

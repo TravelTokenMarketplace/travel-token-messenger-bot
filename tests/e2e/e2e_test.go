@@ -94,6 +94,13 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, os.MkdirAll(flagTestsDataDir, 0o755))
 
 	var existingNetworkDeployerKey *ecdsa.PrivateKey
+	if len(flagExistingNetworkNodeURI) > 0 {
+		// The deployer key is not optional for an existing chain: it signs every
+		// setup transaction (CreateTTMAccount, RegisterCMService, ...). Without it
+		// the run starts and then dies at the first transaction, far from the cause.
+		require.NotEmptyf(t, flagExistingNetworkAdminKey,
+			"flag -existing-network-admin-key is required when -%s is set", "existing-network-node-uri")
+	}
 	if len(flagExistingNetworkAdminKey) > 0 {
 		var err error
 		existingNetworkDeployerKey, err = crypto.HexToECDSA(strings.TrimPrefix(flagExistingNetworkAdminKey, "0x"))
