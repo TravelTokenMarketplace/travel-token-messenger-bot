@@ -12,6 +12,8 @@ FALLBACK_BRANCH="dev"
 CAMINOGO_VERSION="$default_version"
 CONDUIT_VERSION="$default_version"
 ASB_VERSION="$default_version"
+FOUNDRY_VERSION="v1.7.1"
+FOUNDRY_SHA256="cf7e688ed0c4c48adffca788b496076e31060b67ac5afe1e43dbb5499c20c88b"
 
 BUILD_SCRIPT="./scripts/build.sh"
 
@@ -32,6 +34,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --asb)
             ASB_VERSION="$2"
+            shift 2
+            ;;
+        --foundry)
+            FOUNDRY_VERSION="$2"
             shift 2
             ;;
 		--clean)
@@ -164,6 +170,51 @@ function download_and_extract() {
 	exit 1
 }
 
+# Resolves a usable anvil into ANVIL_BIN_PATH. Prefers an anvil already on PATH;
+# otherwise downloads the pinned Foundry release into build/dependencies/foundry.
+function provision_anvil() {
+	if command -v anvil >/dev/null 2>&1 ; then
+		ANVIL_BIN_PATH="$(command -v anvil)"
+		echo "Using anvil from PATH: $ANVIL_BIN_PATH ($("$ANVIL_BIN_PATH" --version | head -1))"
+		return 0
+	fi
+
+	local dest_dir="$dependency_dir/foundry"
+	ANVIL_BIN_PATH="$dest_dir/anvil"
+
+	if [ $CLEAN -eq 1 ] ; then
+		rm -rf "$dest_dir"
+	fi
+
+	if [ -x "$ANVIL_BIN_PATH" ] ; then
+		echo "Directory $dest_dir already exists. Skipping download of foundry."
+		return 0
+	fi
+
+	local asset="foundry_${FOUNDRY_VERSION}_linux_amd64.tar.gz"
+	local url="https://github.com/foundry-rs/foundry/releases/download/${FOUNDRY_VERSION}/${asset}"
+
+	echo "Downloading foundry $FOUNDRY_VERSION..."
+	mkdir -p "$dest_dir"
+	if ! curl -sSL --fail "$url" -o "$dest_dir/$asset" ; then
+		echo "CRIT: Unable to download foundry $FOUNDRY_VERSION from $url"
+		exit 1
+	fi
+
+	echo "$FOUNDRY_SHA256  $dest_dir/$asset" | sha256sum -c - || {
+		echo "CRIT: foundry checksum mismatch for $asset"
+		exit 1
+	}
+
+	tar xzf "$dest_dir/$asset" -C "$dest_dir"
+	rm -f "$dest_dir/$asset"
+
+	if [ ! -x "$ANVIL_BIN_PATH" ] ; then
+		echo "CRIT: Could not find anvil executable in '$ANVIL_BIN_PATH'"
+		exit 1
+	fi
+}
+
 download_and_extract "caminogo" "$CAMINOGO_VERSION" "$CAMINOGO_REPO"
 CAMINOGO_BIN_PATH="$OUT_BINARY"
 
@@ -172,6 +223,8 @@ MATRIX_BIN_PATH="$OUT_BINARY"
 
 download_and_extract "camino-matrix-app-service" "$ASB_VERSION" "$ASB_REPO"
 ASB_BIN_PATH="$OUT_BINARY"
+
+provision_anvil
 
 echo "Checking dependency binaries..."
 #CAMINOGO_BIN_PATH=$dependency_dir/caminogo/caminogo
@@ -189,6 +242,11 @@ fi
 
 if [ ! -f "$ASB_BIN_PATH" ] ; then
 	echo "CRIT: Unable to find ASB executable in '$ASB_BIN_PATH'"
+	exit 1
+fi
+
+if [ ! -x "$ANVIL_BIN_PATH" ] ; then
+	echo "CRIT: Unable to find anvil executable in '$ANVIL_BIN_PATH'"
 	exit 1
 fi
 
