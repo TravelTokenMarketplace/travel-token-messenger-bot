@@ -5,13 +5,13 @@ package suite
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"path"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/chain4travel/caminogoeth-compat/caminogo/secp256k1"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -28,7 +28,6 @@ import (
 const (
 	startupTimeout  = 120 * time.Second
 	shutdownTimeout = 30 * time.Second
-	validatorsCount = 2
 )
 
 type Test = runner.Test[*Environment]
@@ -39,14 +38,14 @@ var (
 )
 
 func New(
-	nodeBinPath string,
+	anvilBinPath string,
 	matrixBinPath string,
 	asbBinPath string,
 	partnerPluginBinPath string,
 	ttmbBinPath string,
 	testsDataDir string,
 	existingNetworkNodeURI string,
-	existingNetworkAdminKey *secp256k1.PrivateKey,
+	existingNetworkDeployerKey *ecdsa.PrivateKey,
 	debug bool,
 	filter string,
 ) (*Suite, error) {
@@ -69,33 +68,48 @@ func New(
 	}
 
 	return &Suite{
-		logger:                  sugaredLogger,
-		resourcesManager:        resources.NewManager(10000, 50000, 10),
-		nodeBinPath:             nodeBinPath,
-		matrixBinPath:           matrixBinPath,
-		asbBinPath:              asbBinPath,
-		partnerPluginBinPath:    partnerPluginBinPath,
-		ttmbBinPath:             ttmbBinPath,
-		testsDataDir:            testsDataDir,
-		existingNetworkNodeURI:  existingNetworkNodeURI,
-		existingNetworkAdminKey: existingNetworkAdminKey,
-		TestFilter:              testFilterElements,
+		logger:                     sugaredLogger,
+		resourcesManager:           resources.NewManager(10000, 50000, 10),
+		anvilBinPath:               anvilBinPath,
+		matrixBinPath:              matrixBinPath,
+		asbBinPath:                 asbBinPath,
+		partnerPluginBinPath:       partnerPluginBinPath,
+		ttmbBinPath:                ttmbBinPath,
+		testsDataDir:               testsDataDir,
+		existingNetworkNodeURI:     stripSchemePrefix(existingNetworkNodeURI),
+		existingNetworkDeployerKey: existingNetworkDeployerKey,
+		TestFilter:                 testFilterElements,
 	}, nil
+}
+
+// stripSchemePrefix normalizes the -existing-network-node-uri flag into the
+// bare host:port form blockchain.UseExistingChain expects. The flag is
+// documented as "URI of existing network node", so a caller may reasonably
+// pass a scheme (ws://, wss://, http://, https://); UseExistingChain's
+// underlying client always prepends "ws://" itself, so leaving a scheme on
+// would produce "ws://ws://host:port" and a baffling dial failure.
+func stripSchemePrefix(uri string) string {
+	for _, prefix := range []string{"wss://", "ws://", "https://", "http://"} {
+		if trimmed, ok := strings.CutPrefix(uri, prefix); ok {
+			return trimmed
+		}
+	}
+	return uri
 }
 
 // Safe for concurrent use.
 type Suite struct {
-	logger                  *zap.SugaredLogger
-	nodeBinPath             string
-	matrixBinPath           string
-	asbBinPath              string
-	partnerPluginBinPath    string
-	ttmbBinPath             string
-	testsDataDir            string
-	existingNetworkNodeURI  string
-	existingNetworkAdminKey *secp256k1.PrivateKey
-	resourcesManager        *resources.Manager
-	TestFilter              []string
+	logger                     *zap.SugaredLogger
+	anvilBinPath               string
+	matrixBinPath              string
+	asbBinPath                 string
+	partnerPluginBinPath       string
+	ttmbBinPath                string
+	testsDataDir               string
+	existingNetworkNodeURI     string
+	existingNetworkDeployerKey *ecdsa.PrivateKey
+	resourcesManager           *resources.Manager
+	TestFilter                 []string
 }
 
 func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
@@ -116,21 +130,20 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 	require.NoError(t, err)
 
 	if len(s.existingNetworkNodeURI) > 0 {
-		e.CaminoNetwork, err = blockchain.UseExistingNetwork(
+		e.Chain, err = blockchain.UseExistingChain(
 			ctx,
 			s.logger,
 			s.existingNetworkNodeURI,
-			s.existingNetworkAdminKey,
+			s.existingNetworkDeployerKey,
 		)
 		require.NoError(t, err)
 	} else {
-		e.CaminoNetwork, errChan, err = blockchain.StartNewNetwork(
+		e.Chain, errChan, err = blockchain.StartChain(
 			ctx,
 			s.logger,
 			e.resourceManagerSession,
 			dataDir,
-			s.nodeBinPath,
-			validatorsCount,
+			s.anvilBinPath,
 		)
 		require.NoError(t, err)
 		common.ExpectNoErrorAsync(t, errChan)
@@ -143,7 +156,7 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 		dataDir,
 		s.asbBinPath,
 		e.networkFeeKey,
-		e.CaminoNetwork.Client,
+		e.Chain.Client,
 		e.ASBOptions...,
 	)
 	require.NoError(t, err)
@@ -172,7 +185,7 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 		e.resourceManagerSession,
 		dataDir,
 		s.ttmbBinPath,
-		e.CaminoNetwork.Client,
+		e.Chain.Client,
 		e.matrix,
 		e.ASB,
 	)
@@ -222,7 +235,7 @@ func (s *Suite) Cleanup(t *testing.T, e *Environment) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		require.NoError(t, e.CaminoNetwork.Stop(ctx))
+		require.NoError(t, e.Chain.Stop(ctx))
 	}()
 
 	wg.Wait()

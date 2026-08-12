@@ -29,9 +29,9 @@ import (
 
 type Environment struct {
 	// used by tests; we don't bother to abstract it for safety, because its tests and we expect tests to not modify those fields
-	Logger        *zap.SugaredLogger
-	ASB           *matrix.AppService
-	CaminoNetwork *blockchain.Network
+	Logger *zap.SugaredLogger
+	ASB    *matrix.AppService
+	Chain  *blockchain.Chain
 
 	// those are not used by tests directly, so we can hide them for at least some safety
 	matrix                 *matrix.ConduitServer
@@ -168,7 +168,7 @@ func (e *Environment) protoMessageToJSON(message proto.Message) string {
 
 func (e *Environment) Balance(ctx context.Context, t *testing.T, bot *bot.Bot) *big.Int {
 	t.Helper()
-	balance, err := e.CaminoNetwork.Client.BalanceOf(ctx, bot.TTMAccountAddress())
+	balance, err := e.Chain.Client.BalanceOf(ctx, bot.TTMAccountAddress())
 	require.NoError(t, err)
 	return balance
 }

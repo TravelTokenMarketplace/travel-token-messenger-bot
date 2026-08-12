@@ -78,7 +78,7 @@ func (tt *TestActivityV4) Run(t *testing.T) {
 }
 
 func (tt *TestActivityV4) prepare(ctx context.Context, t *testing.T) {
-	require.NoError(t, tt.CaminoNetwork.Client.RegisterCMServices(ctx,
+	require.NoError(t, tt.Chain.Client.RegisterCMServices(ctx,
 		botGenerated.ActivityProductShortListServiceV4,
 		botGenerated.ActivityProductListServiceV4,
 		botGenerated.ActivityProductInfoServiceV4,
