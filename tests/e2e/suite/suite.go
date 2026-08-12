@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -111,8 +110,6 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 
 	var err error
 	var errChan chan error
-	e.networkFeeKey, err = crypto.GenerateKey()
-	require.NoError(t, err)
 
 	if len(s.existingNetworkNodeURI) > 0 {
 		e.Chain, err = blockchain.UseExistingChain(
@@ -140,9 +137,6 @@ func (s *Suite) SetupEnvironment(t *testing.T, test Test) *Environment {
 		e.resourceManagerSession,
 		dataDir,
 		s.asbBinPath,
-		e.networkFeeKey,
-		e.Chain.Client,
-		e.ASBOptions...,
 	)
 	require.NoError(t, err)
 	common.ExpectNoErrorAsync(t, errChan)
