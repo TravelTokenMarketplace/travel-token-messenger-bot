@@ -12,8 +12,10 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/client"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccount"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts/ttmaccountmanager"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 )
@@ -40,7 +42,7 @@ func NewServiceRegistry(
 		return nil, fmt.Errorf("failed to fetch Registered services: %w", err)
 	}
 
-	hasSupportedServices := len(supportedServices.ServiceNames) > 0
+	hasSupportedServices := len(supportedServices.ServiceHashes) > 0
 	partnerPluginClientEnabled := rpcClient != nil
 	var services map[message.Type]rpc.Service
 
@@ -50,10 +52,43 @@ func NewServiceRegistry(
 	case !hasSupportedServices && partnerPluginClientEnabled:
 		logger.Warn("Bot doesn't support any services, but has partner plugin rpc client enabled")
 	case hasSupportedServices && partnerPluginClientEnabled: // register supported services
-		servicesNames := make(map[string]struct{}, len(supportedServices.ServiceNames))
+		// The TTM Account is hash-native: getSupportedServices returns service
+		// hashes, not names. The manager owns the name<->hash registry, so the
+		// names come from there. The account knows its own manager.
+		manager, err := ttmAccountManager(ttmAccount, evmClient)
+		if err != nil {
+			return nil, err
+		}
+
+		registeredServiceNames, err := manager.GetAllRegisteredServiceNames(&bind.CallOpts{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch registered service names: %w", err)
+		}
+
+		nameByHash := make(map[[32]byte]string, len(registeredServiceNames))
+		for _, serviceName := range registeredServiceNames {
+			nameByHash[crypto.Keccak256Hash([]byte(serviceName))] = serviceName
+		}
+
+		servicesNames := make(map[string]struct{}, len(supportedServices.ServiceHashes))
 
 		logStr := "\nSupported services:\n"
-		for _, serviceName := range supportedServices.ServiceNames {
+		for _, serviceHash := range supportedServices.ServiceHashes {
+			serviceName, found := nameByHash[serviceHash]
+			if !found {
+				// The account supports a service the manager has since
+				// unregistered. Unregistering keeps the name mapping, so this
+				// single-hash lookup still resolves it.
+				serviceName, err = manager.GetServiceNameByHash(&bind.CallOpts{}, serviceHash)
+				if err != nil {
+					return nil, fmt.Errorf("failed to resolve service name for hash %s: %w", common.BytesToHash(serviceHash[:]), err)
+				}
+				if serviceName == "" {
+					logger.Warnf("Skipping supported service with unknown hash %s", common.BytesToHash(serviceHash[:]))
+					continue
+				}
+			}
+
 			logStr += serviceName + "\n"
 			servicesNames[serviceName] = struct{}{}
 		}
@@ -82,6 +117,24 @@ func NewServiceRegistry(
 		services:  services,
 		rpcClient: rpcClient,
 	}, nil
+}
+
+// ttmAccountManager binds the manager that owns the given TTM Account.
+func ttmAccountManager(
+	ttmAccount *ttmaccount.Ttmaccount,
+	evmClient *ethclient.Client,
+) (*ttmaccountmanager.Ttmaccountmanager, error) {
+	managerAddress, err := ttmAccount.GetManagerAddress(&bind.CallOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TTM account manager address: %w", err)
+	}
+
+	manager, err := ttmaccountmanager.NewTtmaccountmanager(managerAddress, evmClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TTM account manager: %w", err)
+	}
+
+	return manager, nil
 }
 
 type serviceRegistry struct {

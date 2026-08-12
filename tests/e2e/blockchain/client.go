@@ -189,9 +189,11 @@ func (c *Client) AddCMService(
 		return fmt.Errorf("failed to get ttm account binding: %w", err)
 	}
 
+	// addService is hash-native; the manager must already have the name
+	// registered under the same keccak256 hash.
 	tx, err := ttmAccount.AddService(
 		transactor,
-		serviceName,
+		crypto.Keccak256Hash([]byte(serviceName)),
 		false,
 		[]string{},
 	)
@@ -201,6 +203,39 @@ func (c *Client) AddCMService(
 
 	if _, err := c.waitTxSucceed(ctx, tx); err != nil {
 		return fmt.Errorf("failed to wait for AddCMService tx to succeed: %w", err)
+	}
+
+	return nil
+}
+
+// AddSupportedToken declares a payment token on the TTM Account. Every payment
+// mode is an address on one allowlist: address(0) is the native coin,
+// address(1) is off-chain payment, anything else is that ERC-20. Minting
+// reverts with PaymentTokenNotSupported until the mode being minted against has
+// been declared, so this has to run before the account mints anything.
+func (c *Client) AddSupportedToken(
+	ctx context.Context,
+	ttmAccountAddress common.Address,
+	ttmAccountOwnerKey *ecdsa.PrivateKey,
+	paymentToken common.Address,
+) error {
+	transactor, err := c.transactor(ctx, ttmAccountOwnerKey, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	ttmAccount, err := c.TTMAccount(ttmAccountAddress)
+	if err != nil {
+		return fmt.Errorf("failed to get ttm account binding: %w", err)
+	}
+
+	tx, err := ttmAccount.AddSupportedToken(transactor, paymentToken)
+	if err != nil {
+		return fmt.Errorf("failed to issue AddSupportedToken tx: %w", err)
+	}
+
+	if _, err := c.waitTxSucceed(ctx, tx); err != nil {
+		return fmt.Errorf("failed to wait for AddSupportedToken tx to succeed: %w", err)
 	}
 
 	return nil
@@ -487,7 +522,7 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to create bookingToken binding: %w", err)
 	}
 
-	// block 4 (ReinitializeV2 Booking Token, link contracts)
+	// block 4 (link contracts)
 
 	setBookingTokenAddressTx, err := c.ttmAccountManager.SetBookingTokenAddress(
 		transactor,
@@ -505,10 +540,8 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 		return fmt.Errorf("failed to issue ttmAccountManager.SetAccountImplementation tx: %w", err)
 	}
 
-	reinitializeV2Tx, err := c.BookingToken.ReinitializeV2(transactor, "BookingToken", "BToken")
-	if err != nil {
-		return fmt.Errorf("failed to issue bookingToken.ReinitializeV2 tx: %w", err)
-	}
+	// BookingToken.reinitializeV2 is gone: initialize() now sets the ERC-721
+	// name/symbol itself, so there is nothing left to reinitialize here.
 
 	minExpirationTimestampDiffRole, err := c.BookingToken.MINEXPIRATIONADMINROLE(&bind.CallOpts{Context: ctx})
 	if err != nil {
@@ -534,9 +567,6 @@ func (c *Client) prepareTTMBContracts(ctx context.Context) error {
 	}
 	if _, err := c.waitTxSucceed(ctx, setAccountImplementationTx); err != nil {
 		return fmt.Errorf("failed to wait for ttmAccountManager.SetAccountImplementation tx to succeed: %w", err)
-	}
-	if _, err := c.waitTxSucceed(ctx, reinitializeV2Tx); err != nil {
-		return fmt.Errorf("failed to wait for bookingToken.ReinitializeV2 tx to succeed: %w", err)
 	}
 	if _, err := c.waitTxSucceed(ctx, updateExpirationTx); err != nil {
 		return fmt.Errorf("failed to wait for bookingToken.SetMinExpirationTimestampDiff tx to succeed: %w", err)

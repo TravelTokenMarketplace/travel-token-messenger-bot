@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/config"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/booking"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/blockchain"
 	e2eCommon "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
@@ -154,6 +155,15 @@ func (f *Factory) CreateBot(
 					if err := f.networkClient.AddCMService(ctx, ttmAccountAddress, ttmAccountOwnerKey, service.Name); err != nil {
 						return nil, fmt.Errorf("failed to add %s service to TTM account: %w", service.Name, err)
 					}
+				}
+			}
+
+			// Minting reverts with PaymentTokenNotSupported unless the payment
+			// mode has been declared on the account first, so declare the two
+			// modes the suite mints against: native coin and off-chain payment.
+			for _, paymentToken := range []common.Address{booking.NativePaymentToken, booking.ISOPaymentToken} {
+				if err := f.networkClient.AddSupportedToken(ctx, ttmAccountAddress, ttmAccountOwnerKey, paymentToken); err != nil {
+					return nil, fmt.Errorf("failed to add supported payment token %s to TTM account: %w", paymentToken, err)
 				}
 			}
 		}

@@ -29,7 +29,7 @@ require (
 	google.golang.org/grpc v1.81.0
 )
 
-require github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts v0.0.0-20260716095946-7255c5ece7da
+require github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts v0.0.0-20260810135920-c469e1d0e17e
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20250912141014-52f32327d4b0.1 // indirect

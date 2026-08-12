@@ -24,7 +24,7 @@ func Flags() *pflag.FlagSet {
 	flags.String("bot_key", "", "Sets bot private key. Used for the Matrix server connection and TTM account interaction.")
 	flags.String("ttm_account_address", "", "Sets bot ttm account address.")
 	flags.String("chain_rpc_url", "", "chain RPC URL.")
-	flags.String("booking_token_address", "0x459EEdD4bE13bD7D1Af27DA5DdA6d69407118C83", "BookingToken address.")
+	flags.String("booking_token_address", "0xB9ac3D8898e8bE5481a0DDCb7692692979794efC", "BookingToken address.")
 	flags.Int64("bot_auth_cache_timeout", 300, "Duration in seconds to cache bot authorizations.")
 	flags.Int64("response_timeout", 3000, "The messenger timeout (in milliseconds).")
 	flags.Int64("token_visible_max_attempts", 16, "Max attempts to poll getReservationPrice until the minted token is visible on the local RPC node before buying.")
