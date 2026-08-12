@@ -2,14 +2,12 @@
 
 set -e
 
-CAMINOGO_REPO="https://github.com/chain4travel/caminogo"
 CONDUIT_REPO="https://github.com/chain4travel/camino-conduit"
 ASB_REPO="https://github.com/TravelTokenMarketplace/camino-matrix-app-service"
 
 default_version="latest"
 FALLBACK_BRANCH="dev"
 
-CAMINOGO_VERSION="$default_version"
 CONDUIT_VERSION="$default_version"
 ASB_VERSION="$default_version"
 FOUNDRY_VERSION="v1.7.1"
@@ -24,10 +22,6 @@ OUT_BINARY=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --caminogo)
-            CAMINOGO_VERSION="$2"
-            shift 2
-            ;;
         --camino-conduit)
             CONDUIT_VERSION="$2"
             shift 2
@@ -158,13 +152,6 @@ function download_and_extract() {
 	if [ -f "$OUT_BINARY" ] ; then
 		return 0
 	fi
-	
-	# caminogo release is build like this:
-	OUT_BINARY=$dest_dir/$repo_name-$release_version/$repo_name
-
-	if [ -f "$OUT_BINARY" ] ; then
-		return 0
-	fi
 
 	echo "CRIT: Could not find executable for '$repo_name'"
 	exit 1
@@ -215,9 +202,6 @@ function provision_anvil() {
 	fi
 }
 
-download_and_extract "caminogo" "$CAMINOGO_VERSION" "$CAMINOGO_REPO"
-CAMINOGO_BIN_PATH="$OUT_BINARY"
-
 download_and_extract "camino-conduit" "$CONDUIT_VERSION" "$CONDUIT_REPO"
 MATRIX_BIN_PATH="$OUT_BINARY"
 
@@ -227,13 +211,6 @@ ASB_BIN_PATH="$OUT_BINARY"
 provision_anvil
 
 echo "Checking dependency binaries..."
-#CAMINOGO_BIN_PATH=$dependency_dir/caminogo/caminogo
-#MATRIX_BIN_PATH=$dependency_dir/camino-conduit/camino-conduit
-
-if [ ! -f "$CAMINOGO_BIN_PATH" ] ; then
-	echo "CRIT: Unable to find caminogo executable in '$CAMINOGO_BIN_PATH'"
-	exit 1
-fi
 
 if [ ! -f "$MATRIX_BIN_PATH" ] ; then
 	echo "CRIT: Unable to find camino-conduit executable in '$MATRIX_BIN_PATH'"
@@ -262,7 +239,7 @@ cd "$ORIG_DIR"
 PARTNER_PLUGIN_BIN_PATH=build/pp-mock
 TTMB_BIN_PATH=build/travel-token-messenger-bot
 
-CAMINOGO_BIN_PATH="$(realpath "${CAMINOGO_BIN_PATH}")"
+ANVIL_BIN_PATH="$(realpath "${ANVIL_BIN_PATH}")"
 MATRIX_BIN_PATH="$(realpath "${MATRIX_BIN_PATH}")"
 ASB_BIN_PATH="$(realpath "${ASB_BIN_PATH}")"
 PARTNER_PLUGIN_BIN_PATH="$(realpath "${PARTNER_PLUGIN_BIN_PATH}")"
@@ -281,7 +258,7 @@ fi
 
 ./$E2E_BIN_OUT \
 	-test.v \
-	-node="${CAMINOGO_BIN_PATH}" \
+	-anvil="${ANVIL_BIN_PATH}" \
 	-matrix="${MATRIX_BIN_PATH}" \
 	-asb="${ASB_BIN_PATH}" \
 	-partner-plugin="${PARTNER_PLUGIN_BIN_PATH}" \
