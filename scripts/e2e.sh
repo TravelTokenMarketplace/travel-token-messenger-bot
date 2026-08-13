@@ -275,6 +275,18 @@ echo "Verifying anvil chain lifecycle (Cancun activation, prefunding)..."
 
 TTMB_TEST_ANVIL_BIN="$ANVIL_BIN_PATH" go test -tags=e2e -run TestStartChainIsReadyAndFundsKeys ./tests/e2e/blockchain/
 
+echo "Building the bot and the partner-plugin mock..."
+
+# The harness launches both of these as real processes (-ttmb / -partner-plugin
+# below). CI builds them in separate steps before invoking this script, but a
+# local run has nothing else to build them - so on a fresh clone the harness was
+# handed paths to binaries that do not exist, and on any other clone it silently
+# reused whatever was last built. Building them here keeps a local run and a CI
+# run exercising the same artifacts. Both go through their own scripts rather
+# than a bare `go build` because build.sh injects the version ldflags.
+./scripts/build.sh
+./scripts/build_partner_plugin_mock.sh
+
 echo "Building e2e tests..."
 
 E2E_BIN_OUT=build/tests_e2e
