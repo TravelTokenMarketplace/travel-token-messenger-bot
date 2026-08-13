@@ -20,7 +20,7 @@
 				"-anvil=${workspaceFolder}/build/dependencies/foundry/anvil", // path to anvil binary
 				"-matrix=${workspaceFolder}/build/dependencies/camino-conduit/camino-conduit-v1.0.0/camino-conduit", // path to conduit binary
 				//"-matrix=${workspaceFolder}/build/dependencies/camino-conduit/build/camino-conduit", // path to conduit binary if build locally
-				// "-asb=${workspaceFolder}/build/dependencies/camino-matrix-app-service/build/camino-matrix-app-service/" // path to camino-matrix-app-service if built locally
+				// "-asb=${workspaceFolder}/build/dependencies/travel-token-matrix-app-service/build/travel-token-matrix-app-service", // path to travel-token-matrix-app-service if built locally
 				"-partner-plugin=${workspaceFolder}/build/pp-mock", // path to partner-plugin binary
 				"-ttmb=${workspaceFolder}/build/travel-token-messenger-bot", // path to ttmb binary
 				"-tests-data-dir=/tmp/ttm-e2e", // path to e2e tests data directory
