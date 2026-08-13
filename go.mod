@@ -6,8 +6,7 @@ require (
 	buf.build/gen/go/ttm/messenger-protocol/grpc/go v1.6.2-00000000000000-2114a9de49cb.1
 	buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go v1.36.11-00000000000000-2114a9de49cb.1
 	buf.build/go/protovalidate v1.0.0
-	github.com/chain4travel/camino-matrix-app-service v1.0.0-rc1
-	github.com/ethereum/go-ethereum v1.16.4
+	github.com/ethereum/go-ethereum v1.16.7
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/go-cmp v0.7.0
@@ -29,7 +28,12 @@ require (
 	google.golang.org/grpc v1.81.0
 )
 
-require github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts v0.0.0-20260810135920-c469e1d0e17e
+require (
+	github.com/TravelTokenMarketplace/travel-token-matrix-app-service v1.2.0
+	github.com/TravelTokenMarketplace/travel-token-messenger-contracts/go/contracts v0.0.0-20260810135920-c469e1d0e17e
+)
+
+require github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20250912141014-52f32327d4b0.1 // indirect
@@ -44,7 +48,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/ethereum/c-kzg-4844/v2 v2.1.3 // indirect
+	github.com/ethereum/c-kzg-4844/v2 v2.1.5 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -58,9 +62,9 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.16.0 // indirect
+	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/rs/zerolog v1.31.0 // indirect
+	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
@@ -77,11 +81,11 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	go.mau.fi/util v0.3.0 // indirect
+	go.mau.fi/util v0.9.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
+	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
@@ -90,7 +94,17 @@ require (
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	maunium.net/go/maulogger/v2 v2.4.1 // indirect
-	maunium.net/go/mautrix v0.15.1
+	maunium.net/go/mautrix v0.25.2
 )
 
 replace maunium.net/go/mautrix => ./camino-matrix-go
+
+// Holds go.mau.fi/util where it already resolved before the e2e harness started
+// importing travel-token-matrix-app-service. That module uses upstream mautrix
+// v0.25.2, which requires go.mau.fi/util v0.9.2; v0.9.x changed
+// dbutil.Table.Register's second parameter from bool to dbutil.TxnMode, and the
+// camino-matrix-go fork replaced in above is written against the older API, so
+// letting MVS raise this breaks the fork's own compilation. This is a pin at the
+// status quo, not a downgrade. Revisit only when the fork is rebased onto a
+// newer mautrix.
+replace go.mau.fi/util => go.mau.fi/util v0.3.0

@@ -3,7 +3,7 @@
 set -e
 
 CONDUIT_REPO="https://github.com/chain4travel/camino-conduit"
-ASB_REPO="https://github.com/TravelTokenMarketplace/camino-matrix-app-service"
+ASB_REPO="https://github.com/TravelTokenMarketplace/travel-token-matrix-app-service"
 
 default_version="latest"
 FALLBACK_BRANCH="dev"
@@ -243,7 +243,7 @@ function provision_anvil() {
 download_and_extract "camino-conduit" "$CONDUIT_VERSION" "$CONDUIT_REPO"
 MATRIX_BIN_PATH="$OUT_BINARY"
 
-download_and_extract "camino-matrix-app-service" "$ASB_VERSION" "$ASB_REPO"
+download_and_extract "travel-token-matrix-app-service" "$ASB_VERSION" "$ASB_REPO"
 ASB_BIN_PATH="$OUT_BINARY"
 
 provision_anvil

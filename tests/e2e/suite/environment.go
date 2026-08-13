@@ -5,7 +5,6 @@ package suite
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -37,11 +36,7 @@ type Environment struct {
 	matrix                 *matrix.ConduitServer
 	partnerPluginFactory   *partnerplugin.Factory
 	botFactory             *bot.Factory
-	networkFeeKey          *ecdsa.PrivateKey
 	resourceManagerSession *resources.Session
-
-	// those are expected to be set by tests within Setup method
-	ASBOptions []matrix.ASBOption
 }
 
 func (e *Environment) CreateBot(

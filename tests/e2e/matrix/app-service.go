@@ -5,8 +5,6 @@ package matrix
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,14 +13,11 @@ import (
 	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/blockchain"
 	e2eCommon "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/process"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/resources"
 
-	"github.com/chain4travel/camino-matrix-app-service/config"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/TravelTokenMarketplace/travel-token-matrix-app-service/config"
 	"go.uber.org/zap"
 )
 
@@ -35,33 +30,13 @@ const (
 	asbPingTimeout           = 5 * time.Second
 )
 
-type options struct {
-	cashInPeriodSeconds int64
-}
-
-type ASBOption func(*options)
-
-func WithCashInPeriod(cashInPeriodSeconds int64) ASBOption {
-	return func(o *options) { o.cashInPeriodSeconds = cashInPeriodSeconds }
-}
-
 func StartNewAppService(
 	ctx context.Context,
 	logger *zap.SugaredLogger,
 	resourceManagerSession *resources.Session,
 	dataDir string,
 	asbBinPath string,
-	networkFeeKey *ecdsa.PrivateKey,
-	networkClient *blockchain.Client,
-	opts ...ASBOption,
 ) (*AppService, chan error, error) {
-	options := &options{
-		cashInPeriodSeconds: 3600, // 1h
-	}
-	for _, opt := range opts {
-		opt(options)
-	}
-
 	logger.Debug("Starting matrix app-service...")
 
 	asbDir := path.Join(dataDir, "asb")
@@ -79,38 +54,18 @@ func StartNewAppService(
 		return nil, nil, fmt.Errorf("failed to create asb db dir: %w", err)
 	}
 
-	// network fee TTM account
-
-	networkFeeBotAddress := crypto.PubkeyToAddress(networkFeeKey.PublicKey)
-	networkFeeTTMAccountAddress, _, err := networkClient.CreateTTMAccount(ctx, networkFeeKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create ttm account: %w", err)
-	}
-
-	if err := networkClient.Transfer(ctx, networkClient.PrefundedKeys()[0], networkFeeBotAddress, e2eCommon.DefaultTTMAccountOwnerFunds); err != nil {
-		return nil, nil, fmt.Errorf("failed to transfer funds to ttm account owner: %w", err)
-	}
-
-	if err := networkClient.AddBotToTTMAccount(ctx, networkFeeTTMAccountAddress, networkFeeKey, networkFeeBotAddress); err != nil {
-		return nil, nil, fmt.Errorf("failed to add bot to TTM account: %w", err)
-	}
-
-	//
-
+	// The app-service is chain-agnostic since its fee/cheque removal: it verifies
+	// event content and tracks message chunks, and holds no key, no RPC endpoint
+	// and no on-chain account. Its whole config is these three sections.
 	config := &config.UnparsedConfig{
 		LogLevel: "debug",
 		Matrix: config.MatrixConfig{
 			HTTPPort:    conversion.MustInt32ToUInt64(port),
 			AccessToken: hsAccessToken,
 		},
-		ChainRPCURL: networkClient.ChainRPCURL(),
 		DB: config.UnparsedSQLiteDBConfig{
 			DBPath: dbDir,
 		},
-		NetworkFeeRecipientCMAccountAddress: networkFeeTTMAccountAddress.Hex(),
-		NetworkFeeRecipientBotKey:           hex.EncodeToString(crypto.FromECDSA(networkFeeKey)),
-		MinChequeDurationUntilExpiration:    3600 * 24 * 30 * 6, // 6 months
-		CashInPeriod:                        options.cashInPeriodSeconds,
 	}
 
 	configPath := path.Join(asbDir, "config.yaml")
@@ -134,15 +89,13 @@ func StartNewAppService(
 	}
 
 	m := &AppService{
-		logger:                      logger,
-		pid:                         cmd.Process.Pid,
-		asbDir:                      asbDir,
-		networkFeeBotAddress:        crypto.PubkeyToAddress(networkFeeKey.PublicKey),
-		networkFeeTTMAccountAddress: networkFeeTTMAccountAddress,
-		logFile:                     logFile,
-		hsAccessToken:               hsAccessToken,
-		asAccessToken:               asAccessToken,
-		host:                        host,
+		logger:        logger,
+		pid:           cmd.Process.Pid,
+		asbDir:        asbDir,
+		logFile:       logFile,
+		hsAccessToken: hsAccessToken,
+		asAccessToken: asAccessToken,
+		host:          host,
 	}
 
 	if err := m.awaitReady(ctx); err != nil {
@@ -165,15 +118,13 @@ func StartNewAppService(
 
 // Not safe for concurrent use.
 type AppService struct {
-	logger                      *zap.SugaredLogger
-	pid                         int
-	asbDir                      string
-	host                        string
-	hsAccessToken               string
-	asAccessToken               string
-	networkFeeBotAddress        common.Address
-	networkFeeTTMAccountAddress common.Address
-	logFile                     *os.File
+	logger        *zap.SugaredLogger
+	pid           int
+	asbDir        string
+	host          string
+	hsAccessToken string
+	asAccessToken string
+	logFile       *os.File
 }
 
 func (a *AppService) Host() string {
@@ -201,14 +152,6 @@ func (a *AppService) Stop(ctx context.Context) error {
 	}
 	a.logger.Debugf("ASB (pid %d) stopped", a.pid)
 	return nil
-}
-
-func (a *AppService) NetworkFeeRecipientBotAddress() common.Address {
-	return a.networkFeeBotAddress
-}
-
-func (a *AppService) NetworkFeeRecipientTTMAccountAddress() common.Address {
-	return a.networkFeeTTMAccountAddress
 }
 
 func (a *AppService) awaitReady(ctx context.Context) error {
