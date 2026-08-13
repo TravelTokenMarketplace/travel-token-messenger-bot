@@ -377,7 +377,3 @@ See [README.MD](tests/e2e/README.MD) for running e2e tests.
 ## License
 
 The Travel Token Messenger Bot is licensed under the terms of the [Camino Messenger License](LICENSE.md).
-
-## Data Protection
-
-Please take note of the [Camino Messenger Data Protection Guidelines](DATA_PROTECTION.md).
