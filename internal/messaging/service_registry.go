@@ -6,6 +6,7 @@ package messaging
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging/message"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc"
@@ -71,6 +72,7 @@ func NewServiceRegistry(
 		}
 
 		servicesNames := make(map[string]struct{}, len(supportedServices.ServiceHashes))
+		var deprecatedServiceNames []string
 
 		logStr := "\nSupported services:\n"
 		for _, serviceHash := range supportedServices.ServiceHashes {
@@ -84,9 +86,20 @@ func NewServiceRegistry(
 					return nil, fmt.Errorf("failed to resolve service name for hash %s: %w", common.BytesToHash(serviceHash[:]), err)
 				}
 				if serviceName == "" {
+					// Deliberate guard, unreachable through this path: addService
+					// only accepts a hash the manager has registered, registering
+					// always writes _serviceNameByHash, and unregistering keeps it.
+					// A supported hash therefore always resolves to a name. Reaching
+					// this branch needs corrupted registry storage, so do not try to
+					// write a test for it.
 					logger.Warnf("Skipping supported service with unknown hash %s", common.BytesToHash(serviceHash[:]))
 					continue
 				}
+
+				// Resolved only by the fallback, so the manager has unregistered it.
+				// The service keeps working, because IsServiceSupported asks the
+				// account rather than the manager, but the operator should know.
+				deprecatedServiceNames = append(deprecatedServiceNames, serviceName)
 			}
 
 			logStr += serviceName + "\n"
@@ -97,6 +110,20 @@ func NewServiceRegistry(
 
 		logStr += "\n"
 		logger.Info(logStr)
+
+		if len(deprecatedServiceNames) > 0 {
+			// One summary warning rather than one per service, matching the
+			// "Unsupported services" block below. Sorted so the output is stable
+			// regardless of the order the account returns hashes in.
+			sort.Strings(deprecatedServiceNames)
+
+			logStr := "\nDeprecated services (supported by this TTM Account, but no longer registered with the manager):\n"
+			for _, serviceName := range deprecatedServiceNames {
+				logStr += serviceName + "\n"
+			}
+			logStr += "\n"
+			logger.Warn(logStr)
+		}
 
 		if len(servicesNames) > 0 {
 			logger.Error(errUnsupportedService)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	pingv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/ping/v1"
@@ -64,6 +65,19 @@ func (tt *TestDeprecatedService) Run(t *testing.T) {
 
 	t.Run("Deprecated service still works", func(t *testing.T) {
 		tt.testPingV1Service(ctx, t)
+	})
+
+	t.Run("Startup warning names the deprecated service", func(t *testing.T) {
+		log := tt.supplierBotLog(t)
+
+		idx := strings.Index(log, deprecatedServicesWarning)
+		require.NotEqual(t, -1, idx, "startup log carries no deprecated-services warning")
+
+		// Only look after the warning marker: the service name also appears in the
+		// "Supported services" block above it, so a whole-log Contains would pass
+		// even with an empty warning.
+		require.Contains(t, log[idx:], botGenerated.PingServiceV1,
+			"deprecated-services warning does not name %s", botGenerated.PingServiceV1)
 	})
 }
 
