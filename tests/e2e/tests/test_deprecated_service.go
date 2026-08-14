@@ -57,16 +57,21 @@ func (tt *TestDeprecatedService) Run(t *testing.T) {
 			"warning must only appear once the service is unregistered")
 	})
 
-	t.Run("Unregister the service and restart the supplier", func(t *testing.T) {
-		require.NoError(t, tt.Chain.Client.UnregisterCMService(ctx, botGenerated.PingServiceV1))
+	// The service stays unregistered for the rest of the test: the two subtests
+	// below are only meaningful while the deprecated state actually holds. Nothing
+	// needs restoring afterwards — SetupEnvironment runs per test and deploys a
+	// fresh TTMAccountManager proxy every time, in both the default anvil mode and
+	// under -existing-network-node-uri (blockchain/chain.go UseExistingChain also
+	// calls prepareTTMBContracts), so no manager state outlives this test.
+	t.Run("Unregister the service and restart the supplier", func(subT *testing.T) {
+		require.NoError(subT, tt.Chain.Client.UnregisterCMService(ctx, botGenerated.PingServiceV1))
 
-		t.Cleanup(func() {
-			// Restore manager state: harmless on the default per-suite anvil chain, but
-			// against -existing-network-node-uri this would otherwise leave the service
-			// unregistered on a persistent manager.
-			require.NoError(t, tt.Chain.Client.RegisterCMService(ctx, botGenerated.PingServiceV1))
-		})
-
+		// Deliberately the outer t: RestartBot hands errChan to
+		// common.ExpectNoErrorAsync, whose goroutine outlives this subtest and
+		// calls require.NoError on whatever t it captured. A subtest t would
+		// already be finished by the time a late bot exit arrived, turning a test
+		// failure into a "Log in goroutine after test has completed" panic that
+		// takes down the whole e2e binary.
 		tt.RestartBot(ctx, t, tt.supplierBot)
 	})
 
