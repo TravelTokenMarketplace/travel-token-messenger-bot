@@ -35,7 +35,7 @@ type Sender interface {
 type server struct {
 	events.UnimplementedEventsServiceServer
 
-	subscriptionChans      map[string]chan []byte
+	subscriptionChans      map[string]chan *events.SubscribeResponse
 	subscriptionChansMutex sync.RWMutex
 	stopChan               chan struct{}
 	sender                 *eventSender
@@ -43,9 +43,9 @@ type server struct {
 
 func NewServer() (Server, Sender) {
 	server := &server{
-		subscriptionChans: make(map[string]chan []byte),
+		subscriptionChans: make(map[string]chan *events.SubscribeResponse),
 		stopChan:          make(chan struct{}),
-		sender:            &eventSender{eventChan: make(chan []byte)},
+		sender:            &eventSender{eventChan: make(chan *events.SubscribeResponse)},
 	}
 	return server, server.sender
 }
@@ -69,12 +69,12 @@ func (s *server) stop() {
 	close(s.stopChan)
 }
 
-func (s *server) subscribe() (string, chan []byte) {
+func (s *server) subscribe() (string, chan *events.SubscribeResponse) {
 	s.subscriptionChansMutex.Lock()
 	defer s.subscriptionChansMutex.Unlock()
 
 	subscriptionID := fmt.Sprintf("%d", time.Now().UnixNano())
-	ch := make(chan []byte)
+	ch := make(chan *events.SubscribeResponse)
 	s.subscriptionChans[subscriptionID] = ch
 
 	return subscriptionID, ch
@@ -90,7 +90,7 @@ func (s *server) unsubscribe(subscriptionID string) {
 	}
 }
 
-func (s *server) propagate(event []byte) {
+func (s *server) propagate(event *events.SubscribeResponse) {
 	s.subscriptionChansMutex.RLock()
 	defer s.subscriptionChansMutex.RUnlock()
 	for _, ch := range s.subscriptionChans {
@@ -106,8 +106,8 @@ func (s *server) Subscribe(_ *emptypb.Empty, stream events.EventsService_Subscri
 	for {
 		select {
 		case event := <-subscriptionChan:
-			log.Printf("Sending event to stream: %s", string(event))
-			if err := stream.Send(&events.SubscribeResponse{Data: event}); err != nil {
+			log.Printf("Sending event to stream: %s", event.TypeName)
+			if err := stream.Send(event); err != nil {
 				return err
 			}
 		case <-s.stopChan:
@@ -121,7 +121,7 @@ func (s *server) Subscribe(_ *emptypb.Empty, stream events.EventsService_Subscri
 type eventSender struct {
 	sendMutex sync.Mutex
 	isStopped bool
-	eventChan chan []byte
+	eventChan chan *events.SubscribeResponse
 }
 
 func (e *eventSender) stop() {
@@ -148,7 +148,10 @@ func (e *eventSender) SendProtoEvent(event proto.Message) error {
 		return err
 	}
 
-	e.eventChan <- eventBytes
+	e.eventChan <- &events.SubscribeResponse{
+		Data:     eventBytes,
+		TypeName: string(event.ProtoReflect().Descriptor().FullName()),
+	}
 
 	return nil
 }
