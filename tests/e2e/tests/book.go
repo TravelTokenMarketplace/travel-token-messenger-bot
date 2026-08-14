@@ -21,8 +21,8 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/ppevents"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/suite"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/require"
@@ -33,7 +33,7 @@ func mintBuyAccommodationTokenV4(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
-	supplierPPEventStream events.EventsService_SubscribeClient,
+	supplierPPEventStream *ppevents.Stream,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
 ) (
@@ -42,22 +42,10 @@ func mintBuyAccommodationTokenV4(
 	price *typesv4.Price,
 ) {
 	searchID, resultID, totalPrice := testAccommodationV4SearchService(ctx, t, e, distributorBot, supplierBot) // see test_accommodation_v4.go
-	_, err := supplierPPEventStream.Recv()                                                                     // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID := testValidateV4(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
-	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
-
 	tokenID, mintID, bookingPrice := testMintV4(ctx, t, e, distributorBot, supplierBot, validationID, common.BookingTokenPriceV4)
-	_, err = supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	eventMsg, err := supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	e.DebugPrintProtoMessage(eventMsg)
-	tokenBoughtNotification := &notificationv3.TokenBought{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
+	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
 
 	return tokenID, mintID, bookingPrice
 }
@@ -66,7 +54,7 @@ func mintBuyAccommodationTokenV3(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
-	supplierPPEventStream events.EventsService_SubscribeClient,
+	supplierPPEventStream *ppevents.Stream,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
 ) (
@@ -75,22 +63,10 @@ func mintBuyAccommodationTokenV3(
 	price *typesv3.Price,
 ) {
 	searchID, resultID, totalPrice := testAccommodationV3SearchServiceWithTravelPeriod(ctx, t, e, distributorBot, supplierBot) // see test_accommodation_v3.go
-	_, err := supplierPPEventStream.Recv()                                                                                     // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID := testValidateV3(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
-	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
-
 	tokenID, mintID, bookingPrice := testMintV3(ctx, t, e, distributorBot, supplierBot, validationID)
-	_, err = supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	eventMsg, err := supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	e.DebugPrintProtoMessage(eventMsg)
-	tokenBoughtNotification := &notificationv3.TokenBought{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
+	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
 
 	return tokenID, mintID, bookingPrice
 }
@@ -330,7 +306,7 @@ func mintBuyAccommodationTokenV5(
 	ctx context.Context,
 	t *testing.T,
 	e *suite.Environment,
-	supplierPPEventStream events.EventsService_SubscribeClient,
+	supplierPPEventStream *ppevents.Stream,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
 ) (
@@ -339,22 +315,10 @@ func mintBuyAccommodationTokenV5(
 	price *typesv5.Price,
 ) {
 	searchID, resultID, totalPrice := testAccommodationV5SearchService(ctx, t, e, distributorBot, supplierBot) // see test_accommodation_v5.go
-	_, err := supplierPPEventStream.Recv()                                                                     // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID := testValidateV5(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
-	_, err = supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
-
 	tokenID, mintID, bookingPrice := testMintV5(ctx, t, e, distributorBot, supplierBot, validationID, common.BookingTokenPriceV5)
-	_, err = supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	eventMsg, err := supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	e.DebugPrintProtoMessage(eventMsg)
-	tokenBoughtNotification := &notificationv3.TokenBought{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
+	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
 
 	return tokenID, mintID, bookingPrice
 }
