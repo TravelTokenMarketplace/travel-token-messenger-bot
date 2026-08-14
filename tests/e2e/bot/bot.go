@@ -215,6 +215,14 @@ func (b *Bot) TTMAccountAddress() common.Address {
 	return b.ttmAccountAddress
 }
 
+// LogPath returns the file the bot process writes stdout and stderr to. Tests
+// that assert on startup output read it directly. Note the file is opened
+// O_APPEND and reused across Restart, so it holds the output of every run of
+// this bot, not just the most recent one.
+func (b *Bot) LogPath() string {
+	return b.logPath
+}
+
 func (b *Bot) awaitReady(ctx context.Context) error {
 	ticker := time.NewTicker(requestTickerInterval)
 	defer ticker.Stop()
