@@ -99,28 +99,39 @@ func TestAwaitFindsALateNotification(t *testing.T) {
 	require.Equal(t, "mint-7", got.MintId.Value)
 }
 
-// Unlike TestAwaitFindsALateNotification, which pushes every event into the
-// subscription's buffered channel before Await is even called, this test
-// sends the matching event from a separate goroutine only after await is
-// already parked waiting on it. Passing promptly (well inside the 30s
-// timeout) proves the add() wakeup actually fired; a lost wakeup - e.g. a
-// future edit that dropped s.wake() from add - would hang for the full
-// timeout instead of failing cleanly.
+// TestAwaitFindsALateNotification pushes every event into the subscription's
+// buffered channel before Await is called, so it exercises the ordering scan but
+// says nothing about the wakeup. This test covers the wakeup itself, and does so
+// without a sleep: it captures the very channel a parked await would select on,
+// and only then delivers the matching event.
+//
+// Draining the non-matching event first is load-bearing. take() captures
+// whatever s.notify is at that moment, and add() closes it for ANY event - so if
+// the search request were still in flight, its own add() would close the
+// captured channel and this test would pass without the TokenBought having
+// arrived at all.
 func TestAwaitWakesWhenTheMatchingEventArrivesAfterItParks(t *testing.T) {
 	sub := newFakeSubscription(t)
 	stream := Record(sub)
+
 	sub.send(t, &accommodationv5.AccommodationSearchRequest{})
+	drained, err := await[*accommodationv5.AccommodationSearchRequest](stream, 5*time.Second)
+	require.NoError(t, err, "the non-matching event must be drained before the wait channel is captured")
+	require.NotNil(t, drained)
 
-	// Built on the test goroutine, since require.NoError (via FailNow) is only
-	// valid there; the spawned goroutine below just pushes the finished value.
-	resp := newSubscribeResponse(t, &notificationv3.TokenBought{TokenId: 7})
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		sub.events <- resp
-	}()
+	want := (*notificationv3.TokenBought)(nil).ProtoReflect().Descriptor().FullName()
+	pending, changed, err := stream.take(want)
+	require.NoError(t, err)
+	require.Nil(t, pending, "no TokenBought should have arrived yet")
 
-	// A long timeout: passing proves the waiter woke on the new event
-	// arriving, not on the clock.
+	sub.events <- newSubscribeResponse(t, &notificationv3.TokenBought{TokenId: 7})
+
+	select {
+	case <-changed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("add() did not wake a waiter parked on the notify channel")
+	}
+
 	got, err := await[*notificationv3.TokenBought](stream, 30*time.Second)
 	require.NoError(t, err)
 	require.Equal(t, uint64(7), got.TokenId)
@@ -199,19 +210,31 @@ func TestAwaitTimesOutReportingTheStreamContents(t *testing.T) {
 	require.Contains(t, err.Error(), "[taken  ] ttm.services.notification.v3.TokenReservationExpired")
 }
 
+// The finish() counterpart of the test above, and deterministic for the same
+// reason: the non-matching event is drained first, so the captured channel can
+// only be closed by the subscription ending.
 func TestAwaitFailsWhenTheSubscriptionEnds(t *testing.T) {
 	sub := newFakeSubscription(t)
 	stream := Record(sub)
+
 	sub.send(t, &bookv5.MintRequest{})
+	drained, err := await[*bookv5.MintRequest](stream, 5*time.Second)
+	require.NoError(t, err, "the non-matching event must be drained before the wait channel is captured")
+	require.NotNil(t, drained)
 
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		sub.end(io.EOF)
-	}()
+	want := (*notificationv3.TokenBought)(nil).ProtoReflect().Descriptor().FullName()
+	_, changed, err := stream.take(want)
+	require.NoError(t, err)
 
-	// A long timeout: passing proves the waiter woke on the stream ending, not
-	// on the clock.
-	_, err := await[*notificationv3.TokenBought](stream, 30*time.Second)
+	sub.end(io.EOF)
+
+	select {
+	case <-changed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("finish() did not wake a waiter parked on the notify channel")
+	}
+
+	_, err = await[*notificationv3.TokenBought](stream, 30*time.Second)
 	require.ErrorIs(t, err, io.EOF)
 	require.Contains(t, err.Error(), "ttm.services.book.v5.MintRequest")
 }
