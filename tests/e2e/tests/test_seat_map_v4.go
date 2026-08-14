@@ -16,7 +16,6 @@ import (
 	"buf.build/go/protovalidate"
 	botGenerated "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	mockdata "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/services/data"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
 	partnerplugin "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/partner_plugin"
@@ -36,7 +35,6 @@ type TestSeatMapV4 struct {
 	*suite.Environment
 
 	supplierPartnerPlugin *partnerplugin.PartnerPlugin
-	supplierPPEventStream events.EventsService_SubscribeClient
 	supplierBot           *bot.Bot
 	distributorBot        *bot.Bot
 }
@@ -106,9 +104,6 @@ func (tt *TestSeatMapV4) prepare(ctx context.Context, t *testing.T) {
 			{Name: botGenerated.SeatMapAvailabilityServiceV4},
 		}),
 	)
-	var err error
-	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.SubscribeForEvents(ctx)
-	require.NoError(t, err)
 
 	// bot without partnerPlugin and with rpc server (distributor)
 	tt.distributorBot = tt.CreateBot(ctx, t, true, nil)

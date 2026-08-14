@@ -19,13 +19,12 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
 	partnerplugin "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/partner_plugin"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/ppevents"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/suite"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ suite.Test = (*TestCancellationV3)(nil)
@@ -38,11 +37,11 @@ type TestCancellationV3 struct {
 	*suite.Environment
 
 	supplierPartnerPlugin *partnerplugin.PartnerPlugin
-	supplierPPEventStream events.EventsService_SubscribeClient
+	supplierPPEventStream *ppevents.Stream
 	supplierBot           *bot.Bot
 
 	distributorPartnerPlugin *partnerplugin.PartnerPlugin
-	distributorPPEventStream events.EventsService_SubscribeClient
+	distributorPPEventStream *ppevents.Stream
 	distributorBot           *bot.Bot
 }
 
@@ -96,9 +95,9 @@ func (tt *TestCancellationV3) prepare(ctx context.Context, t *testing.T) {
 	tt.distributorBot = tt.CreateBot(ctx, t, true, tt.distributorPartnerPlugin)
 
 	var err error
-	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.SubscribeForEvents(ctx)
+	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.RecordEvents(ctx)
 	require.NoError(t, err)
-	tt.distributorPPEventStream, err = tt.distributorPartnerPlugin.SubscribeForEvents(ctx)
+	tt.distributorPPEventStream, err = tt.distributorPartnerPlugin.RecordEvents(ctx)
 	require.NoError(t, err)
 }
 
@@ -299,8 +298,6 @@ func (tt *TestCancellationV3) testCheckCancellationV3(ctx context.Context, t *te
 		req,
 	)
 	require.NoError(t, err)
-	_, err = tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
 
 	tt.DebugPrintRequestResponse(req, resp)
 
@@ -339,8 +336,8 @@ func newCancellationV3Helper(
 	e *suite.Environment,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
-	distributorPPEventStream events.EventsService_SubscribeClient,
-	supplierPPEventStream events.EventsService_SubscribeClient,
+	distributorPPEventStream *ppevents.Stream,
+	supplierPPEventStream *ppevents.Stream,
 	tokenID uint64,
 ) *cancellationV3Helper {
 	return &cancellationV3Helper{
@@ -363,8 +360,8 @@ type cancellationV3Helper struct {
 	require                  *require.Assertions
 	distributorBot           *bot.Bot
 	supplierBot              *bot.Bot
-	distributorPPEventStream events.EventsService_SubscribeClient
-	supplierPPEventStream    events.EventsService_SubscribeClient
+	distributorPPEventStream *ppevents.Stream
+	supplierPPEventStream    *ppevents.Stream
 	tokenID                  uint64
 
 	initialProposer    ethCommon.Address
@@ -596,15 +593,12 @@ func (h *cancellationV3Helper) finalizeCancellation(refundAmount *typesv5.Price)
 }
 
 func (h *cancellationV3Helper) expectCancellationPendingNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	refundAmount *big.Int,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationPendingNotification := &notificationv3.CancellationPending{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationPendingNotification))
+	cancellationPendingNotification := ppevents.Await[*notificationv3.CancellationPending](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationPendingNotification)
 	h.require.NoError(protovalidate.Validate(cancellationPendingNotification))
 	requireProtoEqual(h.t, &notificationv3.CancellationPending{
 		TokenId:            h.tokenID,
@@ -624,14 +618,11 @@ func (h *cancellationV3Helper) expectCancellationPendingNotification(
 }
 
 func (h *cancellationV3Helper) expectCancellationRejectedNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationRejectedNotification := &notificationv3.CancellationRejected{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationRejectedNotification))
+	cancellationRejectedNotification := ppevents.Await[*notificationv3.CancellationRejected](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationRejectedNotification)
 	h.require.NoError(protovalidate.Validate(cancellationRejectedNotification))
 	requireProtoEqual(h.t, &notificationv3.CancellationRejected{
 		TokenId: h.tokenID,
@@ -641,14 +632,11 @@ func (h *cancellationV3Helper) expectCancellationRejectedNotification(
 }
 
 func (h *cancellationV3Helper) expectCancellationWithdrawnNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationWithdrawnNotification := &notificationv3.CancellationWithdrawn{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationWithdrawnNotification))
+	cancellationWithdrawnNotification := ppevents.Await[*notificationv3.CancellationWithdrawn](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationWithdrawnNotification)
 	h.require.NoError(protovalidate.Validate(cancellationWithdrawnNotification))
 	requireProtoEqual(h.t, &notificationv3.CancellationWithdrawn{
 		TokenId: h.tokenID,
@@ -658,14 +646,11 @@ func (h *cancellationV3Helper) expectCancellationWithdrawnNotification(
 }
 
 func (h *cancellationV3Helper) expectCancellationFinalizedNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationFinalizedNotification := &notificationv3.CancellationFinalized{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationFinalizedNotification))
+	cancellationFinalizedNotification := ppevents.Await[*notificationv3.CancellationFinalized](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationFinalizedNotification)
 	h.require.NoError(protovalidate.Validate(cancellationFinalizedNotification))
 	requireProtoEqual(h.t, &notificationv3.CancellationFinalized{
 		TokenId: h.tokenID,

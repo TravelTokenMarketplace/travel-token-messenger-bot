@@ -147,13 +147,6 @@ func (pp *PartnerPlugin) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (pp *PartnerPlugin) SubscribeForEvents(ctx context.Context) (events.EventsService_SubscribeClient, error) {
-	pp.mutex.Lock()
-	defer pp.mutex.Unlock()
-
-	return pp.eventsClient.Subscribe(ctx, &emptypb.Empty{})
-}
-
 // RecordEvents subscribes to pp-mock's event stream and starts draining it.
 // It returns a *ppevents.Stream rather than the raw client so that no test can
 // consume the stream positionally: the events are only partially ordered.

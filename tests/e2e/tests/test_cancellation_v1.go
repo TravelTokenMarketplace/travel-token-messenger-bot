@@ -16,13 +16,12 @@ import (
 	botGenerated "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/price"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
 	partnerplugin "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/partner_plugin"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/ppevents"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/suite"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ suite.Test = (*TestCancellationV1)(nil)
@@ -35,11 +34,11 @@ type TestCancellationV1 struct {
 	*suite.Environment
 
 	supplierPartnerPlugin *partnerplugin.PartnerPlugin
-	supplierPPEventStream events.EventsService_SubscribeClient
+	supplierPPEventStream *ppevents.Stream
 	supplierBot           *bot.Bot
 
 	distributorPartnerPlugin *partnerplugin.PartnerPlugin
-	distributorPPEventStream events.EventsService_SubscribeClient
+	distributorPPEventStream *ppevents.Stream
 	distributorBot           *bot.Bot
 }
 
@@ -87,13 +86,13 @@ func (tt *TestCancellationV1) prepare(ctx context.Context, t *testing.T) {
 			{Name: botGenerated.CheckCancellationServiceV1},
 		}),
 	)
-	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.SubscribeForEvents(ctx)
+	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.RecordEvents(ctx)
 	require.NoError(t, err)
 
 	// distributor bot
 	tt.distributorPartnerPlugin = tt.CreatePartnerPlugin(ctx, t)
 	tt.distributorBot = tt.CreateBot(ctx, t, true, tt.distributorPartnerPlugin)
-	tt.distributorPPEventStream, err = tt.distributorPartnerPlugin.SubscribeForEvents(ctx)
+	tt.distributorPPEventStream, err = tt.distributorPartnerPlugin.RecordEvents(ctx)
 	require.NoError(t, err)
 }
 
@@ -294,8 +293,6 @@ func (tt *TestCancellationV1) testCheckCancellationV1(ctx context.Context, t *te
 		req,
 	)
 	require.NoError(t, err)
-	_, err = tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
 
 	tt.DebugPrintRequestResponse(req, resp)
 	require.Equal(t, typesv1.StatusType_STATUS_TYPE_SUCCESS, resp.Header.Status, "unexpected response status")
@@ -316,8 +313,8 @@ func newCancellationV1Helper(
 	e *suite.Environment,
 	distributorBot *bot.Bot,
 	supplierBot *bot.Bot,
-	distributorPPEventStream events.EventsService_SubscribeClient,
-	supplierPPEventStream events.EventsService_SubscribeClient,
+	distributorPPEventStream *ppevents.Stream,
+	supplierPPEventStream *ppevents.Stream,
 	tokenID uint64,
 ) *cancellationV1Helper {
 	return &cancellationV1Helper{
@@ -340,8 +337,8 @@ type cancellationV1Helper struct {
 	require                  *require.Assertions
 	distributorBot           *bot.Bot
 	supplierBot              *bot.Bot
-	distributorPPEventStream events.EventsService_SubscribeClient
-	supplierPPEventStream    events.EventsService_SubscribeClient
+	distributorPPEventStream *ppevents.Stream
+	supplierPPEventStream    *ppevents.Stream
 	tokenID                  uint64
 
 	initialProposer    ethCommon.Address
@@ -555,15 +552,12 @@ func (h *cancellationV1Helper) finalizeCancellation(refundAmount *typesv3.Price)
 }
 
 func (h *cancellationV1Helper) expectCancellationPendingNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	refundAmount *big.Int,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationPendingNotification := &notificationv3.CancellationPending{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationPendingNotification))
+	cancellationPendingNotification := ppevents.Await[*notificationv3.CancellationPending](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationPendingNotification)
 	h.require.Equal(h.tokenID, cancellationPendingNotification.TokenId)
 	h.require.Equal(h.initialProposer.Hex(), cancellationPendingNotification.InitialProposer.Address)
 	h.require.Equal(h.currentProposer.Hex(), cancellationPendingNotification.CurrentProposer.Address)
@@ -580,42 +574,33 @@ func (h *cancellationV1Helper) expectCancellationPendingNotification(
 }
 
 func (h *cancellationV1Helper) expectCancellationRejectedNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationRejectedNotification := &notificationv3.CancellationRejected{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationRejectedNotification))
+	cancellationRejectedNotification := ppevents.Await[*notificationv3.CancellationRejected](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationRejectedNotification)
 	h.require.Equal(h.tokenID, cancellationRejectedNotification.TokenId)
 	h.require.Equal(h.rejectionReason, cancellationRejectedNotification.Reason)
 	h.require.Equal(txHash, cancellationRejectedNotification.TxId.Hash)
 }
 
 func (h *cancellationV1Helper) expectCancellationWithdrawnNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationWithdrawnNotification := &notificationv3.CancellationWithdrawn{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationWithdrawnNotification))
+	cancellationWithdrawnNotification := ppevents.Await[*notificationv3.CancellationWithdrawn](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationWithdrawnNotification)
 	h.require.Equal(h.tokenID, cancellationWithdrawnNotification.TokenId)
 	h.require.Equal(h.withdrawalReason, cancellationWithdrawnNotification.Reason)
 	h.require.Equal(txHash, cancellationWithdrawnNotification.TxId.Hash)
 }
 
 func (h *cancellationV1Helper) expectCancellationFinalizedNotification(
-	ppEventsStream events.EventsService_SubscribeClient,
+	ppEventsStream *ppevents.Stream,
 	txHash string,
 ) {
-	eventMsg, err := ppEventsStream.Recv()
-	h.require.NoError(err)
-	h.e.DebugPrintProtoMessage(eventMsg)
-	cancellationFinalizedNotification := &notificationv3.CancellationFinalized{}
-	h.require.NoError(proto.Unmarshal(eventMsg.Data, cancellationFinalizedNotification))
+	cancellationFinalizedNotification := ppevents.Await[*notificationv3.CancellationFinalized](h.t, ppEventsStream)
+	h.e.DebugPrintProtoMessage(cancellationFinalizedNotification)
 	h.require.Equal(h.tokenID, cancellationFinalizedNotification.TokenId)
 	h.require.Equal(txHash, cancellationFinalizedNotification.TxId.Hash)
 }
