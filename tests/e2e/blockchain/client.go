@@ -274,6 +274,27 @@ func (c *Client) RegisterCMServices(
 	return nil
 }
 
+func (c *Client) UnregisterCMService(
+	ctx context.Context,
+	serviceName string,
+) error {
+	transactor, err := c.transactor(ctx, c.deployerKey, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create admin transactor: %w", err)
+	}
+
+	tx, err := c.ttmAccountManager.UnregisterService(transactor, serviceName)
+	if err != nil {
+		return fmt.Errorf("failed to issue UnregisterService tx: %w", err)
+	}
+
+	if _, err := c.waitTxSucceed(ctx, tx); err != nil {
+		return fmt.Errorf("failed to wait for UnregisterService tx to succeed: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) Transfer(
 	ctx context.Context,
 	from *ecdsa.PrivateKey,
