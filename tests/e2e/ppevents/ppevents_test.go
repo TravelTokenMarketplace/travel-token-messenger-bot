@@ -5,6 +5,7 @@ package ppevents
 
 import (
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,10 +23,18 @@ import (
 type fakeSubscription struct {
 	events chan *events.SubscribeResponse
 	closed error
+	endOne sync.Once
 }
 
-func newFakeSubscription() *fakeSubscription {
-	return &fakeSubscription{events: make(chan *events.SubscribeResponse, 32)}
+// newFakeSubscription registers a cleanup that ends the subscription, so the
+// background drain goroutine started by Record never outlives the test that
+// started it. Tests that end the subscription themselves (to control when a
+// waiter observes end-of-stream) may still do so - end is idempotent, so the
+// cleanup's call is a harmless no-op in that case.
+func newFakeSubscription(t *testing.T) *fakeSubscription {
+	f := &fakeSubscription{events: make(chan *events.SubscribeResponse, 32)}
+	t.Cleanup(func() { f.end(io.EOF) })
+	return f
 }
 
 func (f *fakeSubscription) Recv() (*events.SubscribeResponse, error) {
@@ -36,28 +45,41 @@ func (f *fakeSubscription) Recv() (*events.SubscribeResponse, error) {
 	return resp, nil
 }
 
-func (f *fakeSubscription) send(t *testing.T, messages ...proto.Message) {
+// newSubscribeResponse builds the wire representation of message without
+// sending it, so a test can prepare it on the test goroutine and hand the
+// finished value to a spawned goroutine that only pushes it onto the channel.
+func newSubscribeResponse(t *testing.T, message proto.Message) *events.SubscribeResponse {
 	t.Helper()
-	for _, message := range messages {
-		data, err := proto.Marshal(message)
-		require.NoError(t, err)
-		f.events <- &events.SubscribeResponse{
-			Data:     data,
-			TypeName: string(message.ProtoReflect().Descriptor().FullName()),
-		}
+	data, err := proto.Marshal(message)
+	require.NoError(t, err)
+	return &events.SubscribeResponse{
+		Data:     data,
+		TypeName: string(message.ProtoReflect().Descriptor().FullName()),
 	}
 }
 
+func (f *fakeSubscription) send(t *testing.T, messages ...proto.Message) {
+	t.Helper()
+	for _, message := range messages {
+		f.events <- newSubscribeResponse(t, message)
+	}
+}
+
+// end is idempotent (guarded by endOne): a double close of f.events would
+// panic, and both a test's own explicit call and the newFakeSubscription
+// cleanup call end.
 func (f *fakeSubscription) end(err error) {
-	f.closed = err
-	close(f.events)
+	f.endOne.Do(func() {
+		f.closed = err
+		close(f.events)
+	})
 }
 
 // The regression test. This is the exact interleaving that turned CI run
 // 31816964056 red: the chain took long enough over TokenBought that the next
 // loop iteration's search request overtook it.
 func TestAwaitFindsALateNotification(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 
 	sub.send(t,
@@ -85,13 +107,16 @@ func TestAwaitFindsALateNotification(t *testing.T) {
 // future edit that dropped s.wake() from add - would hang for the full
 // timeout instead of failing cleanly.
 func TestAwaitWakesWhenTheMatchingEventArrivesAfterItParks(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 	sub.send(t, &accommodationv5.AccommodationSearchRequest{})
 
+	// Built on the test goroutine, since require.NoError (via FailNow) is only
+	// valid there; the spawned goroutine below just pushes the finished value.
+	resp := newSubscribeResponse(t, &notificationv3.TokenBought{TokenId: 7})
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		sub.send(t, &notificationv3.TokenBought{TokenId: 7})
+		sub.events <- resp
 	}()
 
 	// A long timeout: passing proves the waiter woke on the new event
@@ -114,7 +139,7 @@ func TestAwaitDoesNotMistakeOneMessageForAnother(t *testing.T) {
 	require.Equal(t, uint64(99), decoyed.TokenId,
 		"precondition: the two messages are wire-compatible, so bytes alone cannot identify them")
 
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 	sub.send(t, expired)
 
@@ -123,7 +148,7 @@ func TestAwaitDoesNotMistakeOneMessageForAnother(t *testing.T) {
 }
 
 func TestAwaitLeavesUnmatchedEventsForLaterCalls(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 
 	sub.send(t,
@@ -140,7 +165,7 @@ func TestAwaitLeavesUnmatchedEventsForLaterCalls(t *testing.T) {
 }
 
 func TestAwaitReturnsOneTypeInArrivalOrder(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 
 	sub.send(t,
@@ -153,11 +178,10 @@ func TestAwaitReturnsOneTypeInArrivalOrder(t *testing.T) {
 
 	require.Equal(t, uint64(1), first.TokenId)
 	require.Equal(t, uint64(2), second.TokenId, "the second Await must not re-return the first event")
-	require.NotSame(t, first, second)
 }
 
 func TestAwaitTimesOutReportingTheStreamContents(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 
 	sub.send(t,
@@ -176,7 +200,7 @@ func TestAwaitTimesOutReportingTheStreamContents(t *testing.T) {
 }
 
 func TestAwaitFailsWhenTheSubscriptionEnds(t *testing.T) {
-	sub := newFakeSubscription()
+	sub := newFakeSubscription(t)
 	stream := Record(sub)
 	sub.send(t, &bookv5.MintRequest{})
 

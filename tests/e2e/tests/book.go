@@ -45,7 +45,8 @@ func mintBuyAccommodationTokenV4(
 	validationID := testValidateV4(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
 	tokenID, mintID, bookingPrice := testMintV4(ctx, t, e, distributorBot, supplierBot, validationID, common.BookingTokenPriceV4)
 
-	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
+	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
+	e.DebugPrintProtoMessage(tokenBought)
 
 	return tokenID, mintID, bookingPrice
 }
@@ -66,7 +67,8 @@ func mintBuyAccommodationTokenV3(
 	validationID := testValidateV3(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
 	tokenID, mintID, bookingPrice := testMintV3(ctx, t, e, distributorBot, supplierBot, validationID)
 
-	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
+	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
+	e.DebugPrintProtoMessage(tokenBought)
 
 	return tokenID, mintID, bookingPrice
 }
@@ -318,7 +320,8 @@ func mintBuyAccommodationTokenV5(
 	validationID := testValidateV5(ctx, t, e, distributorBot, supplierBot, searchID, resultID, totalPrice)
 	tokenID, mintID, bookingPrice := testMintV5(ctx, t, e, distributorBot, supplierBot, validationID, common.BookingTokenPriceV5)
 
-	e.DebugPrintProtoMessage(ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream))
+	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
+	e.DebugPrintProtoMessage(tokenBought)
 
 	return tokenID, mintID, bookingPrice
 }

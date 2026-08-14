@@ -48,8 +48,10 @@ type entry struct {
 	taken    bool
 }
 
-// Stream is a pp-mock event subscription drained into a retained FIFO.
-// It is safe for concurrent use.
+// Stream is a pp-mock event subscription drained into a retained FIFO. The
+// background drain goroutine (add/finish) and calls to Await (take) are
+// safe to run concurrently, which is what draining continuously while a
+// suite awaits requires.
 type Stream struct {
 	mutex   sync.Mutex
 	entries []*entry
@@ -105,7 +107,7 @@ func (s *Stream) wake() {
 // take claims the oldest untaken entry of the wanted type. When there is none
 // it returns the channel that closes on the next change, plus the terminal
 // error if the subscription has already ended.
-func (s *Stream) take(want protoreflect.FullName) (*entry, chan struct{}, error) {
+func (s *Stream) take(want protoreflect.FullName) (*entry, <-chan struct{}, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

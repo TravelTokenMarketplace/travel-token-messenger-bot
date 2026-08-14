@@ -131,7 +131,7 @@ func (tt *TestMintV5) testMintV5TokenExpiredCase(ctx context.Context, t *testing
 	tt.testMintV5MintV5ExpectedError(ctx, t, tt.distributorBotWithoutFunds, validationID2, totalPrice)
 
 	// Await returns one type in arrival order, so these are the two expired
-	// notifications in the order the chain produced them. Neither assertion
+	// notifications in the order pp-mock received them. Neither assertion
 	// depends on which mint produced which.
 	firstExpired := ppevents.Await[*notificationv3.TokenReservationExpired](t, tt.supplierPPEventStream)
 	tt.DebugPrintProtoMessage(firstExpired)
