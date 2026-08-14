@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	pingv1 "buf.build/gen/go/ttm/messenger-protocol/protocolbuffers/go/ttm/services/ping/v1"
@@ -60,6 +59,14 @@ func (tt *TestDeprecatedService) Run(t *testing.T) {
 
 	t.Run("Unregister the service and restart the supplier", func(t *testing.T) {
 		require.NoError(t, tt.Chain.Client.UnregisterCMService(ctx, botGenerated.PingServiceV1))
+
+		t.Cleanup(func() {
+			// Restore manager state: harmless on the default per-suite anvil chain, but
+			// against -existing-network-node-uri this would otherwise leave the service
+			// unregistered on a persistent manager.
+			require.NoError(t, tt.Chain.Client.RegisterCMService(ctx, botGenerated.PingServiceV1))
+		})
+
 		tt.RestartBot(ctx, t, tt.supplierBot)
 	})
 
@@ -70,14 +77,16 @@ func (tt *TestDeprecatedService) Run(t *testing.T) {
 	t.Run("Startup warning names the deprecated service", func(t *testing.T) {
 		log := tt.supplierBotLog(t)
 
-		idx := strings.Index(log, deprecatedServicesWarning)
-		require.NotEqual(t, -1, idx, "startup log carries no deprecated-services warning")
-
-		// Only look after the warning marker: the service name also appears in the
-		// "Supported services" block above it, so a whole-log Contains would pass
-		// even with an empty warning.
-		require.Contains(t, log[idx:], botGenerated.PingServiceV1,
-			"deprecated-services warning does not name %s", botGenerated.PingServiceV1)
+		// Assert the contiguous block — the header immediately followed by the
+		// service name on its own line — rather than a suffix window. The emitted
+		// string is exactly "\n" + header + "\n" + name + "\n" + "\n", so a
+		// whole-log Contains on this exact substring cannot pass unless the name
+		// is actually listed under the header, even though the log also contains
+		// later output (e.g. the ping handled by the "Deprecated service still
+		// works" subtest above) that a suffix-window check would have let slip
+		// through undetected.
+		require.Contains(t, log, deprecatedServicesWarning+"\n"+botGenerated.PingServiceV1+"\n",
+			"warning does not name %s directly beneath its header", botGenerated.PingServiceV1)
 	})
 }
 
