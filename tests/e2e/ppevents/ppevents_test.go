@@ -77,6 +77,30 @@ func TestAwaitFindsALateNotification(t *testing.T) {
 	require.Equal(t, "mint-7", got.MintId.Value)
 }
 
+// Unlike TestAwaitFindsALateNotification, which pushes every event into the
+// subscription's buffered channel before Await is even called, this test
+// sends the matching event from a separate goroutine only after await is
+// already parked waiting on it. Passing promptly (well inside the 30s
+// timeout) proves the add() wakeup actually fired; a lost wakeup - e.g. a
+// future edit that dropped s.wake() from add - would hang for the full
+// timeout instead of failing cleanly.
+func TestAwaitWakesWhenTheMatchingEventArrivesAfterItParks(t *testing.T) {
+	sub := newFakeSubscription()
+	stream := Record(sub)
+	sub.send(t, &accommodationv5.AccommodationSearchRequest{})
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		sub.send(t, &notificationv3.TokenBought{TokenId: 7})
+	}()
+
+	// A long timeout: passing proves the waiter woke on the new event
+	// arriving, not on the clock.
+	got, err := await[*notificationv3.TokenBought](stream, 30*time.Second)
+	require.NoError(t, err)
+	require.Equal(t, uint64(7), got.TokenId)
+}
+
 // Content cannot disambiguate: TokenBought and TokenReservationExpired have
 // identical field layouts, so either unmarshals cleanly as the other. Only the
 // type name separates them.

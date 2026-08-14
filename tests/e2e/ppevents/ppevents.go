@@ -168,10 +168,7 @@ func await[T proto.Message](s *Stream, timeout time.Duration) (T, error) {
 	for {
 		e, changed, err := s.take(want)
 		if e != nil {
-			message, ok := zero.ProtoReflect().New().Interface().(T)
-			if !ok { // unreachable: New() allocates T's own Go type
-				return zero, fmt.Errorf("awaiting %s: could not allocate a %T", want, zero)
-			}
+			message := zero.ProtoReflect().New().Interface().(T)
 			if err := proto.Unmarshal(e.data, message); err != nil {
 				return zero, fmt.Errorf("awaiting %s: the event failed to unmarshal: %w", want, err)
 			}
