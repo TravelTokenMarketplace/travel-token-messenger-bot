@@ -15,12 +15,11 @@ import (
 	"buf.build/go/protovalidate"
 	botGenerated "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/rpc/generated"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/common"
-	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/bot"
 	partnerplugin "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/partner_plugin"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/ppevents"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/suite"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ suite.Test = (*TestMintV4)(nil)
@@ -33,7 +32,7 @@ type TestMintV4 struct {
 	*suite.Environment
 
 	supplierPartnerPlugin      *partnerplugin.PartnerPlugin
-	supplierPPEventStream      events.EventsService_SubscribeClient
+	supplierPPEventStream      *ppevents.Stream
 	supplierBot                *bot.Bot
 	distributorBot             *bot.Bot
 	distributorBotWithoutFunds *bot.Bot
@@ -95,36 +94,20 @@ func (tt *TestMintV4) prepare(ctx context.Context, t *testing.T) {
 	)
 
 	var err error
-	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.SubscribeForEvents(ctx)
+	tt.supplierPPEventStream, err = tt.supplierPartnerPlugin.RecordEvents(ctx)
 	require.NoError(t, err)
 }
 
 func (tt *TestMintV4) testMintV4FullWorkflow(ctx context.Context, t *testing.T) {
-	// Don't mind the eventStream receives without further processing.
-	// We just receive all the messages from the pp-mock event stream without any
-	// further checks as we're only really interested in the last one.
-
 	searchID, resultID, totalPrice := testAccommodationV4SearchService(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot) // see test_accommodation_v4.go
-	_, err := tt.supplierPPEventStream.Recv()                                                                                     // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID := testValidateV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, searchID, resultID, totalPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
 
 	balanceBefore := tt.Balance(ctx, t, tt.distributorBot)
 
 	tokenID, mintID, mintRespPrice := testMintV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, validationID, common.BookingTokenPriceV4)
-	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	// We're actually interested in this message which is
-	// the TokenBoughtNotification
-	eventMsg, err := tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	tt.DebugPrintProtoMessage(eventMsg)
-	tokenBoughtNotification := &notificationv3.TokenBought{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenBoughtNotification))
+	tokenBoughtNotification := ppevents.Await[*notificationv3.TokenBought](t, tt.supplierPPEventStream)
+	tt.DebugPrintProtoMessage(tokenBoughtNotification)
 	require.NoError(t, protovalidate.Validate(tokenBoughtNotification))
 	require.Equal(t, tokenBoughtNotification.TokenId, tokenID)
 	require.NotNil(t, tokenBoughtNotification.MintId)
@@ -135,65 +118,34 @@ func (tt *TestMintV4) testMintV4FullWorkflow(ctx context.Context, t *testing.T) 
 }
 
 func (tt *TestMintV4) testMintV4TokenExpiredCase(ctx context.Context, t *testing.T) {
-	// Don't mind the eventStream receives without further processing.
-	// We just receive all the messages from the pp-mock event stream without any
-	// further checks as we're only really interested in the last one.
-
 	searchID, resultID, totalPrice := testAccommodationV4SearchService(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot) // see test_accommodation_v4.go
-	_, err := tt.supplierPPEventStream.Recv()                                                                                                 // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID1 := testValidateV4(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot, searchID, resultID, totalPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
 
 	searchID, resultID, totalPrice = testAccommodationV4SearchService(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot) // see test_accommodation_v4.go
-	_, err = tt.supplierPPEventStream.Recv()                                                                                                 // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID2 := testValidateV4(ctx, t, tt.Environment, tt.distributorBotWithoutFunds, tt.supplierBot, searchID, resultID, totalPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
 
 	balanceBefore := tt.Balance(ctx, t, tt.distributorBotWithoutFunds)
 
 	tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBotWithoutFunds, validationID1, totalPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
-
 	tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBotWithoutFunds, validationID2, totalPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	// Following code relies on specific order of token expired notifications.
-	// We can safely assume that 2nd token expired notification will come after the first one,
-	// because timeout is set by mint request, and 2nd mint is happening after 1st.
+	// Await returns one type in arrival order, so these are the two expired
+	// notifications in the order pp-mock received them. Neither assertion
+	// depends on which mint produced which.
+	firstExpired := ppevents.Await[*notificationv3.TokenReservationExpired](t, tt.supplierPPEventStream)
+	tt.DebugPrintProtoMessage(firstExpired)
+	require.NoError(t, protovalidate.Validate(firstExpired))
 
-	eventMsg, err := tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	tt.DebugPrintProtoMessage(eventMsg)
-	tokenExpiredNotification := &notificationv3.TokenReservationExpired{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenExpiredNotification))
-	require.NoError(t, protovalidate.Validate(tokenExpiredNotification))
-
-	eventMsg, err = tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	tt.DebugPrintProtoMessage(eventMsg)
-	tokenExpiredNotification = &notificationv3.TokenReservationExpired{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenExpiredNotification))
-	require.NoError(t, protovalidate.Validate(tokenExpiredNotification))
+	secondExpired := ppevents.Await[*notificationv3.TokenReservationExpired](t, tt.supplierPPEventStream)
+	tt.DebugPrintProtoMessage(secondExpired)
+	require.NoError(t, protovalidate.Validate(secondExpired))
 
 	require.Equal(t, balanceBefore, tt.Balance(ctx, t, tt.distributorBotWithoutFunds), "unexpected balance")
 }
 
 func (tt *TestMintV4) testMintV4UnexpectedPrice(ctx context.Context, t *testing.T) {
 	searchID, resultID, expectedPrice := testAccommodationV4SearchService(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot) // see test_accommodation_v4.go
-	_, err := tt.supplierPPEventStream.Recv()                                                                                        // skip AccommodationSearchRequest
-	require.NoError(t, err)
-
 	validationID := testValidateV4(ctx, t, tt.Environment, tt.distributorBot, tt.supplierBot, searchID, resultID, expectedPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip ValidateRequest
-	require.NoError(t, err)
 
 	balanceBefore := tt.Balance(ctx, t, tt.distributorBot)
 
@@ -204,14 +156,9 @@ func (tt *TestMintV4) testMintV4UnexpectedPrice(ctx context.Context, t *testing.
 	expectedPrice.Value = fmt.Sprintf("%d", value+10)
 
 	tt.testMintV4MintV4ExpectedError(ctx, t, tt.distributorBot, validationID, expectedPrice)
-	_, err = tt.supplierPPEventStream.Recv() // skip MintRequest
-	require.NoError(t, err)
 
-	eventMsg, err := tt.supplierPPEventStream.Recv()
-	require.NoError(t, err)
-	tt.DebugPrintProtoMessage(eventMsg)
-	tokenExpiredNotification := &notificationv3.TokenReservationExpired{}
-	require.NoError(t, proto.Unmarshal(eventMsg.Data, tokenExpiredNotification))
+	tokenExpiredNotification := ppevents.Await[*notificationv3.TokenReservationExpired](t, tt.supplierPPEventStream)
+	tt.DebugPrintProtoMessage(tokenExpiredNotification)
 	require.NoError(t, protovalidate.Validate(tokenExpiredNotification))
 
 	require.Equal(t, balanceBefore, tt.Balance(ctx, t, tt.distributorBot), "unexpected balance")

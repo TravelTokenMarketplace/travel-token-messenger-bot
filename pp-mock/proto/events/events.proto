@@ -12,4 +12,10 @@ service EventsService {
 
 message SubscribeResponse {
   bytes data = 1;
+  // Fully-qualified protobuf message name of the message in `data`, e.g.
+  // "ttm.services.notification.v3.TokenBought". The stream interleaves every
+  // request pp-mock receives with the notifications the bot sends back, and
+  // unmarshalling one message type as another silently succeeds - so a
+  // receiver cannot identify an event without this.
+  string type_name = 2;
 }

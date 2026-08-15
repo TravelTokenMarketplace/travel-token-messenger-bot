@@ -14,6 +14,7 @@ import (
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/proto/pb/events"
 	ppmock "github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pp-mock/server"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/common"
+	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/ppevents"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/tests/e2e/process"
 
 	"buf.build/gen/go/ttm/messenger-protocol/grpc/go/ttm/services/ping/v1/pingv1grpc"
@@ -146,11 +147,18 @@ func (pp *PartnerPlugin) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (pp *PartnerPlugin) SubscribeForEvents(ctx context.Context) (events.EventsService_SubscribeClient, error) {
+// RecordEvents subscribes to pp-mock's event stream and starts draining it.
+// It returns a *ppevents.Stream rather than the raw client so that no test can
+// consume the stream positionally: the events are only partially ordered.
+func (pp *PartnerPlugin) RecordEvents(ctx context.Context) (*ppevents.Stream, error) {
 	pp.mutex.Lock()
 	defer pp.mutex.Unlock()
 
-	return pp.eventsClient.Subscribe(ctx, &emptypb.Empty{})
+	subscription, err := pp.eventsClient.Subscribe(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return ppevents.Record(subscription), nil
 }
 
 func (pp *PartnerPlugin) awaitReady(ctx context.Context) error {
