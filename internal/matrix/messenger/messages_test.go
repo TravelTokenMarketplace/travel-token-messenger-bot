@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/matrix"
@@ -20,6 +21,14 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
+// Plain string assignments (not function-call arguments) trip goconst at 3
+// occurrences; both of these are assigned that way in more than one test
+// function, so they are hoisted here rather than left as literals.
+const (
+	testMessageID      = "message-id"
+	testOtherMessageID = "other-message-id"
+)
+
 var testKey *ecdsa.PrivateKey
 
 func init() {
@@ -30,25 +39,57 @@ func init() {
 	}
 }
 
+// preExistingMessageIDs snapshots the message IDs already present in
+// chunkedMessages so that a later call to normalizeNewlyCreatedFirstSeen can
+// tell apart entries the production code just constructed (which must have
+// gotten a real firstSeen) from entries the test fixture injected directly
+// (whose firstSeen is deliberately left as the zero value and must not be
+// touched).
+func preExistingMessageIDs(chunkedMessages map[string]*chunkedMessage) map[string]bool {
+	ids := make(map[string]bool, len(chunkedMessages))
+	for id := range chunkedMessages {
+		ids[id] = true
+	}
+	return ids
+}
+
+// normalizeNewlyCreatedFirstSeen asserts that every chunkedMessage entry NOT
+// present in preExisting - i.e. one the production path constructed during
+// this call, not one the test fixture injected - has a non-zero firstSeen,
+// then zeroes it so the caller's whole-map require.Equal against a fixture
+// literal (whose firstSeen is always the zero time.Time) is exact rather than
+// weakened.
+func normalizeNewlyCreatedFirstSeen(t *testing.T, preExisting map[string]bool, chunkedMessages map[string]*chunkedMessage) {
+	t.Helper()
+	for id, message := range chunkedMessages {
+		if preExisting[id] {
+			continue
+		}
+		require.False(t, message.firstSeen.IsZero(),
+			"production-constructed chunkedMessage %q must have firstSeen set", id)
+		message.firstSeen = time.Time{}
+	}
+}
+
 func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	botKey := testKey
 
-	messageID := "message-id"
+	messageID := testMessageID
 	messageSignature := []byte("signature")
 
 	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
-	otherMessageID := "other-message-id"
+	otherMessageID := testOtherMessageID
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
 			chunksCount:    4,
 			signature:      []byte("other-signature"),
 			fromTTMAccount: common.Address{2},
-			chunks: []messageChunk{
-				{index: 0, data: []byte("other-chunk0")},
-				{index: 1, data: []byte("other-chunk1")},
+			chunks: map[uint32][]byte{
+				0: []byte("other-chunk0"),
+				1: []byte("other-chunk1"),
 			},
 		}
 	}
@@ -94,8 +135,8 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						0: []byte("chunk0"),
 					},
 				},
 			},
@@ -112,8 +153,8 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
@@ -122,9 +163,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						0: []byte("chunk0"),
 					},
 				},
 			},
@@ -141,9 +182,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 2, data: []byte("chunk2")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						2: []byte("chunk2"),
 					},
 				},
 			},
@@ -187,9 +228,14 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			matrixMessengerImpl.chunkedMessages[otherMessageID] = otherChunkedMessage()
 			tt.expectedChunkedMessages[otherMessageID] = otherChunkedMessage()
 
+			preExisting := preExistingMessageIDs(matrixMessengerImpl.chunkedMessages)
+
 			message, completed := matrixMessengerImpl.tryCompleteMessageWithFirstChunk(tt.msgEventContent)
 			require.Equal(t, tt.expectedComplete, completed)
 			require.Equal(t, tt.expectedMessage, message)
+
+			normalizeNewlyCreatedFirstSeen(t, preExisting, matrixMessengerImpl.chunkedMessages)
+
 			require.Equal(t, tt.expectedChunkedMessages, matrixMessengerImpl.chunkedMessages)
 		})
 	}
@@ -199,20 +245,20 @@ func TestTryCompleteMessage(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	botKey := testKey
 
-	messageID := "message-id"
+	messageID := testMessageID
 	messageSignature := []byte("signature")
 	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
-	otherMessageID := "other-message-id"
+	otherMessageID := testOtherMessageID
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
 			chunksCount:    4,
 			signature:      []byte("other-signature"),
 			fromTTMAccount: common.Address{2},
-			chunks: []messageChunk{
-				{index: 0, data: []byte("other-chunk0")},
-				{index: 1, data: []byte("other-chunk1")},
+			chunks: map[uint32][]byte{
+				0: []byte("other-chunk0"),
+				1: []byte("other-chunk1"),
 			},
 		}
 	}
@@ -234,8 +280,8 @@ func TestTryCompleteMessage(t *testing.T) {
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
@@ -250,16 +296,16 @@ func TestTryCompleteMessage(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 2, data: []byte("chunk2")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						2: []byte("chunk2"),
 					},
 				},
 			},
@@ -277,9 +323,9 @@ func TestTryCompleteMessage(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 2, data: []byte("chunk2")},
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						2: []byte("chunk2"),
+						0: []byte("chunk0"),
 					},
 				},
 			},
@@ -323,10 +369,227 @@ func TestTryCompleteMessage(t *testing.T) {
 			matrixMessengerImpl.chunkedMessages[otherMessageID] = otherChunkedMessage()
 			tt.expectedChunkedMessages[otherMessageID] = otherChunkedMessage()
 
+			preExisting := preExistingMessageIDs(matrixMessengerImpl.chunkedMessages)
+
 			message, completed := matrixMessengerImpl.tryCompleteMessage(tt.msgEventContent)
 			require.Equal(t, tt.expectedComplete, completed)
 			require.Equal(t, tt.expectedMessage, message)
+
+			normalizeNewlyCreatedFirstSeen(t, preExisting, matrixMessengerImpl.chunkedMessages)
+
 			require.Equal(t, tt.expectedChunkedMessages, matrixMessengerImpl.chunkedMessages)
 		})
 	}
+}
+
+// A redelivered chunk must not complete a message that is still missing an
+// index. The syncer replays up to an hour of events on Start
+// (messenger.go:88), so duplicate delivery is expected, not exotic.
+func TestTryCompleteMessageDuplicateChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := testMessageID
+	messageSignature := []byte("signature")
+	senderTTMAccount := common.Address{1}
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// chunk 0 of 3, carrying the signature and the count
+	_, completed := m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             3,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               messageSignature,
+	})
+	require.False(t, completed, "a 1-of-3 message must not be complete")
+
+	// chunk 1 of 3
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed, "a 2-of-3 message must not be complete")
+
+	// chunk 1 AGAIN - a redelivery. Index 2 has still never arrived.
+	msg, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed,
+		"a redelivered chunk completed a message that is still missing index 2; "+
+			"assembling it would join a byte stream the sender never signed")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{}, msg)
+
+	// the real chunk 2 arrives and only now completes the message, intact
+	msg, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk2")},
+		ChunkIndex: 2,
+	})
+	require.True(t, completed, "all three distinct chunks have arrived")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{
+		Message: messaging.EncodedSignedMessage{
+			ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
+			Signature:             messageSignature,
+		},
+		SenderTTMAccountAddress: senderTTMAccount,
+	}, msg)
+
+	require.Empty(t, m.chunkedMessages, "a completed message must be evicted from the map")
+}
+
+// A chunk index at or beyond chunksCount can never be assembled. Storing it
+// would inflate len(chunks) and complete the message with a real index still
+// missing - the same defect as a duplicate, through a different door.
+func TestTryCompleteMessageOutOfRangeChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := testMessageID
+	senderTTMAccount := common.Address{1}
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// chunk 0 of 2
+	_, completed := m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             2,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               []byte("signature"),
+	})
+	require.False(t, completed)
+
+	// index 7 of a 2-chunk message - nonsense, must be dropped not stored
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("bogus")},
+		ChunkIndex: 7,
+	})
+	require.False(t, completed, "an out-of-range chunk must never complete a message")
+	require.Contains(t, m.chunkedMessages, messageID,
+		"a rejected out-of-range chunk must leave the partial message intact")
+	require.Len(t, m.chunkedMessages[messageID].chunks, 1,
+		"an out-of-range chunk must not be stored")
+}
+
+// A bogus out-of-spec index received before chunksCount is known must not
+// cost the message its legitimately-received chunks. Chunk 0 arrives last in
+// this test on purpose, so the out-of-range chunk is stored while
+// chunksCount is still 0 (it cannot be range-checked yet); once chunk 0 sets
+// chunksCount, the arrival count reaches chunksCount with a real index still
+// missing. The entry must survive that moment so the genuinely-missing chunk
+// can complete it afterwards.
+func TestTryCompleteMessageRecoversFromEarlyOutOfRangeChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := testMessageID
+	senderTTMAccount := common.Address{1}
+	messageSignature := []byte("signature")
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// A bogus/out-of-spec index arrives while chunksCount is still 0 (chunk 0
+	// has not arrived yet), so it cannot be range-checked and is stored.
+	_, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("bogus")},
+		ChunkIndex: 99,
+	})
+	require.False(t, completed, "a lone chunk can never complete a message")
+
+	// Chunk 1 of a real 3-chunk message arrives.
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed, "index 0 and 2 are still missing")
+
+	// Chunk 0 arrives, setting chunksCount to 3. The map now holds indices
+	// {99, 1, 0} - three distinct entries, matching chunksCount by COUNT -
+	// but index 2 has never arrived, so the message must not complete.
+	_, completed = m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             3,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               messageSignature,
+	})
+	require.False(t, completed,
+		"the arrival count reached chunksCount via the bogus index, but a real index (2) is still missing")
+	require.Contains(t, m.chunkedMessages, messageID,
+		"the entry must survive a count match that isn't a genuine index-set match, "+
+			"so the legitimately-received chunks are not lost")
+
+	// The genuinely-missing chunk 2 arrives and completes the message,
+	// correctly ordered, with the bogus index 99 simply ignored.
+	msg, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk2")},
+		ChunkIndex: 2,
+	})
+	require.True(t, completed, "all of 0, 1 and 2 have now arrived")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{
+		Message: messaging.EncodedSignedMessage{
+			ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
+			Signature:             messageSignature,
+		},
+		SenderTTMAccountAddress: senderTTMAccount,
+	}, msg)
+
+	require.Empty(t, m.chunkedMessages, "a completed message must be evicted from the map")
+}
+
+// A partial message whose remaining chunks never arrive must not live forever.
+// Before this, chunkedMessages had no eviction and no timeout: one lost first
+// chunk leaked its payload for the lifetime of the process.
+func TestEvictStalePartialMessages(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	now := time.Now()
+
+	m.chunkedMessages["stale"] = &chunkedMessage{
+		firstSeen: now.Add(-partialMessageTTL - time.Second),
+		chunks:    map[uint32][]byte{1: []byte("orphan")},
+	}
+	m.chunkedMessages["fresh"] = &chunkedMessage{
+		firstSeen: now.Add(-time.Second),
+		chunks:    map[uint32][]byte{1: []byte("in flight")},
+	}
+
+	m.evictStalePartialMessages(now)
+
+	require.NotContains(t, m.chunkedMessages, "stale", "a message older than the TTL must be evicted")
+	require.Contains(t, m.chunkedMessages, "fresh", "a message still within the TTL must be kept")
 }
