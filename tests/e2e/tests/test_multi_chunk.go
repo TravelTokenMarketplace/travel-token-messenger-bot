@@ -82,8 +82,9 @@ func (tt *TestMultiChunk) prepare(ctx context.Context, t *testing.T) {
 // this suite would silently stop testing anything.
 //
 // Four chunks is enough - it exercises the same handler, ordering and
-// completion paths as the 46-chunk WAN benchmark, without making every CI run
-// carry a megabyte.
+// completion paths as the 46-chunk WAN benchmark (see §5.1 of
+// docs/superpowers/specs/2026-08-17-multichunk-reassembly-fix-design.md in the
+// workspace repo), without making every CI run carry a megabyte.
 func oversizedMessage(t *testing.T) string {
 	const chunksWanted = 4
 

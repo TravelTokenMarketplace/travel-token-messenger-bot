@@ -229,7 +229,8 @@ func (m *messenger) addMessageNextChunk(eventContent *matrix.MessageChunkEventCo
 
 func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.ChunkData, chunkIndex uint32) (*chunkedMessage, bool) {
 	// chunksCount == 0 means chunk 0 has not arrived yet, so the range is not
-	// yet knowable; assembleEncodedMessage is the backstop for that case.
+	// yet knowable; a bogus index stored during this window is tolerated - see
+	// messageIndexSetComplete.
 	if message.chunksCount != 0 && chunkIndex >= message.chunksCount {
 		m.logger.Warnf("dropping chunk %d of message (id %s): index out of range for a %d-chunk message",
 			chunkIndex, chunkData.MessageID, message.chunksCount)
@@ -240,7 +241,16 @@ func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.C
 	// entry rather than adding to the count that decides completion below.
 	message.chunks[chunkIndex] = chunkData.Data
 
-	if message.chunksCount == 0 || conversion.MustIntToUInt32(len(message.chunks)) < message.chunksCount {
+	// len(message.chunks) reaching chunksCount is necessary but not sufficient
+	// for completion: while chunksCount was still 0 (chunk 0 not yet arrived)
+	// an out-of-spec index from a peer cannot be range-checked, so it can sit
+	// in the map alongside chunksCount-1 genuine chunks with a real index
+	// still missing. messageIndexSetComplete is what actually decides
+	// completion; only delete the entry once it agrees, so a message that
+	// merely LOOKS complete by count keeps its legitimately-received chunks
+	// around for the real trailing chunk to finish later instead of being
+	// deleted out from under it.
+	if !messageIndexSetComplete(message) {
 		return nil, false
 	}
 
@@ -249,18 +259,43 @@ func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.C
 	return message, true
 }
 
+// messageIndexSetComplete reports whether message.chunks holds every index in
+// 0..chunksCount-1 - i.e. whether the message can actually be assembled, as
+// opposed to merely having accumulated chunksCount arrivals (which a bogus
+// out-of-spec index received before chunksCount was known can also produce).
+// Shared by addMessageChunk (to decide whether to delete the entry) and
+// assembleEncodedMessage (to decide whether to build the payload), so the
+// walk is written once. It's an O(chunksCount) walk - one map lookup per
+// index, ~2k lookups for a 1 MiB / 46-chunk message - negligible next to the
+// cost of receiving and joining that many chunks.
+func messageIndexSetComplete(message *chunkedMessage) bool {
+	if message.chunksCount == 0 {
+		return false
+	}
+	for i := uint32(0); i < message.chunksCount; i++ {
+		if _, ok := message.chunks[i]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // assembleEncodedMessage joins the chunks in index order. It returns false if
-// the index set is not exactly 0..chunksCount-1, which the callers treat as a
-// dropped message: handing a payload with a hole in it to the verifier would
-// surface as a signature mismatch and blame the crypto for a transport bug.
+// the index set is not exactly 0..chunksCount-1. addMessageChunk only ever
+// hands back a message for which messageIndexSetComplete is already true, so
+// in practice this should never observe a hole - it stays as a defensive
+// backstop. If it ever did fire, the caller (assembleOrDropMessage) treats it
+// as a dropped message and logs why: handing a payload with a hole in it to
+// the verifier would surface as a signature mismatch and blame the crypto for
+// a transport bug.
 func (m *messenger) assembleEncodedMessage(message *chunkedMessage) (messaging.EncodedSignedMessageWithSender, bool) {
+	if !messageIndexSetComplete(message) {
+		return messaging.EncodedSignedMessageWithSender{}, false
+	}
+
 	chunkedData := make([][]byte, 0, message.chunksCount)
 	for i := uint32(0); i < message.chunksCount; i++ {
-		chunk, ok := message.chunks[i]
-		if !ok {
-			return messaging.EncodedSignedMessageWithSender{}, false
-		}
-		chunkedData = append(chunkedData, chunk)
+		chunkedData = append(chunkedData, message.chunks[i])
 	}
 
 	return messaging.EncodedSignedMessageWithSender{

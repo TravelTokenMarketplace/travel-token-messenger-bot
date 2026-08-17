@@ -487,6 +487,79 @@ func TestTryCompleteMessageOutOfRangeChunk(t *testing.T) {
 		"an out-of-range chunk must not be stored")
 }
 
+// A bogus out-of-spec index received before chunksCount is known must not
+// cost the message its legitimately-received chunks. Chunk 0 arrives last in
+// this test on purpose, so the out-of-range chunk is stored while
+// chunksCount is still 0 (it cannot be range-checked yet); once chunk 0 sets
+// chunksCount, the arrival count reaches chunksCount with a real index still
+// missing. The entry must survive that moment so the genuinely-missing chunk
+// can complete it afterwards.
+func TestTryCompleteMessageRecoversFromEarlyOutOfRangeChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := testMessageID
+	senderTTMAccount := common.Address{1}
+	messageSignature := []byte("signature")
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// A bogus/out-of-spec index arrives while chunksCount is still 0 (chunk 0
+	// has not arrived yet), so it cannot be range-checked and is stored.
+	_, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("bogus")},
+		ChunkIndex: 99,
+	})
+	require.False(t, completed, "a lone chunk can never complete a message")
+
+	// Chunk 1 of a real 3-chunk message arrives.
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed, "index 0 and 2 are still missing")
+
+	// Chunk 0 arrives, setting chunksCount to 3. The map now holds indices
+	// {99, 1, 0} - three distinct entries, matching chunksCount by COUNT -
+	// but index 2 has never arrived, so the message must not complete.
+	_, completed = m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             3,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               messageSignature,
+	})
+	require.False(t, completed,
+		"the arrival count reached chunksCount via the bogus index, but a real index (2) is still missing")
+	require.Contains(t, m.chunkedMessages, messageID,
+		"the entry must survive a count match that isn't a genuine index-set match, "+
+			"so the legitimately-received chunks are not lost")
+
+	// The genuinely-missing chunk 2 arrives and completes the message,
+	// correctly ordered, with the bogus index 99 simply ignored.
+	msg, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk2")},
+		ChunkIndex: 2,
+	})
+	require.True(t, completed, "all of 0, 1 and 2 have now arrived")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{
+		Message: messaging.EncodedSignedMessage{
+			ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
+			Signature:             messageSignature,
+		},
+		SenderTTMAccountAddress: senderTTMAccount,
+	}, msg)
+
+	require.Empty(t, m.chunkedMessages, "a completed message must be evicted from the map")
+}
+
 // A partial message whose remaining chunks never arrive must not live forever.
 // Before this, chunkedMessages had no eviction and no timeout: one lost first
 // chunk leaked its payload for the lifetime of the process.
