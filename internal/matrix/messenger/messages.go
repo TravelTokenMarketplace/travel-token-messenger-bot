@@ -151,12 +151,7 @@ func (m *messenger) tryCompleteMessageWithFirstChunk(eventContent *matrix.Signed
 	if !complete {
 		return messaging.EncodedSignedMessageWithSender{}, false
 	}
-	msg, ok := m.assembleEncodedMessage(chunkedMessage)
-	if !ok {
-		m.logger.Errorf("dropping message (id %s): chunk set incomplete at completion", eventContent.MessageID)
-		return messaging.EncodedSignedMessageWithSender{}, false
-	}
-	return msg, true
+	return m.assembleOrDropMessage(chunkedMessage, eventContent.MessageID)
 }
 
 func (m *messenger) tryCompleteMessage(eventContent *matrix.MessageChunkEventContent) (messaging.EncodedSignedMessageWithSender, bool) {
@@ -164,9 +159,15 @@ func (m *messenger) tryCompleteMessage(eventContent *matrix.MessageChunkEventCon
 	if !complete {
 		return messaging.EncodedSignedMessageWithSender{}, false
 	}
+	return m.assembleOrDropMessage(chunkedMessage, eventContent.MessageID)
+}
+
+// assembleOrDropMessage assembles the chunked message, or drops it and logs
+// why if the index set turned out incomplete at completion time.
+func (m *messenger) assembleOrDropMessage(chunkedMessage *chunkedMessage, messageID string) (messaging.EncodedSignedMessageWithSender, bool) {
 	msg, ok := m.assembleEncodedMessage(chunkedMessage)
 	if !ok {
-		m.logger.Errorf("dropping message (id %s): chunk set incomplete at completion", eventContent.MessageID)
+		m.logger.Errorf("dropping message (id %s): chunk set incomplete at completion", messageID)
 		return messaging.EncodedSignedMessageWithSender{}, false
 	}
 	return msg, true

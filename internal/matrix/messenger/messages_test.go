@@ -20,6 +20,14 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
+// Plain string assignments (not function-call arguments) trip goconst at 3
+// occurrences; both of these are assigned that way in more than one test
+// function, so they are hoisted here rather than left as literals.
+const (
+	testMessageID      = "message-id"
+	testOtherMessageID = "other-message-id"
+)
+
 var testKey *ecdsa.PrivateKey
 
 func init() {
@@ -34,13 +42,13 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	botKey := testKey
 
-	messageID := "message-id"
+	messageID := testMessageID
 	messageSignature := []byte("signature")
 
 	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
-	otherMessageID := "other-message-id"
+	otherMessageID := testOtherMessageID
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
 			chunksCount:    4,
@@ -199,12 +207,12 @@ func TestTryCompleteMessage(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 	botKey := testKey
 
-	messageID := "message-id"
+	messageID := testMessageID
 	messageSignature := []byte("signature")
 	senderTTMAccount := common.Address{1}
 
 	// we will always expect this message chunk to be present in the map unchanged in addition to case-specific expects
-	otherMessageID := "other-message-id"
+	otherMessageID := testOtherMessageID
 	otherChunkedMessage := func() *chunkedMessage { // to make copies, not references
 		return &chunkedMessage{
 			chunksCount:    4,
@@ -337,7 +345,7 @@ func TestTryCompleteMessage(t *testing.T) {
 func TestTryCompleteMessageDuplicateChunk(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 
-	messageID := "message-id"
+	messageID := testMessageID
 	messageSignature := []byte("signature")
 	senderTTMAccount := common.Address{1}
 
