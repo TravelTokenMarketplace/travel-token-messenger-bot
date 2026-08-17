@@ -438,6 +438,8 @@ func TestTryCompleteMessageOutOfRangeChunk(t *testing.T) {
 		ChunkIndex: 7,
 	})
 	require.False(t, completed, "an out-of-range chunk must never complete a message")
+	require.Contains(t, m.chunkedMessages, messageID,
+		"a rejected out-of-range chunk must leave the partial message intact")
 	require.Len(t, m.chunkedMessages[messageID].chunks, 1,
 		"an out-of-range chunk must not be stored")
 }
