@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/matrix"
@@ -103,6 +104,19 @@ func (m *messenger) Start(ctx context.Context) (chan error, error) {
 			err := fmt.Errorf("matrix event syncer exited with error: %w", err)
 			m.logger.Error(err)
 			errChan <- err
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(partialMessageSweepInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-syncCtx.Done():
+				return
+			case now := <-ticker.C:
+				m.evictStalePartialMessages(now)
+			}
 		}
 	}()
 

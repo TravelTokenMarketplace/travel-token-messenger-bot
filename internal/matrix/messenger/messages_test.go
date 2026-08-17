@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/matrix"
@@ -35,6 +36,38 @@ func init() {
 	testKey, err = ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	if err != nil {
 		panic(fmt.Errorf("failed to generate test key: %w", err))
+	}
+}
+
+// preExistingMessageIDs snapshots the message IDs already present in
+// chunkedMessages so that a later call to normalizeNewlyCreatedFirstSeen can
+// tell apart entries the production code just constructed (which must have
+// gotten a real firstSeen) from entries the test fixture injected directly
+// (whose firstSeen is deliberately left as the zero value and must not be
+// touched).
+func preExistingMessageIDs(chunkedMessages map[string]*chunkedMessage) map[string]bool {
+	ids := make(map[string]bool, len(chunkedMessages))
+	for id := range chunkedMessages {
+		ids[id] = true
+	}
+	return ids
+}
+
+// normalizeNewlyCreatedFirstSeen asserts that every chunkedMessage entry NOT
+// present in preExisting - i.e. one the production path constructed during
+// this call, not one the test fixture injected - has a non-zero firstSeen,
+// then zeroes it so the caller's whole-map require.Equal against a fixture
+// literal (whose firstSeen is always the zero time.Time) is exact rather than
+// weakened.
+func normalizeNewlyCreatedFirstSeen(t *testing.T, preExisting map[string]bool, chunkedMessages map[string]*chunkedMessage) {
+	t.Helper()
+	for id, message := range chunkedMessages {
+		if preExisting[id] {
+			continue
+		}
+		require.False(t, message.firstSeen.IsZero(),
+			"production-constructed chunkedMessage %q must have firstSeen set", id)
+		message.firstSeen = time.Time{}
 	}
 }
 
@@ -195,9 +228,14 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			matrixMessengerImpl.chunkedMessages[otherMessageID] = otherChunkedMessage()
 			tt.expectedChunkedMessages[otherMessageID] = otherChunkedMessage()
 
+			preExisting := preExistingMessageIDs(matrixMessengerImpl.chunkedMessages)
+
 			message, completed := matrixMessengerImpl.tryCompleteMessageWithFirstChunk(tt.msgEventContent)
 			require.Equal(t, tt.expectedComplete, completed)
 			require.Equal(t, tt.expectedMessage, message)
+
+			normalizeNewlyCreatedFirstSeen(t, preExisting, matrixMessengerImpl.chunkedMessages)
+
 			require.Equal(t, tt.expectedChunkedMessages, matrixMessengerImpl.chunkedMessages)
 		})
 	}
@@ -331,9 +369,14 @@ func TestTryCompleteMessage(t *testing.T) {
 			matrixMessengerImpl.chunkedMessages[otherMessageID] = otherChunkedMessage()
 			tt.expectedChunkedMessages[otherMessageID] = otherChunkedMessage()
 
+			preExisting := preExistingMessageIDs(matrixMessengerImpl.chunkedMessages)
+
 			message, completed := matrixMessengerImpl.tryCompleteMessage(tt.msgEventContent)
 			require.Equal(t, tt.expectedComplete, completed)
 			require.Equal(t, tt.expectedMessage, message)
+
+			normalizeNewlyCreatedFirstSeen(t, preExisting, matrixMessengerImpl.chunkedMessages)
+
 			require.Equal(t, tt.expectedChunkedMessages, matrixMessengerImpl.chunkedMessages)
 		})
 	}
@@ -442,4 +485,38 @@ func TestTryCompleteMessageOutOfRangeChunk(t *testing.T) {
 		"a rejected out-of-range chunk must leave the partial message intact")
 	require.Len(t, m.chunkedMessages[messageID].chunks, 1,
 		"an out-of-range chunk must not be stored")
+}
+
+// A partial message whose remaining chunks never arrive must not live forever.
+// Before this, chunkedMessages had no eviction and no timeout: one lost first
+// chunk leaked its payload for the lifetime of the process.
+func TestEvictStalePartialMessages(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	now := time.Now()
+
+	m.chunkedMessages["stale"] = &chunkedMessage{
+		firstSeen: now.Add(-partialMessageTTL - time.Second),
+		chunks:    map[uint32][]byte{1: []byte("orphan")},
+	}
+	m.chunkedMessages["fresh"] = &chunkedMessage{
+		firstSeen: now.Add(-time.Second),
+		chunks:    map[uint32][]byte{1: []byte("in flight")},
+	}
+
+	m.evictStalePartialMessages(now)
+
+	require.NotContains(t, m.chunkedMessages, "stale", "a message older than the TTL must be evicted")
+	require.Contains(t, m.chunkedMessages, "fresh", "a message still within the TTL must be kept")
 }

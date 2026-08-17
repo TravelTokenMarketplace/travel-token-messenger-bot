@@ -5,6 +5,7 @@ package messenger
 
 import (
 	"context"
+	"time"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
@@ -12,6 +13,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"maunium.net/go/mautrix/event"
+)
+
+const (
+	// partialMessageTTL bounds how long an incomplete message is held. It is
+	// deliberately far longer than any plausible multi-chunk delivery (the
+	// 46-chunk 1 MiB WAN benchmark completed in seconds) because evicting a
+	// message that was still in flight turns a slow delivery into a lost one.
+	// Its only job is to stop unbounded growth.
+	partialMessageTTL = 5 * time.Minute
+
+	// partialMessageSweepInterval is how often the sweeper runs. Eviction is
+	// not latency-sensitive, so this is coarse on purpose.
+	partialMessageSweepInterval = time.Minute
 )
 
 type chunkedMessage struct {
@@ -26,6 +40,10 @@ type chunkedMessage struct {
 	// the joined payload then failed signature verification. See
 	// docs/superpowers/specs/2026-08-17-multichunk-reassembly-fix-design.md.
 	chunks map[uint32][]byte
+
+	// firstSeen is when the first chunk of this message arrived, used to evict
+	// messages whose remaining chunks never do.
+	firstSeen time.Time
 }
 
 func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSignedMessage, sendTo common.Address, senderTTMAccount common.Address) error {
@@ -179,7 +197,10 @@ func (m *messenger) addMessageFirstChunk(eventContent *matrix.SignedMessageEvent
 
 	message, ok := m.chunkedMessages[eventContent.MessageID]
 	if !ok {
-		message = &chunkedMessage{chunks: make(map[uint32][]byte, eventContent.ChunksCount)}
+		message = &chunkedMessage{
+			chunks:    make(map[uint32][]byte, eventContent.ChunksCount),
+			firstSeen: time.Now(),
+		}
 		m.chunkedMessages[eventContent.MessageID] = message
 	}
 
@@ -196,7 +217,10 @@ func (m *messenger) addMessageNextChunk(eventContent *matrix.MessageChunkEventCo
 
 	message, ok := m.chunkedMessages[eventContent.MessageID]
 	if !ok {
-		message = &chunkedMessage{chunks: make(map[uint32][]byte)}
+		message = &chunkedMessage{
+			chunks:    make(map[uint32][]byte),
+			firstSeen: time.Now(),
+		}
 		m.chunkedMessages[eventContent.MessageID] = message
 	}
 
@@ -246,4 +270,21 @@ func (m *messenger) assembleEncodedMessage(message *chunkedMessage) (messaging.E
 		},
 		SenderTTMAccountAddress: message.fromTTMAccount,
 	}, true
+}
+
+// evictStalePartialMessages drops incomplete messages older than
+// partialMessageTTL. now is a parameter rather than time.Now() so the test can
+// drive it.
+func (m *messenger) evictStalePartialMessages(now time.Time) {
+	m.messagesMutex.Lock()
+	defer m.messagesMutex.Unlock()
+
+	for messageID, message := range m.chunkedMessages {
+		if now.Sub(message.firstSeen) <= partialMessageTTL {
+			continue
+		}
+		m.logger.Warnf("evicting incomplete message (id %s): %d of %d chunks after %s",
+			messageID, len(message.chunks), message.chunksCount, partialMessageTTL)
+		delete(m.chunkedMessages, messageID)
+	}
 }
