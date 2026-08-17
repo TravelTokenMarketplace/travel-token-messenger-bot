@@ -5,7 +5,6 @@ package messenger
 
 import (
 	"context"
-	"sort"
 
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/internal/messaging"
 	"github.com/TravelTokenMarketplace/travel-token-messenger-bot/v13/pkg/conversion"
@@ -19,19 +18,15 @@ type chunkedMessage struct {
 	chunksCount    uint32
 	fromTTMAccount common.Address
 	signature      []byte
-	chunks         []messageChunk
+
+	// chunks is keyed by chunk index so that a redelivered chunk overwrites
+	// its own entry. len(chunks) is therefore the number of DISTINCT indices
+	// received, which is what the completion check needs - counting arrivals
+	// instead let one duplicate complete a message with a missing index, and
+	// the joined payload then failed signature verification. See
+	// docs/superpowers/specs/2026-08-17-multichunk-reassembly-fix-design.md.
+	chunks map[uint32][]byte
 }
-
-type messageChunk struct {
-	index uint32
-	data  []byte
-}
-
-type byChunkIndex []messageChunk
-
-func (b byChunkIndex) Len() int           { return len(b) }
-func (b byChunkIndex) Less(i, j int) bool { return b[i].index < b[j].index }
-func (b byChunkIndex) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
 func (m *messenger) SendMessage(ctx context.Context, msg *messaging.EncodedSignedMessage, sendTo common.Address, senderTTMAccount common.Address) error {
 	messageID := uuid.New().String()
@@ -156,7 +151,12 @@ func (m *messenger) tryCompleteMessageWithFirstChunk(eventContent *matrix.Signed
 	if !complete {
 		return messaging.EncodedSignedMessageWithSender{}, false
 	}
-	return m.assembleEncodedMessage(chunkedMessage), true
+	msg, ok := m.assembleEncodedMessage(chunkedMessage)
+	if !ok {
+		m.logger.Errorf("dropping message (id %s): chunk set incomplete at completion", eventContent.MessageID)
+		return messaging.EncodedSignedMessageWithSender{}, false
+	}
+	return msg, true
 }
 
 func (m *messenger) tryCompleteMessage(eventContent *matrix.MessageChunkEventContent) (messaging.EncodedSignedMessageWithSender, bool) {
@@ -164,7 +164,12 @@ func (m *messenger) tryCompleteMessage(eventContent *matrix.MessageChunkEventCon
 	if !complete {
 		return messaging.EncodedSignedMessageWithSender{}, false
 	}
-	return m.assembleEncodedMessage(chunkedMessage), true
+	msg, ok := m.assembleEncodedMessage(chunkedMessage)
+	if !ok {
+		m.logger.Errorf("dropping message (id %s): chunk set incomplete at completion", eventContent.MessageID)
+		return messaging.EncodedSignedMessageWithSender{}, false
+	}
+	return msg, true
 }
 
 func (m *messenger) addMessageFirstChunk(eventContent *matrix.SignedMessageEventContent) (*chunkedMessage, bool) {
@@ -173,7 +178,7 @@ func (m *messenger) addMessageFirstChunk(eventContent *matrix.SignedMessageEvent
 
 	message, ok := m.chunkedMessages[eventContent.MessageID]
 	if !ok {
-		message = &chunkedMessage{chunks: make([]messageChunk, 0, eventContent.ChunksCount)}
+		message = &chunkedMessage{chunks: make(map[uint32][]byte, eventContent.ChunksCount)}
 		m.chunkedMessages[eventContent.MessageID] = message
 	}
 
@@ -190,7 +195,7 @@ func (m *messenger) addMessageNextChunk(eventContent *matrix.MessageChunkEventCo
 
 	message, ok := m.chunkedMessages[eventContent.MessageID]
 	if !ok {
-		message = &chunkedMessage{chunks: []messageChunk{}}
+		message = &chunkedMessage{chunks: make(map[uint32][]byte)}
 		m.chunkedMessages[eventContent.MessageID] = message
 	}
 
@@ -198,10 +203,9 @@ func (m *messenger) addMessageNextChunk(eventContent *matrix.MessageChunkEventCo
 }
 
 func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.ChunkData, chunkIndex uint32) (*chunkedMessage, bool) {
-	message.chunks = append(message.chunks, messageChunk{
-		index: chunkIndex,
-		data:  chunkData.Data,
-	})
+	// Keying by index makes a redelivery idempotent: it overwrites its own
+	// entry rather than adding to the count that decides completion below.
+	message.chunks[chunkIndex] = chunkData.Data
 
 	if message.chunksCount == 0 || conversion.MustIntToUInt32(len(message.chunks)) < message.chunksCount {
 		return nil, false
@@ -212,11 +216,18 @@ func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.C
 	return message, true
 }
 
-func (m *messenger) assembleEncodedMessage(message *chunkedMessage) messaging.EncodedSignedMessageWithSender {
-	sort.Sort(byChunkIndex(message.chunks))
-	chunkedData := make([][]byte, 0, len(message.chunks))
-	for _, chunk := range message.chunks {
-		chunkedData = append(chunkedData, chunk.data)
+// assembleEncodedMessage joins the chunks in index order. It returns false if
+// the index set is not exactly 0..chunksCount-1, which the callers treat as a
+// dropped message: handing a payload with a hole in it to the verifier would
+// surface as a signature mismatch and blame the crypto for a transport bug.
+func (m *messenger) assembleEncodedMessage(message *chunkedMessage) (messaging.EncodedSignedMessageWithSender, bool) {
+	chunkedData := make([][]byte, 0, message.chunksCount)
+	for i := uint32(0); i < message.chunksCount; i++ {
+		chunk, ok := message.chunks[i]
+		if !ok {
+			return messaging.EncodedSignedMessageWithSender{}, false
+		}
+		chunkedData = append(chunkedData, chunk)
 	}
 
 	return messaging.EncodedSignedMessageWithSender{
@@ -225,5 +236,5 @@ func (m *messenger) assembleEncodedMessage(message *chunkedMessage) messaging.En
 			Signature:             message.signature,
 		},
 		SenderTTMAccountAddress: message.fromTTMAccount,
-	}
+	}, true
 }

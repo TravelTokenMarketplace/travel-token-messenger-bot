@@ -46,9 +46,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			chunksCount:    4,
 			signature:      []byte("other-signature"),
 			fromTTMAccount: common.Address{2},
-			chunks: []messageChunk{
-				{index: 0, data: []byte("other-chunk0")},
-				{index: 1, data: []byte("other-chunk1")},
+			chunks: map[uint32][]byte{
+				0: []byte("other-chunk0"),
+				1: []byte("other-chunk1"),
 			},
 		}
 	}
@@ -94,8 +94,8 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						0: []byte("chunk0"),
 					},
 				},
 			},
@@ -112,8 +112,8 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
@@ -122,9 +122,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						0: []byte("chunk0"),
 					},
 				},
 			},
@@ -141,9 +141,9 @@ func TestTryCompleteMessageWithFirstChunk(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 2, data: []byte("chunk2")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						2: []byte("chunk2"),
 					},
 				},
 			},
@@ -210,9 +210,9 @@ func TestTryCompleteMessage(t *testing.T) {
 			chunksCount:    4,
 			signature:      []byte("other-signature"),
 			fromTTMAccount: common.Address{2},
-			chunks: []messageChunk{
-				{index: 0, data: []byte("other-chunk0")},
-				{index: 1, data: []byte("other-chunk1")},
+			chunks: map[uint32][]byte{
+				0: []byte("other-chunk0"),
+				1: []byte("other-chunk1"),
 			},
 		}
 	}
@@ -234,8 +234,8 @@ func TestTryCompleteMessage(t *testing.T) {
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
@@ -250,16 +250,16 @@ func TestTryCompleteMessage(t *testing.T) {
 			},
 			existingChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
 					},
 				},
 			},
 			expectedChunkedMessages: map[string]*chunkedMessage{
 				messageID: {
-					chunks: []messageChunk{
-						{index: 1, data: []byte("chunk1")},
-						{index: 2, data: []byte("chunk2")},
+					chunks: map[uint32][]byte{
+						1: []byte("chunk1"),
+						2: []byte("chunk2"),
 					},
 				},
 			},
@@ -277,9 +277,9 @@ func TestTryCompleteMessage(t *testing.T) {
 					chunksCount:    3,
 					signature:      messageSignature,
 					fromTTMAccount: senderTTMAccount,
-					chunks: []messageChunk{
-						{index: 2, data: []byte("chunk2")},
-						{index: 0, data: []byte("chunk0")},
+					chunks: map[uint32][]byte{
+						2: []byte("chunk2"),
+						0: []byte("chunk0"),
 					},
 				},
 			},
