@@ -330,3 +330,67 @@ func TestTryCompleteMessage(t *testing.T) {
 		})
 	}
 }
+
+// A redelivered chunk must not complete a message that is still missing an
+// index. The syncer replays up to an hour of events on Start
+// (messenger.go:88), so duplicate delivery is expected, not exotic.
+func TestTryCompleteMessageDuplicateChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := "message-id"
+	messageSignature := []byte("signature")
+	senderTTMAccount := common.Address{1}
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// chunk 0 of 3, carrying the signature and the count
+	_, completed := m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             3,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               messageSignature,
+	})
+	require.False(t, completed, "a 1-of-3 message must not be complete")
+
+	// chunk 1 of 3
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed, "a 2-of-3 message must not be complete")
+
+	// chunk 1 AGAIN - a redelivery. Index 2 has still never arrived.
+	msg, completed := m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk1")},
+		ChunkIndex: 1,
+	})
+	require.False(t, completed,
+		"a redelivered chunk completed a message that is still missing index 2; "+
+			"assembling it would join a byte stream the sender never signed")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{}, msg)
+
+	// the real chunk 2 arrives and only now completes the message, intact
+	msg, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("chunk2")},
+		ChunkIndex: 2,
+	})
+	require.True(t, completed, "all three distinct chunks have arrived")
+	require.Equal(t, messaging.EncodedSignedMessageWithSender{
+		Message: messaging.EncodedSignedMessage{
+			ChunkedEncodedMessage: [][]byte{[]byte("chunk0"), []byte("chunk1"), []byte("chunk2")},
+			Signature:             messageSignature,
+		},
+		SenderTTMAccountAddress: senderTTMAccount,
+	}, msg)
+
+	require.Empty(t, m.chunkedMessages, "a completed message must be evicted from the map")
+}
