@@ -402,3 +402,42 @@ func TestTryCompleteMessageDuplicateChunk(t *testing.T) {
 
 	require.Empty(t, m.chunkedMessages, "a completed message must be evicted from the map")
 }
+
+// A chunk index at or beyond chunksCount can never be assembled. Storing it
+// would inflate len(chunks) and complete the message with a real index still
+// missing - the same defect as a duplicate, through a different door.
+func TestTryCompleteMessageOutOfRangeChunk(t *testing.T) {
+	logger := zap.NewNop().Sugar()
+
+	messageID := testMessageID
+	senderTTMAccount := common.Address{1}
+
+	ctrl := gomock.NewController(t)
+
+	matrixClient := NewMockClient(ctrl)
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeSignedMessage, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(matrix.EventTypeMessageChunk, gomock.Any())
+	matrixClient.EXPECT().SetEventHandler(event.StateMember, gomock.Any())
+
+	matrixMessenger, err := NewMessenger(logger, matrixClient, testKey, id.UserID("botUserID"))
+	require.NoError(t, err)
+	m := matrixMessenger.(*messenger)
+
+	// chunk 0 of 2
+	_, completed := m.tryCompleteMessageWithFirstChunk(&matrix.SignedMessageEventContent{
+		ChunkData:               matrix.ChunkData{MessageID: messageID, Data: []byte("chunk0")},
+		ChunksCount:             2,
+		SenderTTMAccountAddress: senderTTMAccount,
+		Signature:               []byte("signature"),
+	})
+	require.False(t, completed)
+
+	// index 7 of a 2-chunk message - nonsense, must be dropped not stored
+	_, completed = m.tryCompleteMessage(&matrix.MessageChunkEventContent{
+		ChunkData:  matrix.ChunkData{MessageID: messageID, Data: []byte("bogus")},
+		ChunkIndex: 7,
+	})
+	require.False(t, completed, "an out-of-range chunk must never complete a message")
+	require.Len(t, m.chunkedMessages[messageID].chunks, 1,
+		"an out-of-range chunk must not be stored")
+}

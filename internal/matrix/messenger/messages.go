@@ -204,6 +204,14 @@ func (m *messenger) addMessageNextChunk(eventContent *matrix.MessageChunkEventCo
 }
 
 func (m *messenger) addMessageChunk(message *chunkedMessage, chunkData *matrix.ChunkData, chunkIndex uint32) (*chunkedMessage, bool) {
+	// chunksCount == 0 means chunk 0 has not arrived yet, so the range is not
+	// yet knowable; assembleEncodedMessage is the backstop for that case.
+	if message.chunksCount != 0 && chunkIndex >= message.chunksCount {
+		m.logger.Warnf("dropping chunk %d of message (id %s): index out of range for a %d-chunk message",
+			chunkIndex, chunkData.MessageID, message.chunksCount)
+		return nil, false
+	}
+
 	// Keying by index makes a redelivery idempotent: it overwrites its own
 	// entry rather than adding to the count that decides completion below.
 	message.chunks[chunkIndex] = chunkData.Data
