@@ -33,7 +33,8 @@ jobs:
         with:
           go-version: ${{ env.go_version }}
       - name: Install libolm
-        run: sudo apt update && sudo apt-get install -y libolm-dev
+        timeout-minutes: 5
+        run: ./scripts/install-libolm.sh
       - name: build_test
         shell: bash
         run: ./scripts/build_test.sh
@@ -46,7 +47,8 @@ jobs:
       - name: Update dependencies
         run: git submodule update --init
       - name: Install libolm
-        run: sudo apt update && sudo apt-get install -y libolm-dev
+        timeout-minutes: 5
+        run: ./scripts/install-libolm.sh
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.go_version }}
@@ -75,7 +77,8 @@ jobs:
         with:
           go-version: ${{ env.go_version }}
       - name: Install libolm
-        run: sudo apt update && sudo apt-get install -y libolm-dev
+        timeout-minutes: 5
+        run: ./scripts/install-libolm.sh
       - name: Go Mod Tidy
         shell: bash
         run: go mod tidy
@@ -129,7 +132,8 @@ jobs:
         with:
           go-version: ${{ env.go_version }}
       - name: Install libolm
-        run: sudo apt update && sudo apt-get install -y libolm-dev
+        timeout-minutes: 5
+        run: ./scripts/install-libolm.sh
       - name: build bot
         shell: bash
         run: ./scripts/build.sh
