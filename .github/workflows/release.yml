@@ -1,30 +1,44 @@
-name: Publish Release Artifcats
+name: Publish Release Artifacts
 
 on:
   release:
     types: [published]
+  # Manual re-run handle. The publish path is one apt hiccup away from a
+  # cancelled job that leaves a published release with no assets attached, and
+  # `release: published` cannot be replayed - re-cutting the tag is the only
+  # other way back. Takes the tag explicitly, since github.event.release is
+  # empty on a dispatch.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and upload artifacts for (e.g. v13.1.0-rc.3)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Publish Artifcats
+    name: Publish Artifacts
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25.10"
 
       - name: Install libolm
-        run: sudo apt update && sudo apt-get install -y libolm-dev
+        timeout-minutes: 5
+        run: ./scripts/install-libolm.sh
 
       - name: Build
         run: ./scripts/build.sh
@@ -33,8 +47,9 @@ jobs:
         run: |
           cp ./build/travel-token-messenger-bot ./travel-token-messenger-bot
           tar -zcvf "travel-token-messenger-bot-linux-amd64-${TAG}.tar.gz" ./travel-token-messenger-bot
-          gh release upload "$TAG" "travel-token-messenger-bot-linux-amd64-${TAG}.tar.gz"
+          # --clobber so a manual re-run over a partially-uploaded release
+          # replaces the asset instead of failing on the name collision.
+          gh release upload "$TAG" "travel-token-messenger-bot-linux-amd64-${TAG}.tar.gz" --clobber
         env:
           GITHUB_TOKEN: ${{ github.TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
         shell: bash
