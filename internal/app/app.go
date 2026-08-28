@@ -50,13 +50,17 @@ const (
 )
 
 func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) (*App, error) {
-	// c-chain evm client && chain id
+	// evm client && chain id
 	evmClient, err := ethclient.Dial(cfg.ChainRPCURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Ethereum client: %w", err)
 	}
 
-	chainID, err := evmClient.NetworkID(ctx)
+	// ChainID, not NetworkID: this value ends up in the EIP-155 transaction
+	// signer, and EIP-155 replay protection is defined over the chain id. The
+	// two happen to be equal on Base and Base Sepolia, so the distinction costs
+	// nothing here and is wrong to rely on anywhere else.
+	chainID, err := evmClient.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch chain id: %w", err)
 	}
