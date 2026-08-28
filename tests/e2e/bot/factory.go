@@ -29,8 +29,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const CashInPeriodSeconds = 3600 // 1h
-
 func NewFactory(
 	logger *zap.SugaredLogger,
 	resourceManagerSession *resources.Session,
@@ -64,9 +62,8 @@ type Factory struct {
 }
 
 type options struct {
-	skips               *Skip
-	cashInPeriodSeconds int64
-	services            []CMService
+	skips    *Skip
+	services []CMService
 }
 
 type Option func(*options)
@@ -94,10 +91,6 @@ type Skip struct {
 	ServiceRegistration bool
 }
 
-func WithCashInPeriod(cashInPeriodSeconds int64) Option {
-	return func(o *options) { o.cashInPeriodSeconds = cashInPeriodSeconds }
-}
-
 func WithServices(services []CMService) Option {
 	return func(o *options) { o.services = services }
 }
@@ -113,8 +106,7 @@ func (f *Factory) CreateBot(
 	opts ...Option,
 ) (*Bot, error) {
 	options := &options{
-		skips:               &Skip{},
-		cashInPeriodSeconds: CashInPeriodSeconds, // 1h
+		skips: &Skip{},
 	}
 	for _, opt := range opts {
 		opt(options)

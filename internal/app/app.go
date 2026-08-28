@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -42,11 +41,9 @@ import (
 )
 
 const (
-	cashInJobName        = "cash_in"
 	appName              = "travel-token-messenger-bot"
 	ttmAccountsCacheSize = 100
 	erc20CacheSize       = 100
-	cashInTxIssueTimeout = 10 * time.Second
 )
 
 func NewApp(ctx context.Context, cfg *config.Config, logger *zap.SugaredLogger) (*App, error) {
