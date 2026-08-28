@@ -47,6 +47,13 @@ func mintBuyAccommodationTokenV4(
 
 	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
 	e.DebugPrintProtoMessage(tokenBought)
+	// Assert this is THIS mint's notification, not merely that some TokenBought
+	// turned up. The event stream retains events, so without an identity check
+	// a leftover notification from an earlier step can satisfy the await and
+	// let the helper return while this mint's own notification never arrived.
+	require.NotNil(t, tokenBought.MintId)
+	require.Equal(t, mintID, tokenBought.MintId.Value)
+	require.Equal(t, tokenID, tokenBought.TokenId)
 
 	return tokenID, mintID, bookingPrice
 }
@@ -69,6 +76,13 @@ func mintBuyAccommodationTokenV3(
 
 	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
 	e.DebugPrintProtoMessage(tokenBought)
+	// Assert this is THIS mint's notification, not merely that some TokenBought
+	// turned up. The event stream retains events, so without an identity check
+	// a leftover notification from an earlier step can satisfy the await and
+	// let the helper return while this mint's own notification never arrived.
+	require.NotNil(t, tokenBought.MintId)
+	require.Equal(t, mintID, tokenBought.MintId.Value)
+	require.Equal(t, tokenID, tokenBought.TokenId)
 
 	return tokenID, mintID, bookingPrice
 }
@@ -322,6 +336,13 @@ func mintBuyAccommodationTokenV5(
 
 	tokenBought := ppevents.Await[*notificationv3.TokenBought](t, supplierPPEventStream)
 	e.DebugPrintProtoMessage(tokenBought)
+	// Assert this is THIS mint's notification, not merely that some TokenBought
+	// turned up. The event stream retains events, so without an identity check
+	// a leftover notification from an earlier step can satisfy the await and
+	// let the helper return while this mint's own notification never arrived.
+	require.NotNil(t, tokenBought.MintId)
+	require.Equal(t, mintID, tokenBought.MintId.Value)
+	require.Equal(t, tokenID, tokenBought.TokenId)
 
 	return tokenID, mintID, bookingPrice
 }
